@@ -1,0 +1,21 @@
+# Line endings
+* text=auto
+*.php text
+*.css text
+*.js text
+*.md text
+*.yml text
+*.yaml text
+.htaccess text
+
+# Binary
+*.png binary
+*.jpg binary
+*.gif binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+
+# Optional export ignores for source archives
+.dev export-ignore

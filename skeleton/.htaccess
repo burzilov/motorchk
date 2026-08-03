@@ -1,0 +1,43 @@
+# Запрет листинга директорий
+Options -Indexes
+
+# Закрыть служебные папки и файлы от прямого HTTP-доступа
+<IfModule mod_authz_core.c>
+    <Files ".env">
+        Require all denied
+    </Files>
+</IfModule>
+
+RedirectMatch 403 ^/content/
+RedirectMatch 403 ^/templates/
+RedirectMatch 403 ^/config/
+RedirectMatch 403 ^/cache/
+RedirectMatch 403 ^/core/includes/
+RedirectMatch 403 ^/core/vendor/
+RedirectMatch 403 ^/core/skeleton/
+RedirectMatch 403 ^/core/install/
+RedirectMatch 403 ^/core/docs/
+RedirectMatch 403 ^/core/\.git/
+
+# Кеширование статики
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Админка — front controller ядра
+    RewriteRule ^admin-panel(/.*)?$ core/admin-panel/index.php [L,QSA]
+
+    # Существующие файлы и папки — отдать как есть (в т.ч. /core/assets/)
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Всё остальное — публичный front controller
+    RewriteRule ^ index.php [L,QSA]
+</IfModule>
