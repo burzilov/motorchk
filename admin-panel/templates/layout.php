@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Админка — motorchk</title>
+    <link rel="icon" href="/core/assets/favicon.svg" type="image/svg+xml">
     <link href="/core/assets/css/admin.css" rel="stylesheet">
     <script src="/core/assets/js/htmx.min.js" defer></script>
     <script src="/core/assets/js/alpine.min.js" defer></script>

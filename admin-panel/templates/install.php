@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Установка — motorchk</title>
+    <link rel="icon" href="/core/assets/favicon.svg" type="image/svg+xml">
     <link href="/core/assets/css/admin.css" rel="stylesheet">
 </head>
 <body class="flex min-h-screen items-center justify-center bg-slate-100 px-4">

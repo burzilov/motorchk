@@ -14,6 +14,7 @@
     <?php if ($ogImage !== ''): ?>
         <meta property="og:image" content="<?= htmlspecialchars($ogImage) ?>">
     <?php endif; ?>
+    <link rel="icon" href="/core/assets/favicon.svg" type="image/svg+xml">
     <link href="/assets/css/app.css" rel="stylesheet">
     <script src="/core/assets/js/htmx.min.js" defer></script>
     <script src="/core/assets/js/alpine.min.js" defer></script>
