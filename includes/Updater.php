@@ -24,6 +24,10 @@ class Updater
         }
 
         $release = $this->fetchLatestRelease();
+        if ($force && $release === null) {
+            throw new RuntimeException('Не удалось получить данные с GitHub Releases API');
+        }
+
         $update = null;
 
         if ($release !== null) {

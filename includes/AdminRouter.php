@@ -80,6 +80,12 @@ class AdminRouter
             return;
         }
 
+        if ($path === '/system/check-update' && $method === 'POST') {
+            $this->requireCsrf();
+            $this->handleCheckUpdate();
+            return;
+        }
+
         if ($path === '/system' && $method === 'GET') {
             $this->renderSystemPage();
             return;
@@ -226,7 +232,19 @@ class AdminRouter
             'meta' => SiteMeta::load($this->config),
             'updateMessage' => $_GET['updated'] ?? null,
             'updateError' => $_GET['error'] ?? null,
+            'checked' => isset($_GET['checked']),
         ]);
+    }
+
+    private function handleCheckUpdate(): void
+    {
+        $updater = new Updater($this->config);
+        try {
+            $updater->checkForUpdate(true);
+            $this->redirect('/admin-panel/system?checked=1');
+        } catch (Throwable $e) {
+            $this->redirect('/admin-panel/system?error=' . rawurlencode($e->getMessage()));
+        }
     }
 
     private function handleCoreUpdate(): void

@@ -26,8 +26,22 @@ $allReady = !in_array(false, $caps, true);
         </div>
     <?php endif; ?>
 
+    <?php if (!empty($checked) && empty($checkError) && empty($updateError)): ?>
+        <div class="rounded border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            Проверка обновлений выполнена.
+        </div>
+    <?php endif; ?>
+
     <section class="rounded-xl bg-white p-6 shadow-sm">
-        <h2 class="mb-3 text-lg font-semibold">Обновление ядра</h2>
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 class="text-lg font-semibold">Обновление ядра</h2>
+            <form method="post" action="/admin-panel/system/check-update">
+                <?= Csrf::field() ?>
+                <button type="submit" class="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                    Проверить обновления
+                </button>
+            </form>
+        </div>
         <p class="mb-4 text-sm text-slate-600">
             Репозиторий: <code>burzilov/motorchk</code>.
             Версия в контенте: <code><?= htmlspecialchars($meta['engine_version'] ?? '—') ?></code>
@@ -54,7 +68,7 @@ $allReady = !in_array(false, $caps, true);
                 <p class="text-sm text-amber-800">Self-update недоступен: проверьте готовность хостинга ниже.</p>
             <?php endif; ?>
         <?php else: ?>
-            <p class="text-sm text-slate-600">Установлена актуальная версия ядра.</p>
+            <p class="mb-4 text-sm text-slate-600">Установлена актуальная версия ядра.</p>
         <?php endif; ?>
     </section>
 
