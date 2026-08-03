@@ -16,4 +16,4 @@
 
 ## Релиз
 
-См. корневой [README](../README.md) и скрипт `release.sh`. CI: `.github/workflows/release.yml` только на тегах `v*.*.*`.
+См. [README](../README.md). Релизный скрипт лежит в корне локального workspace (`./release.sh`), не в git ядра. CI: `.github/workflows/release.yml` только на тегах `v*.*.*`.
