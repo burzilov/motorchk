@@ -35,7 +35,7 @@ function motorchk_migrate(array $config, string $toVersion): void
 function motorchk_replaceExampleTheme(array $config): void
 {
     $source = rtrim($config['core_path'], '/') . '/skeleton/themes/example';
-    $themesPath = rtrim($config['themes_path'], '/');
+    $themesPath = rtrim((string) ($config['themes_path'] ?? $config['site_path'] . '/themes'), '/');
     $target = $themesPath . '/example';
     $next = $themesPath . '/.example-next';
     $old = $themesPath . '/.example-old';
