@@ -18,7 +18,3 @@ Fresh install получает поставляемую тему-пример `t
 
 Кеш проверки: `cache/update-check.json`, TTL из `UPDATE_CHECK_TTL` (по умолчанию 21600 с).
 На странице **Система** кнопка «Проверить обновления» сбрасывает кеш и запрашивает GitHub API сразу.
-
-## Релиз
-
-См. [README](../README.md). Релизный скрипт лежит в корне локального workspace (`./release.sh`), не в git ядра. CI: `.github/workflows/release.yml` только на тегах `v*.*.*`.

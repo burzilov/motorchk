@@ -3,10 +3,7 @@ $caps = $capabilities ?? [];
 $allReady = !in_array(false, $caps, true);
 ?>
 <div class="space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-        <h1 class="text-2xl font-bold">Система</h1>
-        <span class="rounded bg-slate-200 px-2 py-1 text-xs text-slate-700">ядро v<?= htmlspecialchars($currentVersion) ?></span>
-    </div>
+    <h1 class="text-2xl font-bold">Система</h1>
 
     <?php if (!empty($updateMessage)): ?>
         <div class="rounded border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -63,8 +60,7 @@ $allReady = !in_array(false, $caps, true);
             </form>
         </div>
         <p class="mb-4 text-sm text-slate-600">
-            Репозиторий: <code>burzilov/motorchk</code>.
-            Версия в контенте: <code><?= htmlspecialchars($meta['engine_version'] ?? '—') ?></code>
+            Репозиторий: <code>burzilov/motorchk</code>
         </p>
 
         <?php if (!empty($update) && !empty($update['version'])): ?>
