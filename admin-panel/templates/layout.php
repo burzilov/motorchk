@@ -14,7 +14,6 @@
     <header class="border-b border-slate-200 bg-white">
         <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
             <div class="flex items-center gap-6">
-                <a href="/admin-panel/pages" class="font-semibold">motorchk admin</a>
                 <nav class="flex gap-4 text-sm">
                     <a href="/admin-panel/pages" class="text-slate-600 hover:text-sky-700">Страницы</a>
                     <a href="/admin-panel/menu" class="text-slate-600 hover:text-sky-700">Меню</a>
@@ -22,6 +21,9 @@
                 </nav>
             </div>
             <div class="flex items-center gap-4">
+                <a href="/" target="_blank" rel="noopener noreferrer" class="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+                    На сайт
+                </a>
                 <span class="text-xs text-slate-400">v<?= htmlspecialchars(Version::current()) ?></span>
                 <form method="post" action="/admin-panel/logout" hx-post="/admin-panel/logout" hx-target="body">
                     <?= Csrf::field() ?>
