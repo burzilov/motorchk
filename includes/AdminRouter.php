@@ -86,6 +86,12 @@ class AdminRouter
             return;
         }
 
+        if ($path === '/system/theme' && $method === 'POST') {
+            $this->requireCsrf();
+            $this->handleSaveTheme();
+            return;
+        }
+
         if ($path === '/system' && $method === 'GET') {
             $this->renderSystemPage();
             return;
@@ -230,6 +236,7 @@ class AdminRouter
             'capabilities' => $updater->capabilities(),
             'checkError' => $checkError,
             'meta' => SiteMeta::load($this->config),
+            'themes' => $this->listThemes(),
             'updateMessage' => $_GET['updated'] ?? null,
             'updateError' => $_GET['error'] ?? null,
             'checked' => isset($_GET['checked']),
@@ -254,6 +261,23 @@ class AdminRouter
         try {
             $updater->apply($version);
             $this->redirect('/admin-panel/system?updated=' . rawurlencode($version));
+        } catch (Throwable $e) {
+            $this->redirect('/admin-panel/system?error=' . rawurlencode($e->getMessage()));
+        }
+    }
+
+    private function handleSaveTheme(): void
+    {
+        $theme = trim((string) ($_POST['theme'] ?? ''));
+        if (!in_array($theme, $this->listThemes(), true)) {
+            $this->redirect('/admin-panel/system?error=' . rawurlencode('Тема не найдена'));
+            return;
+        }
+
+        try {
+            SiteMeta::setTheme($this->config, $theme);
+            $this->cache->flush();
+            $this->redirect('/admin-panel/system?theme=' . rawurlencode($theme));
         } catch (Throwable $e) {
             $this->redirect('/admin-panel/system?error=' . rawurlencode($e->getMessage()));
         }
@@ -378,6 +402,9 @@ class AdminRouter
         ];
 
         try {
+            if (!in_array($data['template'], $this->listTemplates(), true)) {
+                throw new InvalidArgumentException('Шаблон не найден');
+            }
             $this->pageWriter->save($slug, $data, null);
             $newSlug = $slug === 'index'
                 ? 'index'
@@ -495,17 +522,45 @@ class AdminRouter
 
     private function listTemplates(): array
     {
-        $files = glob($this->config['templates_path'] . '/*.php') ?: [];
+        $themePath = $this->activeThemePath();
+        if ($themePath === null) {
+            return [];
+        }
+
+        $files = glob($themePath . '/*.php') ?: [];
         $templates = [];
         foreach ($files as $file) {
             $name = basename($file, '.php');
-            if ($name !== 'partials') {
-                $templates[] = $name;
-            }
+            $templates[] = $name;
         }
         sort($templates);
 
-        return $templates !== [] ? $templates : ['default'];
+        return $templates;
+    }
+
+    private function listThemes(): array
+    {
+        $files = glob($this->config['themes_path'] . '/*/default.php') ?: [];
+        $themes = [];
+        foreach ($files as $file) {
+            $themes[] = basename(dirname($file));
+        }
+        sort($themes);
+
+        return $themes;
+    }
+
+    private function activeThemePath(): ?string
+    {
+        $theme = SiteMeta::getTheme($this->config);
+        $path = $this->config['themes_path'] . '/' . $theme;
+        if (is_file($path . '/default.php')) {
+            return $path;
+        }
+
+        $fallback = $this->config['themes_path'] . '/example';
+
+        return is_file($fallback . '/default.php') ? $fallback : null;
     }
 
     private function normalizePath(string $requestUri): string

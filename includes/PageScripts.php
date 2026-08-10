@@ -52,7 +52,7 @@ class PageScripts
             return null;
         }
 
-        if (!preg_match('#^/assets/js/[a-zA-Z0-9._/-]+\.js$#', $path)) {
+        if (!preg_match('#^/themes/[a-zA-Z0-9_-]+/assets/js/[a-zA-Z0-9._/-]+\.js$#', $path)) {
             return null;
         }
 

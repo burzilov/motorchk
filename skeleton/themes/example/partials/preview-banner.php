@@ -16,12 +16,7 @@ $adminUrl = htmlspecialchars($adminEditUrl ?? AdminUrl::page($slug ?? 'index'));
             <?php if ($showEditHint): ?>
                 <span class="text-amber-800/90">Двойной клик по блоку — редактирование</span>
             <?php endif; ?>
-            <a
-                href="<?= $adminUrl ?>"
-                class="ml-auto text-amber-900 underline decoration-amber-300 underline-offset-2 hover:text-amber-700"
-            >
-                В админку
-            </a>
+            <a href="<?= $adminUrl ?>" class="ml-auto text-amber-900 underline decoration-amber-300 underline-offset-2 hover:text-amber-700">В админку</a>
         </div>
     </div>
 <?php elseif ($showEditHint): ?>
@@ -29,12 +24,7 @@ $adminUrl = htmlspecialchars($adminEditUrl ?? AdminUrl::page($slug ?? 'index'));
         <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-sm">
             <span class="font-medium">Редактирование</span>
             <span class="text-sky-800/90">Двойной клик по блоку</span>
-            <a
-                href="<?= $adminUrl ?>"
-                class="ml-auto text-sky-900 underline decoration-sky-300 underline-offset-2 hover:text-sky-700"
-            >
-                В админку
-            </a>
+            <a href="<?= $adminUrl ?>" class="ml-auto text-sky-900 underline decoration-sky-300 underline-offset-2 hover:text-sky-700">В админку</a>
         </div>
     </div>
 <?php endif; ?>

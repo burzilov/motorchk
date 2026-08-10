@@ -131,7 +131,7 @@ $formScripts = $form['scripts'] ?? '';
                         </div>
                         <div>
                             <label class="mb-1 block text-sm font-medium" for="og_image">Картинка для соцсетей</label>
-                            <input id="og_image" name="og_image" type="text" value="<?= htmlspecialchars($formOgImage) ?>" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" placeholder="/assets/images/og.jpg">
+                            <input id="og_image" name="og_image" type="text" value="<?= htmlspecialchars($formOgImage) ?>" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" placeholder="/themes/example/assets/images/og.jpg">
                             <p class="mt-1 text-xs text-slate-500">Путь на сайте или полный URL</p>
                         </div>
                     </div>
@@ -160,8 +160,8 @@ $formScripts = $form['scripts'] ?? '';
                         </div>
                         <div>
                             <label class="mb-1 block text-sm font-medium" for="scripts">JS-скрипты</label>
-                            <textarea id="scripts" name="scripts" rows="4" class="w-full rounded border border-slate-300 px-3 py-2 font-mono text-sm" placeholder="/assets/js/pages/demo.js"><?= htmlspecialchars(is_array($formScripts) ? PageScripts::toTextarea($formScripts) : $formScripts) ?></textarea>
-                            <p class="mt-1 text-xs text-slate-500">По одному пути на строку. Только файлы из <code>/assets/js/</code></p>
+                            <textarea id="scripts" name="scripts" rows="4" class="w-full rounded border border-slate-300 px-3 py-2 font-mono text-sm" placeholder="/themes/example/assets/js/pages/demo.js"><?= htmlspecialchars(is_array($formScripts) ? PageScripts::toTextarea($formScripts) : $formScripts) ?></textarea>
+                            <p class="mt-1 text-xs text-slate-500">По одному пути на строку. Только файлы из <code>/themes/{theme}/assets/js/</code></p>
                         </div>
                     </div>
                 </div>

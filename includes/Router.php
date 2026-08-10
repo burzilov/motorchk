@@ -69,12 +69,29 @@ class Router
     {
         $frontMatter = $page['front_matter'];
         $blocks = $page['blocks'];
-        $template = $frontMatter['template'] ?? 'default';
-        $templateFile = $this->config['templates_path'] . '/' . $template . '.php';
-
-        if (!is_file($templateFile)) {
-            $templateFile = $this->config['templates_path'] . '/default.php';
+        $themeName = SiteMeta::getTheme($this->config);
+        $themePath = $this->config['themes_path'] . '/' . $themeName;
+        if (!is_dir($themePath)) {
+            $themeName = 'example';
+            $themePath = $this->config['themes_path'] . '/' . $themeName;
         }
+
+        if (!is_dir($themePath)) {
+            $this->render500('Тема по умолчанию не найдена');
+            return;
+        }
+
+        $templateName = (string) ($frontMatter['template'] ?? 'default');
+        if (!preg_match('/^[a-zA-Z0-9_-]+$/', $templateName)) {
+            $this->render500('Некорректное имя шаблона страницы');
+            return;
+        }
+        $templateFile = $themePath . '/' . $templateName . '.php';
+        if (!is_file($templateFile)) {
+            $this->render500('Шаблон страницы не найден');
+            return;
+        }
+        $themeAssetsUrl = '/themes/' . $themeName . '/assets';
 
         $title = $frontMatter['title'] ?? 'motorchk';
         $description = $frontMatter['description'] ?? '';
@@ -99,5 +116,14 @@ class Router
         http_response_code(404);
         header('Content-Type: text/html; charset=UTF-8');
         echo '<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>404</title></head><body><h1>Страница не найдена</h1></body></html>';
+    }
+
+    private function render500(string $message): void
+    {
+        http_response_code(500);
+        header('Content-Type: text/html; charset=UTF-8');
+        echo '<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>500</title></head><body><h1>'
+            . htmlspecialchars($message, ENT_QUOTES, 'UTF-8')
+            . '</h1></body></html>';
     }
 }

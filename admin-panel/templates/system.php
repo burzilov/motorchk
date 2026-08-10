@@ -33,6 +33,26 @@ $allReady = !in_array(false, $caps, true);
     <?php endif; ?>
 
     <section class="rounded-xl bg-white p-6 shadow-sm">
+        <h2 class="mb-3 text-lg font-semibold">Тема сайта</h2>
+        <form method="post" action="/admin-panel/system/theme" class="flex flex-wrap items-end gap-3">
+            <?= Csrf::field() ?>
+            <label class="block text-sm text-slate-700" for="theme">
+                Активная тема
+                <select id="theme" name="theme" class="mt-1 block rounded border border-slate-300 px-3 py-2 text-sm">
+                    <?php foreach ($themes as $theme): ?>
+                        <option value="<?= htmlspecialchars($theme) ?>"<?= ($meta['theme'] ?? 'example') === $theme ? ' selected' : '' ?>>
+                            <?= htmlspecialchars($theme) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <button type="submit" class="rounded bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700">
+                Сохранить тему
+            </button>
+        </form>
+    </section>
+
+    <section class="rounded-xl bg-white p-6 shadow-sm">
         <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
             <h2 class="text-lg font-semibold">Обновление ядра</h2>
             <form method="post" action="/admin-panel/system/check-update">

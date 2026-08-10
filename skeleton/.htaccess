@@ -9,7 +9,6 @@ Options -Indexes
 </IfModule>
 
 RedirectMatch 403 ^/content/
-RedirectMatch 403 ^/templates/
 RedirectMatch 403 ^/config/
 RedirectMatch 403 ^/cache/
 RedirectMatch 403 ^/core/includes/
@@ -32,6 +31,11 @@ RedirectMatch 403 ^/core/\.git/
 
     # Админка — front controller ядра
     RewriteRule ^admin-panel(/.*)?$ core/admin-panel/index.php [L,QSA]
+
+    # motorchk:theme-assets
+    RewriteCond %{REQUEST_URI} ^/themes/ [NC]
+    RewriteCond %{REQUEST_URI} !^/themes/[^/]+/assets/ [NC]
+    RewriteRule ^ - [F,L]
 
     # Существующие файлы и папки — отдать как есть (в т.ч. /core/assets/)
     RewriteCond %{REQUEST_FILENAME} -f [OR]
