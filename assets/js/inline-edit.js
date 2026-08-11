@@ -182,6 +182,13 @@
     }
   }
 
+  function clearSelection() {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      selection.removeAllRanges();
+    }
+  }
+
   function startEdit(blockEl) {
     if (active && active.el === blockEl) {
       return;
@@ -196,6 +203,7 @@
     blockEl.contentEditable = 'true';
     blockEl.appendChild(toolbar);
     blockEl.focus();
+    clearSelection();
 
     active = { el: blockEl, snapshot, toolbar };
     document.addEventListener('keydown', onKeyDown);
@@ -210,6 +218,7 @@
       return;
     }
     event.preventDefault();
+    clearSelection();
     startEdit(blockEl);
   });
 })();

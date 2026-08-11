@@ -27,11 +27,16 @@ class SiteMeta
         $yaml = \Symfony\Component\Yaml\Yaml::dump($data, 4, 2);
         $file = self::path($config);
         $dir = dirname($file);
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
+        if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+            throw new RuntimeException('Не удалось создать каталог content/ для _meta.yaml');
+        }
+        if (!is_writable($dir) || (is_file($file) && !is_writable($file))) {
+            throw new RuntimeException(
+                'Нет прав на запись в ' . $file . ' (нужен доступ PHP-пользователя к content/)'
+            );
         }
         if (file_put_contents($file, $yaml) === false) {
-            throw new RuntimeException('Не удалось сохранить _meta.yaml');
+            throw new RuntimeException('Не удалось сохранить ' . $file);
         }
     }
 

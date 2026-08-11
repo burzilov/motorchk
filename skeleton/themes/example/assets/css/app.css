@@ -1160,64 +1160,6 @@
   background-color: rgb(241 245 249);
   border-radius: 0.5rem;
 }
-.editable {
-  position: relative;
-  cursor: text;
-}
-.editable.is-editing {
-  outline: 2px solid rgb(14 165 233);
-  outline-offset: 4px;
-}
-.inline-edit-toolbar {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  z-index: 40;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem;
-  max-width: calc(100% - 1rem);
-  padding: 0.35rem;
-  border: 1px solid rgb(203 213 225);
-  border-radius: 0.5rem;
-  background: rgb(255 255 255 / 0.97);
-  box-shadow: 0 4px 14px rgb(15 23 42 / 0.12);
-}
-.inline-edit-toolbar button {
-  border: 1px solid rgb(226 232 240);
-  border-radius: 0.375rem;
-  background: white;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-  line-height: 1.25;
-  color: rgb(51 65 85);
-}
-.inline-edit-toolbar button:hover {
-  background: rgb(248 250 252);
-}
-.inline-edit-toolbar__save {
-  border-color: rgb(14 165 233) !important;
-  background: rgb(14 165 233) !important;
-  color: white !important;
-}
-.inline-edit-toolbar__cancel {
-  color: rgb(100 116 139) !important;
-}
-.inline-edit-toolbar__sep {
-  width: 1px;
-  height: 1.25rem;
-  margin: 0 0.15rem;
-  background: rgb(226 232 240);
-}
-.inline-edit-toolbar__status {
-  margin-left: 0.25rem;
-  font-size: 0.75rem;
-  color: rgb(100 116 139);
-}
-.inline-edit-toolbar__status.is-error {
-  color: rgb(220 38 38);
-}
 @property --tw-rotate-x {
   syntax: "*";
   inherits: false;

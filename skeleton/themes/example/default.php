@@ -16,6 +16,7 @@
     <?php endif; ?>
     <link rel="icon" href="/core/assets/favicon.svg" type="image/svg+xml">
     <link href="<?= htmlspecialchars($themeAssetsUrl) ?>/css/app.css" rel="stylesheet">
+    <?php require $config['core_path'] . '/includes/views/site-chrome.php'; ?>
     <script src="/core/assets/js/htmx.min.js" defer></script>
     <script src="/core/assets/js/alpine.min.js" defer></script>
 </head>
@@ -29,7 +30,7 @@
         data-save-url="<?= htmlspecialchars($inlineEditSaveUrl ?? '', ENT_QUOTES, 'UTF-8') ?>"
     <?php endif; ?>
 >
-    <?php require __DIR__ . '/partials/preview-banner.php'; ?>
+    <?php require $config['core_path'] . '/includes/views/preview-banner.php'; ?>
     <header class="border-b border-slate-200 bg-white">
         <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
             <a href="/" class="text-lg font-bold text-slate-900">motorchk</a>

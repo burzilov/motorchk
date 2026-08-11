@@ -97,6 +97,7 @@ $allReady = !in_array(false, $caps, true);
                 'curl_or_fopen' => 'HTTP-загрузки (curl или allow_url_fopen)',
                 'core_writable' => 'Права на замену public_html/core',
                 'cache_writable' => 'Права на запись в cache/',
+                'content_writable' => 'Права на запись в content/ (_meta.yaml)',
             ];
             foreach ($labels as $key => $label):
                 $ok = !empty($caps[$key]);

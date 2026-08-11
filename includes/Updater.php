@@ -63,14 +63,21 @@ class Updater
     public function capabilities(): array
     {
         $corePath = $this->config['core_path'];
-        $sitePath = $this->config['site_path'];
         $parent = dirname($corePath);
+        $contentPath = rtrim((string) ($this->config['content_path'] ?? ''), '/');
+        $metaFile = $contentPath !== '' ? $contentPath . '/_meta.yaml' : '';
+
+        $contentWritable = $contentPath !== ''
+            && is_dir($contentPath)
+            && is_writable($contentPath)
+            && (!is_file($metaFile) || is_writable($metaFile));
 
         return [
             'zip' => class_exists('ZipArchive'),
             'curl_or_fopen' => function_exists('curl_init') || ini_get('allow_url_fopen'),
             'core_writable' => is_writable($parent) && is_writable($corePath),
             'cache_writable' => is_dir($this->config['cache_path']) && is_writable($this->config['cache_path']),
+            'content_writable' => $contentWritable,
         ];
     }
 
@@ -79,7 +86,7 @@ class Updater
         $caps = $this->capabilities();
         foreach ($caps as $ok) {
             if (!$ok) {
-                throw new RuntimeException('Хостинг не готов к self-update (нужны ZipArchive, HTTP download, права на запись)');
+                throw new RuntimeException('Хостинг не готов к self-update (ZipArchive, HTTP, права на core/, cache/, content/)');
             }
         }
 

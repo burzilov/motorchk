@@ -5,7 +5,7 @@
 | Путь | Зона |
 |------|------|
 | `core/includes/`, `core/admin-panel/`, `core/vendor/` | ядро |
-| `core/assets/` | JS/CSS админки и библиотек движка |
+| `core/assets/` | CSS/JS админки, библиотек и chrome публичных страниц (`site-chrome.css`) |
 | `core/skeleton/` | шаблон первичной установки |
 | `content/`, `themes/` | сайт |
 | `.env`, `config/site.php`, `cache/` | сайт / runtime |
@@ -34,5 +34,7 @@ themes/example/
 Front matter `template` выбирает PHP-файл в активной теме: `themes/{theme}/{template}.php`. Отсутствующий шаблон — ошибка 500. Публична только статика по `/themes/{theme}/assets/...`; все остальные пути внутри `/themes/` возвращают 403.
 
 `themes/example/` — управляемая тема-пример. Self-update всегда целиком заменяет её версией из release; пользовательские темы не затрагиваются. Для сайта создайте отдельный каталог темы, поскольку ручные изменения в `example/` будут перезаписаны.
+
+Служебный UI на публичных страницах (баннер админа, стили inline-edit) живёт в ядре: `/core/assets/css/site-chrome.css` и views `core/includes/views/{site-chrome,preview-banner}.php`. Тема подключает их явно; копировать эти стили в тему не нужно.
 
 Breaking в 0.2.0: прежние `templates/*.php` и корневой `assets/` не поддерживаются.

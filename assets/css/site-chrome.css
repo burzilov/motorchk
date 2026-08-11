@@ -1,0 +1,151 @@
+/* Chrome движка поверх CSS темы: inline-edit и баннер сессии админа.
+   Подключается как /core/assets/css/site-chrome.css — темы не копируют эти стили. */
+
+.editable {
+  position: relative;
+  cursor: text;
+}
+
+.editable:not(.is-editing) {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.editable.is-editing {
+  outline: 2px solid rgb(14 165 233);
+  outline-offset: 4px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.inline-edit-toolbar {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  max-width: calc(100% - 1rem);
+  padding: 0.35rem;
+  border: 1px solid rgb(203 213 225);
+  border-radius: 0.5rem;
+  background: rgb(255 255 255 / 0.97);
+  box-shadow: 0 4px 14px rgb(15 23 42 / 0.12);
+}
+
+.inline-edit-toolbar button {
+  border: 1px solid rgb(226 232 240);
+  border-radius: 0.375rem;
+  background: white;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  color: rgb(51 65 85);
+}
+
+.inline-edit-toolbar button:hover {
+  background: rgb(248 250 252);
+}
+
+.inline-edit-toolbar__save {
+  border-color: rgb(14 165 233) !important;
+  background: rgb(14 165 233) !important;
+  color: white !important;
+}
+
+.inline-edit-toolbar__cancel {
+  color: rgb(100 116 139) !important;
+}
+
+.inline-edit-toolbar__sep {
+  width: 1px;
+  height: 1.25rem;
+  margin: 0 0.15rem;
+  background: rgb(226 232 240);
+}
+
+.inline-edit-toolbar__status {
+  margin-left: 0.25rem;
+  font-size: 0.75rem;
+  color: rgb(100 116 139);
+}
+
+.inline-edit-toolbar__status.is-error {
+  color: rgb(220 38 38);
+}
+
+.motorchk-banner {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+}
+
+.motorchk-banner--preview {
+  border-bottom-color: rgb(253 230 138);
+  background: rgb(255 251 235);
+  color: rgb(69 26 3);
+}
+
+.motorchk-banner--edit {
+  border-bottom-color: rgb(186 230 253);
+  background: rgb(240 249 255);
+  color: rgb(8 47 73);
+}
+
+.motorchk-banner__inner {
+  display: flex;
+  max-width: 64rem;
+  margin-inline: auto;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.75rem;
+  row-gap: 0.25rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.motorchk-banner__title {
+  font-weight: 500;
+}
+
+.motorchk-banner__hint {
+  opacity: 0.9;
+}
+
+.motorchk-banner__badge {
+  border-radius: 0.375rem;
+  background: rgb(254 243 199);
+  padding: 0.125rem 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px rgb(253 230 138 / 0.8);
+}
+
+.motorchk-banner__link {
+  margin-left: auto;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.motorchk-banner--preview .motorchk-banner__link {
+  color: rgb(120 53 15);
+  text-decoration-color: rgb(252 211 77);
+}
+
+.motorchk-banner--preview .motorchk-banner__link:hover {
+  color: rgb(180 83 9);
+}
+
+.motorchk-banner--edit .motorchk-banner__link {
+  color: rgb(12 74 110);
+  text-decoration-color: rgb(125 211 252);
+}
+
+.motorchk-banner--edit .motorchk-banner__link:hover {
+  color: rgb(3 105 161);
+}
