@@ -88,11 +88,6 @@ $pageHeading = trim((string) ($fm['title'] ?? '')) !== '' ? $fm['title'] : 'Ре
                     <textarea id="description" name="description" rows="3" class="w-full rounded border border-slate-300 px-3 py-2"><?= htmlspecialchars($fm['description'] ?? '') ?></textarea>
                 </div>
 
-                <label class="flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="menu" value="1" <?= !array_key_exists('menu', $fm) || !empty($fm['menu']) ? 'checked' : '' ?>>
-                    Показывать в меню
-                </label>
-
                 <div class="rounded-lg border border-slate-200">
                     <button
                         type="button"

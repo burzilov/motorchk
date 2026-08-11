@@ -42,8 +42,7 @@ class Router
             }
 
             header('X-Robots-Tag: noindex');
-            $menu = $this->menuBuilder->build($slug, true);
-            $this->renderPage($page, $menu, $slug, true);
+            $this->renderPage($page, $slug, true);
             return;
         }
 
@@ -53,8 +52,7 @@ class Router
             return;
         }
 
-        $menu = $this->menuBuilder->build($slug, true);
-        $this->renderPage($page, $menu, $slug, false);
+        $this->renderPage($page, $slug, false);
     }
 
     private function normalizeSlug(string $requestUri): string
@@ -65,7 +63,7 @@ class Router
         return $path === '' ? 'index' : $path;
     }
 
-    private function renderPage(array $page, array $menu, string $slug, bool $isPreview = false): void
+    private function renderPage(array $page, string $slug, bool $isPreview = false): void
     {
         $frontMatter = $page['front_matter'];
         $blocks = $page['blocks'];
@@ -92,6 +90,13 @@ class Router
             return;
         }
         $themeAssetsUrl = '/themes/' . $themeName . '/assets';
+
+        $menus = $this->menuBuilder->buildAll($slug, true);
+        $menuId = trim((string) ($frontMatter['menu_location'] ?? MenuWriter::DEFAULT_LOCATION));
+        if ($menuId === '' || !array_key_exists($menuId, $menus)) {
+            $menuId = MenuWriter::DEFAULT_LOCATION;
+        }
+        $menu = $menus[$menuId] ?? $menus[MenuWriter::DEFAULT_LOCATION] ?? [];
 
         $title = $frontMatter['title'] ?? 'motorchk';
         $description = $frontMatter['description'] ?? '';

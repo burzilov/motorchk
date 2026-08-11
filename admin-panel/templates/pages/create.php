@@ -5,7 +5,6 @@ $formParent = $form['parent'] ?? '';
 $formDescription = $form['description'] ?? '';
 $formTemplate = $form['template'] ?? 'default';
 $formPublished = !empty($form['published']);
-$formMenu = !array_key_exists('menu', $form) || !empty($form['menu']);
 $formOgTitle = $form['og_title'] ?? '';
 $formOgDescription = $form['og_description'] ?? '';
 $formOgImage = $form['og_image'] ?? '';
@@ -104,11 +103,6 @@ $formScripts = $form['scripts'] ?? '';
                     <label class="mb-1 block text-sm font-medium" for="description">Описание для сниппета</label>
                     <textarea id="description" name="description" rows="3" class="w-full rounded border border-slate-300 px-3 py-2"><?= htmlspecialchars($formDescription) ?></textarea>
                 </div>
-
-                <label class="flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="menu" value="1" <?= $formMenu ? 'checked' : '' ?>>
-                    Показывать в меню
-                </label>
 
                 <div class="rounded-lg border border-slate-200">
                     <button

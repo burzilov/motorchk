@@ -48,6 +48,12 @@
             <?= $blocks['content'] ?? '' ?>
         </article>
     </main>
+    <footer class="border-t border-slate-200">
+        <div class="mx-auto flex max-w-4xl flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
+            <div class="text-sm text-slate-500">motorchk CMS</div>
+            <?php require __DIR__ . '/partials/footer-menu.php'; ?>
+        </div>
+    </footer>
     <?php require __DIR__ . '/partials/scripts.php'; ?>
 </body>
 </html>

@@ -11,6 +11,6 @@ return [
     'cache_path' => $sitePath . '/cache',
     'themes_path' => $sitePath . '/themes',
     'admin_templates_path' => $corePath . '/admin-panel/templates',
-    'menu_file' => $sitePath . '/content/_menu.yaml',
+    'menu_file' => $sitePath . '/content/_menus.yaml',
     'skeleton_path' => $corePath . '/skeleton',
 ];

@@ -9,7 +9,6 @@ description: 'Сайт на motorchk CMS'
 og_title: ''
 og_description: ''
 og_image: ''
-menu: true
 ---
 
 ## block: hero

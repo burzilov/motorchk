@@ -43,7 +43,6 @@ class PageWriter
             'og_description' => '',
             'og_image' => '',
             'scripts' => [],
-            'menu' => true,
             'created_at' => $now,
             'updated_at' => $now,
         ];
@@ -96,9 +95,7 @@ class PageWriter
         $frontMatter['og_description'] = $data['og_description'] ?? $frontMatter['og_description'] ?? '';
         $frontMatter['og_image'] = $data['og_image'] ?? $frontMatter['og_image'] ?? '';
         $frontMatter['scripts'] = PageScripts::normalize($data['scripts'] ?? $frontMatter['scripts'] ?? []);
-        if (array_key_exists('menu', $data)) {
-            $frontMatter['menu'] = !empty($data['menu']);
-        }
+        unset($frontMatter['menu']);
         $frontMatter['updated_at'] = date('c');
         $frontMatter['created_at'] = $frontMatter['created_at'] ?? date('c');
 
@@ -192,7 +189,9 @@ class PageWriter
         $this->cache->delete('page:' . $oldSlug);
         $this->cache->delete('page:' . $newSlug);
         $this->cache->delete('pages:tree');
-        $this->cache->delete('menu:tree');
+        if ($this->menuWriter) {
+            $this->menuWriter->invalidateAllMenuCaches();
+        }
     }
 
     public function delete(string $slug): array
@@ -214,7 +213,9 @@ class PageWriter
         }
 
         $this->cache->delete('pages:tree');
-        $this->cache->delete('menu:tree');
+        if ($this->menuWriter) {
+            $this->menuWriter->invalidateAllMenuCaches();
+        }
 
         return $deletedSlugs;
     }
@@ -239,13 +240,6 @@ class PageWriter
         $this->cache->delete('pages:tree');
     }
 
-    public function updateMenuVisibility(string $slug, bool $inMenu): void
-    {
-        $this->updatePageField($slug, 'menu', $inMenu);
-        $this->cache->delete('pages:tree');
-        $this->cache->delete('menu:tree');
-    }
-
     private function updatePageField(string $slug, string $field, mixed $value): void
     {
         $path = $this->pageLoader->slugToPath($slug);
@@ -268,7 +262,9 @@ class PageWriter
             $this->cache->delete('page:' . $oldSlug);
         }
         $this->cache->delete('pages:tree');
-        $this->cache->delete('menu:tree');
+        if ($this->menuWriter) {
+            $this->menuWriter->invalidateAllMenuCaches();
+        }
     }
 
     private function cleanupEmptyDirs(string $dir): void

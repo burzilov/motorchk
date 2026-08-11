@@ -1,0 +1,13 @@
+menus:
+  main:
+    label: Основное
+    items:
+      - label: Главная
+        slug: index
+  footer:
+    label: Подвал
+    items:
+      - label: Главная
+        slug: index
+      - label: Якорь
+        url: '#content'

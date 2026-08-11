@@ -11,66 +11,92 @@ class MenuBuilder
     ) {
     }
 
-    public function build(string $currentSlug, bool $forPublic = true): array
+    public function build(string $currentSlug, string $menuId = MenuWriter::DEFAULT_LOCATION, bool $forPublic = true): array
     {
-        $cacheKey = 'menu:tree';
+        $menus = $this->menuWriter->loadMenus();
+        if (!isset($menus[$menuId])) {
+            $menuId = MenuWriter::DEFAULT_LOCATION;
+        }
+
+        $cacheKey = 'menu:tree:' . $menuId;
         $cached = $this->cache->get($cacheKey);
 
         if (!is_array($cached)) {
-            $cached = $this->loadRawItems();
+            $cached = $this->loadRawItems($menus[$menuId]['items'] ?? []);
             $this->cache->set($cacheKey, $cached);
         }
 
         return $this->normalizeItems($cached, $currentSlug, $forPublic);
     }
 
-    private function loadRawItems(): array
+    public function buildAll(string $currentSlug, bool $forPublic = true): array
     {
-        $internal = $this->buildInternalItems(null, 1);
-        $external = $this->wrapExternalItems($this->menuWriter->loadExternal());
+        $result = [];
+        foreach ($this->menuWriter->loadMenus() as $id => $_menu) {
+            $result[$id] = $this->build($currentSlug, $id, $forPublic);
+        }
 
-        return array_merge($internal, $external);
+        return $result;
     }
 
-    private function buildInternalItems(?string $parent, int $depth): array
+    private function loadRawItems(array $items, int $depth = 1): array
     {
         if ($depth > 3) {
             return [];
         }
 
-        $items = [];
-        foreach ($this->pageTree->getChildren($parent) as $page) {
-            if (empty($page['published']) || empty($page['menu'])) {
+        $result = [];
+
+        foreach ($items as $item) {
+            if (!is_array($item)) {
                 continue;
             }
 
-            $slug = $page['slug'];
-            $items[] = [
-                'label' => $page['title'],
+            $slug = $item['slug'] ?? null;
+            if (is_string($slug)) {
+                $slug = trim($slug);
+                if ($slug === '') {
+                    $slug = null;
+                }
+            } else {
+                $slug = null;
+            }
+
+            $url = trim((string) ($item['url'] ?? ''));
+            $external = !empty($item['external']);
+            $label = trim((string) ($item['label'] ?? ''));
+
+            if ($slug !== null) {
+                if ($label === '' && $this->pageLoader->exists($slug)) {
+                    $page = $this->pageLoader->loadBySlug($slug, false);
+                    $label = (string) ($page['front_matter']['title'] ?? $slug);
+                }
+                if ($label === '') {
+                    $label = $slug;
+                }
+                $url = $slug === 'index' ? '/' : '/' . $slug;
+                $external = false;
+            } elseif ($url !== '') {
+                if ($label === '') {
+                    $label = $url;
+                }
+                if (!$external && $this->looksExternal($url)) {
+                    $external = true;
+                }
+            } else {
+                continue;
+            }
+
+            $result[] = [
+                'label' => $label,
                 'slug' => $slug,
-                'url' => $slug === 'index' ? '/' : '/' . $slug,
-                'external' => false,
-                'children' => $this->buildInternalItems($slug, $depth + 1),
+                'url' => $url,
+                'external' => $external,
+                'children' => $this->loadRawItems($item['children'] ?? [], $depth + 1),
             ];
         }
 
-        return $items;
-    }
-
-    private function wrapExternalItems(array $external): array
-    {
-        $items = [];
-        foreach ($external as $link) {
-            $items[] = [
-                'label' => $link['label'],
-                'slug' => null,
-                'url' => $link['url'],
-                'external' => true,
-                'children' => [],
-            ];
-        }
-
-        return $items;
+        return $result;
     }
 
     private function normalizeItems(array $items, string $currentSlug, bool $forPublic): array
@@ -80,7 +106,7 @@ class MenuBuilder
         foreach ($items as $item) {
             $slug = $item['slug'] ?? null;
             $external = !empty($item['external']);
-            $url = $item['url'] ?? ($slug === 'index' ? '/' : '/' . $slug);
+            $url = $item['url'] ?? '';
 
             $node = [
                 'label' => $item['label'] ?? '',
@@ -122,5 +148,10 @@ class MenuBuilder
         }
 
         return false;
+    }
+
+    private function looksExternal(string $url): bool
+    {
+        return (bool) preg_match('#^(https?:)?//#i', $url);
     }
 }

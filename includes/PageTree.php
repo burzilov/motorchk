@@ -88,11 +88,6 @@ class PageTree
         return $nodes;
     }
 
-    public function getMenuBranch(?string $parent): array
-    {
-        return $this->buildBranch($parent);
-    }
-
     public function invalidateCache(): void
     {
         $this->cache->delete('pages:tree');
@@ -141,7 +136,6 @@ class PageTree
                 'parent' => Slugifier::parentFromSlug($slug),
                 'order' => (int) ($frontMatter['order'] ?? 0),
                 'published' => array_key_exists('published', $frontMatter) ? (bool) $frontMatter['published'] : true,
-                'menu' => array_key_exists('menu', $frontMatter) ? (bool) $frontMatter['menu'] : true,
                 'template' => $frontMatter['template'] ?? 'default',
             ];
         }

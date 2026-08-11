@@ -4,94 +4,270 @@ use Symfony\Component\Yaml\Yaml;
 
 class MenuWriter
 {
+    public const DEFAULT_LOCATION = 'main';
+
     public function __construct(
         private array $config,
         private Cache $cache,
     ) {
     }
 
-    public function loadExternal(): array
+    public function loadMenus(): array
     {
-        if (!is_file($this->config['menu_file'])) {
-            return [];
+        $file = $this->config['menu_file'];
+        if (!is_file($file)) {
+            return $this->defaultMenus();
         }
 
-        $content = file_get_contents($this->config['menu_file']);
+        $content = file_get_contents($file);
         if ($content === false || trim($content) === '') {
-            return [];
+            return $this->defaultMenus();
         }
 
         $data = Yaml::parse($content);
-        if (!is_array($data)) {
-            return [];
+        if (!is_array($data) || !isset($data['menus']) || !is_array($data['menus'])) {
+            return $this->defaultMenus();
         }
 
-        if (isset($data['external']) && is_array($data['external'])) {
-            return $this->sanitizeExternal($data['external']);
+        $menus = $this->sanitizeMenus($data['menus']);
+        if ($menus === [] || !isset($menus[self::DEFAULT_LOCATION])) {
+            $menus = array_merge($this->defaultMenus(), $menus);
         }
 
-        return [];
+        return $menus;
     }
 
-    public function saveExternal(array $external): void
+    public function saveMenus(array $menus): void
     {
+        $menus = $this->sanitizeMenus($menus);
+        if (!isset($menus[self::DEFAULT_LOCATION])) {
+            $menus = array_merge($this->defaultMenus(), $menus);
+        }
+
         $yaml = Yaml::dump(
-            ['external' => $this->sanitizeExternal($external)],
-            4,
+            ['menus' => $menus],
+            6,
             2,
             Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK
         );
         FileWriter::write($this->config['menu_file'], $yaml);
-        $this->cache->delete('menu:tree');
+        $this->invalidateAllMenuCaches();
     }
 
-    public function migrateLegacyIfNeeded(PageWriter $pageWriter, PageTree $pageTree): bool
+    public function listLocations(): array
     {
-        if (!is_file($this->config['menu_file'])) {
-            return false;
+        $result = [];
+        foreach ($this->loadMenus() as $id => $menu) {
+            $result[] = [
+                'id' => $id,
+                'label' => $menu['label'],
+            ];
         }
 
-        $content = file_get_contents($this->config['menu_file']);
-        if ($content === false || trim($content) === '') {
-            return false;
-        }
-
-        $data = Yaml::parse($content);
-        if (!is_array($data) || !isset($data['items']) || !is_array($data['items'])) {
-            return false;
-        }
-
-        $legacyItems = $data['items'];
-        $external = [];
-
-        $this->extractExternal($legacyItems, $external);
-        $this->applyLegacyOrders($legacyItems, null, $pageWriter);
-        $this->applyLegacyMenuFlags($legacyItems, $pageTree, $pageWriter);
-
-        $this->saveExternal($external);
-        $pageTree->invalidateCache();
-        $this->cache->delete('menu:tree');
-
-        return true;
+        return $result;
     }
 
-    public function removeSlugs(array $slugs): void
+    public function getLocationItems(string $id): array
     {
-        // Внутреннее меню строится из страниц; в yaml остаются только внешние ссылки.
+        $menus = $this->loadMenus();
+
+        return $menus[$id]['items'] ?? [];
     }
 
-    public function renameSlug(string $oldSlug, string $newSlug): void
+    public function saveLocationItems(string $id, array $items): void
     {
-        // Внутреннее меню строится из страниц.
+        if (!$this->isValidLocationId($id)) {
+            throw new InvalidArgumentException('Некорректный id меню');
+        }
+
+        $menus = $this->loadMenus();
+        if (!isset($menus[$id])) {
+            throw new InvalidArgumentException('Меню не найдено');
+        }
+
+        $menus[$id]['items'] = $this->sanitizeItems($items);
+        $this->saveMenus($menus);
+    }
+
+    public function createLocation(string $id, string $label): void
+    {
+        $id = trim($id);
+        $label = trim($label);
+
+        if (!$this->isValidLocationId($id)) {
+            throw new InvalidArgumentException('Id меню: латиница, цифры, дефис и подчёркивание; начинается с буквы');
+        }
+        if ($label === '') {
+            throw new InvalidArgumentException('Укажите название меню');
+        }
+
+        $menus = $this->loadMenus();
+        if (isset($menus[$id])) {
+            throw new InvalidArgumentException('Меню с таким id уже существует');
+        }
+
+        $menus[$id] = [
+            'label' => $label,
+            'items' => [],
+        ];
+        $this->saveMenus($menus);
+    }
+
+    public function updateLocation(string $id, string $label, ?string $newId = null): void
+    {
+        $menus = $this->loadMenus();
+        if (!isset($menus[$id])) {
+            throw new InvalidArgumentException('Меню не найдено');
+        }
+
+        $label = trim($label);
+        if ($label === '') {
+            throw new InvalidArgumentException('Укажите название меню');
+        }
+
+        $menus[$id]['label'] = $label;
+
+        if ($newId !== null && $newId !== $id) {
+            if ($id === self::DEFAULT_LOCATION) {
+                throw new InvalidArgumentException('Нельзя переименовать id меню main');
+            }
+            if (!$this->isValidLocationId($newId)) {
+                throw new InvalidArgumentException('Некорректный новый id меню');
+            }
+            if (isset($menus[$newId])) {
+                throw new InvalidArgumentException('Меню с таким id уже существует');
+            }
+
+            $menus[$newId] = $menus[$id];
+            unset($menus[$id]);
+            $this->cache->delete('menu:tree:' . $id);
+        }
+
+        $this->saveMenus($menus);
+    }
+
+    public function deleteLocation(string $id): void
+    {
+        if ($id === self::DEFAULT_LOCATION) {
+            throw new InvalidArgumentException('Нельзя удалить меню main');
+        }
+
+        $menus = $this->loadMenus();
+        if (!isset($menus[$id])) {
+            throw new InvalidArgumentException('Меню не найдено');
+        }
+
+        unset($menus[$id]);
+        $this->saveMenus($menus);
+        $this->cache->delete('menu:tree:' . $id);
     }
 
     public function hasSlug(string $slug): bool
     {
+        foreach ($this->loadMenus() as $menu) {
+            if ($this->itemsContainSlug($menu['items'], $slug)) {
+                return true;
+            }
+        }
+
         return false;
     }
 
-    private function sanitizeExternal(array $items): array
+    public function removeSlugs(array $slugs): void
     {
+        if ($slugs === []) {
+            return;
+        }
+
+        $slugSet = array_fill_keys($slugs, true);
+        $menus = $this->loadMenus();
+        $changed = false;
+
+        foreach ($menus as $id => $menu) {
+            $filtered = $this->filterItemsBySlugs($menu['items'], $slugSet);
+            if ($filtered !== $menu['items']) {
+                $menus[$id]['items'] = $filtered;
+                $changed = true;
+            }
+        }
+
+        if ($changed) {
+            $this->saveMenus($menus);
+        }
+    }
+
+    public function renameSlug(string $oldSlug, string $newSlug): void
+    {
+        if ($oldSlug === $newSlug) {
+            return;
+        }
+
+        $menus = $this->loadMenus();
+        $changed = false;
+
+        foreach ($menus as $id => $menu) {
+            $renamed = $this->renameSlugInItems($menu['items'], $oldSlug, $newSlug);
+            if ($renamed !== $menu['items']) {
+                $menus[$id]['items'] = $renamed;
+                $changed = true;
+            }
+        }
+
+        if ($changed) {
+            $this->saveMenus($menus);
+        }
+    }
+
+    public function invalidateAllMenuCaches(): void
+    {
+        $this->cache->invalidate('menu:tree*');
+        $this->cache->delete('menu:tree');
+    }
+
+    public function isValidLocationId(string $id): bool
+    {
+        return (bool) preg_match('/^[a-z][a-z0-9_-]*$/', $id);
+    }
+
+    private function defaultMenus(): array
+    {
+        return [
+            self::DEFAULT_LOCATION => [
+                'label' => 'Основное',
+                'items' => [],
+            ],
+        ];
+    }
+
+    private function sanitizeMenus(array $menus): array
+    {
+        $result = [];
+
+        foreach ($menus as $id => $menu) {
+            if (!is_string($id) || !$this->isValidLocationId($id) || !is_array($menu)) {
+                continue;
+            }
+
+            $label = trim((string) ($menu['label'] ?? $id));
+            if ($label === '') {
+                $label = $id;
+            }
+
+            $result[$id] = [
+                'label' => $label,
+                'items' => $this->sanitizeItems($menu['items'] ?? []),
+            ];
+        }
+
+        return $result;
+    }
+
+    private function sanitizeItems(array $items, int $depth = 1): array
+    {
+        if ($depth > 3) {
+            return [];
+        }
+
         $result = [];
 
         foreach ($items as $item) {
@@ -100,88 +276,103 @@ class MenuWriter
             }
 
             $label = trim((string) ($item['label'] ?? ''));
+            $slug = $item['slug'] ?? null;
             $url = trim((string) ($item['url'] ?? ''));
-            if ($label === '' || $url === '') {
+            $external = !empty($item['external']);
+            $children = $this->sanitizeItems($item['children'] ?? [], $depth + 1);
+
+            if (is_string($slug)) {
+                $slug = trim($slug);
+                if ($slug === '') {
+                    $slug = null;
+                }
+            } else {
+                $slug = null;
+            }
+
+            if ($slug !== null) {
+                $node = [
+                    'label' => $label,
+                    'slug' => $slug,
+                ];
+            } elseif ($url !== '') {
+                $node = [
+                    'label' => $label !== '' ? $label : $url,
+                    'url' => $url,
+                ];
+                if ($external || $this->looksExternal($url)) {
+                    $node['external'] = true;
+                }
+            } else {
                 continue;
             }
 
-            $result[] = [
-                'label' => $label,
-                'url' => $url,
-            ];
+            if ($children !== []) {
+                $node['children'] = $children;
+            }
+
+            $result[] = $node;
         }
 
         return $result;
     }
 
-    private function extractExternal(array $items, array &$external): void
+    private function looksExternal(string $url): bool
     {
-        foreach ($items as $item) {
-            if (!is_array($item)) {
-                continue;
-            }
-
-            if (!empty($item['external'])) {
-                $label = trim((string) ($item['label'] ?? ''));
-                $url = trim((string) ($item['url'] ?? ''));
-                if ($label !== '' && $url !== '') {
-                    $external[] = [
-                        'label' => $label,
-                        'url' => $url,
-                    ];
-                }
-                continue;
-            }
-
-            $this->extractExternal($item['children'] ?? [], $external);
-        }
+        return (bool) preg_match('#^(https?:)?//#i', $url);
     }
 
-    private function applyLegacyOrders(array $items, ?string $parent, PageWriter $pageWriter): void
+    private function itemsContainSlug(array $items, string $slug): bool
     {
-        $slugs = [];
         foreach ($items as $item) {
-            if (!is_array($item) || !empty($item['external'])) {
-                continue;
+            if (($item['slug'] ?? null) === $slug) {
+                return true;
             }
+            if ($this->itemsContainSlug($item['children'] ?? [], $slug)) {
+                return true;
+            }
+        }
 
+        return false;
+    }
+
+    private function filterItemsBySlugs(array $items, array $slugSet): array
+    {
+        $result = [];
+
+        foreach ($items as $item) {
             $slug = $item['slug'] ?? null;
-            if (!is_string($slug) || $slug === '') {
+            if (is_string($slug) && isset($slugSet[$slug])) {
                 continue;
             }
 
-            $slugs[] = $slug;
-            $this->applyLegacyOrders($item['children'] ?? [], $slug, $pageWriter);
+            $children = $this->filterItemsBySlugs($item['children'] ?? [], $slugSet);
+            if ($children !== []) {
+                $item['children'] = $children;
+            } else {
+                unset($item['children']);
+            }
+
+            $result[] = $item;
         }
 
-        if ($slugs !== []) {
-            $pageWriter->updateSiblingOrder($parent, $slugs);
-        }
+        return $result;
     }
 
-    private function applyLegacyMenuFlags(array $items, PageTree $pageTree, PageWriter $pageWriter): void
+    private function renameSlugInItems(array $items, string $oldSlug, string $newSlug): array
     {
-        $inMenu = [];
-        $this->collectLegacySlugs($items, $inMenu);
+        $result = [];
 
-        foreach ($pageTree->getAllSlugs() as $slug) {
-            $pageWriter->updateMenuVisibility($slug, in_array($slug, $inMenu, true));
-        }
-    }
-
-    private function collectLegacySlugs(array $items, array &$slugs): void
-    {
         foreach ($items as $item) {
-            if (!is_array($item) || !empty($item['external'])) {
-                continue;
+            if (($item['slug'] ?? null) === $oldSlug) {
+                $item['slug'] = $newSlug;
             }
-
-            $slug = $item['slug'] ?? null;
-            if (is_string($slug) && $slug !== '') {
-                $slugs[] = $slug;
+            if (!empty($item['children']) && is_array($item['children'])) {
+                $item['children'] = $this->renameSlugInItems($item['children'], $oldSlug, $newSlug);
             }
-
-            $this->collectLegacySlugs($item['children'] ?? [], $slugs);
+            $result[] = $item;
         }
+
+        return $result;
     }
 }

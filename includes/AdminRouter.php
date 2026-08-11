@@ -19,7 +19,7 @@ class AdminRouter
         $this->pageTree = new PageTree($config, $this->cache, $this->pageLoader, $this->renderer);
         $this->menuWriter = new MenuWriter($config, $this->cache);
         $this->pageWriter = new PageWriter($config, $this->cache, $this->pageLoader, $this->pageTree, $this->renderer, $this->menuWriter);
-        $this->menuEditor = new MenuEditor($this->pageTree, $this->pageWriter, $this->menuWriter, $this->cache);
+        $this->menuEditor = new MenuEditor($this->pageTree, $this->menuWriter);
         $this->menuBuilder = new MenuBuilder($config, $this->cache, $this->pageLoader, $this->pageTree, $this->menuWriter);
     }
 
@@ -138,15 +138,13 @@ class AdminRouter
 
         if ($path === '/menu') {
             if ($method === 'GET') {
-                $this->menuWriter->migrateLegacyIfNeeded($this->pageWriter, $this->pageTree);
-                $parent = trim((string) ($_GET['parent'] ?? ''));
-                $parent = $parent === '' ? null : $parent;
-                $this->render('menu/edit.php', $this->menuEditorViewData($parent));
+                $location = trim((string) ($_GET['location'] ?? MenuWriter::DEFAULT_LOCATION));
+                $this->render('menu/edit.php', $this->menuEditor->viewData($location));
                 return;
             }
             if ($method === 'POST') {
                 $this->requireCsrf();
-                $this->handleSaveMenu();
+                $this->handleMenuPost();
                 return;
             }
         }
@@ -356,7 +354,6 @@ class AdminRouter
                 'og_image' => trim($_POST['og_image'] ?? ''),
                 'scripts' => PageScripts::fromTextarea($_POST['scripts'] ?? ''),
                 'order' => 0,
-                'menu' => !empty($_POST['menu']),
             ], null);
             $this->htmxRedirect(AdminUrl::page($slug));
         } catch (Throwable $e) {
@@ -398,7 +395,6 @@ class AdminRouter
             'og_image' => trim($_POST['og_image'] ?? ''),
             'scripts' => PageScripts::fromTextarea($_POST['scripts'] ?? ''),
             'order' => (int) ($_POST['order'] ?? 0),
-            'menu' => !empty($_POST['menu']),
         ];
 
         try {
@@ -465,59 +461,67 @@ class AdminRouter
         }
     }
 
-    private function handleSaveMenu(): void
+    private function handleMenuPost(): void
     {
-        $orders = $_POST['orders'] ?? [];
-        $menuFlags = $_POST['menu'] ?? [];
-        $menuSlugs = $_POST['menu_slugs'] ?? [];
-        $external = $_POST['external'] ?? [];
-        $parent = trim((string) ($_POST['parent'] ?? ''));
-        $parent = $parent === '' ? null : $parent;
-
-        if (!is_array($orders)) {
-            $orders = [];
-        }
-        if (!is_array($menuFlags)) {
-            $menuFlags = [];
-        }
-        if (!is_array($menuSlugs)) {
-            $menuSlugs = [];
-        }
-        if (!is_array($external)) {
-            $external = [];
-        }
+        $action = trim((string) ($_POST['action'] ?? 'save_items'));
+        $location = trim((string) ($_POST['location'] ?? MenuWriter::DEFAULT_LOCATION));
 
         try {
-            $this->menuEditor->save($orders, $menuFlags, $menuSlugs, $external);
+            switch ($action) {
+                case 'create_location':
+                    $this->menuEditor->createLocation(
+                        trim((string) ($_POST['new_id'] ?? '')),
+                        trim((string) ($_POST['new_label'] ?? ''))
+                    );
+                    $location = trim((string) ($_POST['new_id'] ?? $location));
+                    break;
+
+                case 'update_location':
+                    $newId = trim((string) ($_POST['new_id'] ?? ''));
+                    $this->menuEditor->updateLocation(
+                        $location,
+                        trim((string) ($_POST['label'] ?? '')),
+                        $newId !== '' && $newId !== $location ? $newId : null
+                    );
+                    if ($newId !== '' && $newId !== $location) {
+                        $location = $newId;
+                    }
+                    break;
+
+                case 'delete_location':
+                    $this->menuEditor->deleteLocation($location);
+                    $location = MenuWriter::DEFAULT_LOCATION;
+                    break;
+
+                case 'save_items':
+                default:
+                    $itemsRaw = $_POST['items_json'] ?? '[]';
+                    if (!is_string($itemsRaw)) {
+                        throw new InvalidArgumentException('Некорректные данные меню');
+                    }
+                    $items = json_decode($itemsRaw, true);
+                    if (!is_array($items)) {
+                        throw new InvalidArgumentException('Некорректный JSON пунктов меню');
+                    }
+                    $this->menuEditor->saveItems($location, $items);
+                    break;
+            }
+
+            $view = array_merge($this->menuEditor->viewData($location), ['saved' => true]);
             if ($this->isHtmx()) {
-                $this->renderPartial('menu/edit.php', array_merge(
-                    $this->menuEditorViewData($parent),
-                    ['saved' => true]
-                ), '#menu-editor');
+                $this->renderPartial('menu/edit.php', $view, '#menu-editor');
                 return;
             }
-            $this->redirect('/admin-panel/menu' . ($parent ? '?parent=' . rawurlencode($parent) : ''));
+            $this->redirect('/admin-panel/menu?location=' . rawurlencode($location));
         } catch (Throwable $e) {
+            $view = array_merge($this->menuEditor->viewData($location), ['error' => $e->getMessage()]);
             if ($this->isHtmx()) {
-                $this->renderPartial('menu/edit.php', array_merge(
-                    $this->menuEditorViewData($parent),
-                    ['error' => $e->getMessage()]
-                ), '#menu-editor');
+                $this->renderPartial('menu/edit.php', $view, '#menu-editor');
                 return;
             }
             http_response_code(400);
             echo htmlspecialchars($e->getMessage());
         }
-    }
-
-    private function menuEditorViewData(?string $parent): array
-    {
-        return [
-            'branch' => $this->menuEditor->getBranch($parent),
-            'parent' => $parent ?? '',
-            'parentOptions' => $this->menuEditor->getParentOptions(),
-            'external' => $this->menuWriter->loadExternal(),
-        ];
     }
 
     private function listTemplates(): array

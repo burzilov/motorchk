@@ -90,7 +90,6 @@ class PageLoader
             : true;
         $frontMatter['template'] = $frontMatter['template'] ?? 'default';
         $frontMatter['order'] = (int) ($frontMatter['order'] ?? 0);
-        $frontMatter['menu'] = array_key_exists('menu', $frontMatter) ? (bool) $frontMatter['menu'] : true;
         $frontMatter['scripts'] = PageScripts::normalize($frontMatter['scripts'] ?? []);
 
         return $frontMatter;

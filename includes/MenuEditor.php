@@ -4,55 +4,62 @@ class MenuEditor
 {
     public function __construct(
         private PageTree $pageTree,
-        private PageWriter $pageWriter,
         private MenuWriter $menuWriter,
-        private Cache $cache,
     ) {
     }
 
-    public function getParentOptions(): array
+    public function listPagesForPicker(): array
     {
-        $options = [
-            ['slug' => '', 'title' => 'Корень сайта'],
-        ];
-
+        $pages = [];
         foreach ($this->pageTree->getFlatNodesForSelect() as $node) {
-            if ($node['slug'] === 'index') {
-                continue;
-            }
-            $options[] = [
+            $pages[] = [
                 'slug' => $node['slug'],
                 'title' => $node['title'],
+                'published' => !empty($node['published']),
             ];
         }
 
-        return $options;
+        return $pages;
     }
 
-    public function getBranch(?string $parent): array
+    public function saveItems(string $locationId, array $items): void
     {
-        return $this->pageTree->getMenuBranch($parent);
+        $this->menuWriter->saveLocationItems($locationId, $items);
     }
 
-    public function save(array $orders, array $menuFlags, array $menuSlugs, array $external): void
+    public function createLocation(string $id, string $label): void
     {
-        foreach ($orders as $parent => $slugs) {
-            if (!is_array($slugs)) {
-                continue;
-            }
-            $parentKey = $parent === '__root__' ? null : (string) $parent;
-            $this->pageWriter->updateSiblingOrder($parentKey, $slugs);
+        $this->menuWriter->createLocation($id, $label);
+    }
+
+    public function updateLocation(string $id, string $label, ?string $newId = null): void
+    {
+        $this->menuWriter->updateLocation($id, $label, $newId);
+    }
+
+    public function deleteLocation(string $id): void
+    {
+        $this->menuWriter->deleteLocation($id);
+    }
+
+    public function viewData(string $locationId): array
+    {
+        $locations = $this->menuWriter->listLocations();
+        $ids = array_column($locations, 'id');
+        if ($locationId === '' || !in_array($locationId, $ids, true)) {
+            $locationId = MenuWriter::DEFAULT_LOCATION;
         }
 
-        foreach ($menuSlugs as $slug) {
-            if (!is_string($slug) || $slug === '') {
-                continue;
-            }
-            $this->pageWriter->updateMenuVisibility($slug, !empty($menuFlags[$slug]));
-        }
+        $menus = $this->menuWriter->loadMenus();
+        $current = $menus[$locationId] ?? ['label' => $locationId, 'items' => []];
 
-        $this->menuWriter->saveExternal($external);
-        $this->cache->delete('menu:tree');
-        $this->cache->delete('pages:tree');
+        return [
+            'locations' => $locations,
+            'locationId' => $locationId,
+            'locationLabel' => $current['label'],
+            'items' => $current['items'],
+            'pages' => $this->listPagesForPicker(),
+            'defaultLocation' => MenuWriter::DEFAULT_LOCATION,
+        ];
     }
 }
