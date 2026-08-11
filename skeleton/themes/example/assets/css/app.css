@@ -513,12 +513,6 @@
       margin-block-end: calc(calc(var(--spacing) * 8) * calc(1 - var(--tw-space-y-reverse)));
     }
   }
-  .gap-x-3 {
-    column-gap: calc(var(--spacing) * 3);
-  }
-  .gap-y-1 {
-    row-gap: var(--spacing);
-  }
   .divide-y {
     :where(& > :not(:last-child)) {
       --tw-divide-y-reverse: 0;
@@ -618,9 +612,6 @@
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in oklab, var(--color-amber-50) 95%, transparent);
     }
-  }
-  .bg-amber-100 {
-    background-color: var(--color-amber-100);
   }
   .bg-black\/40 {
     background-color: color-mix(in srgb, #000 40%, transparent);
@@ -789,17 +780,8 @@
   .text-amber-800 {
     color: var(--color-amber-800);
   }
-  .text-amber-800\/90 {
-    color: color-mix(in srgb, oklch(47.3% 0.137 46.201) 90%, transparent);
-    @supports (color: color-mix(in lab, red, red)) {
-      color: color-mix(in oklab, var(--color-amber-800) 90%, transparent);
-    }
-  }
   .text-amber-900 {
     color: var(--color-amber-900);
-  }
-  .text-amber-950 {
-    color: var(--color-amber-950);
   }
   .text-emerald-700 {
     color: var(--color-emerald-700);
@@ -819,17 +801,8 @@
   .text-sky-700 {
     color: var(--color-sky-700);
   }
-  .text-sky-800\/90 {
-    color: color-mix(in srgb, oklch(44.3% 0.11 240.79) 90%, transparent);
-    @supports (color: color-mix(in lab, red, red)) {
-      color: color-mix(in oklab, var(--color-sky-800) 90%, transparent);
-    }
-  }
   .text-sky-900 {
     color: var(--color-sky-900);
-  }
-  .text-sky-950 {
-    color: var(--color-sky-950);
   }
   .text-slate-400 {
     color: var(--color-slate-400);
@@ -863,15 +836,6 @@
   }
   .underline {
     text-decoration-line: underline;
-  }
-  .decoration-amber-300 {
-    text-decoration-color: var(--color-amber-300);
-  }
-  .decoration-sky-300 {
-    text-decoration-color: var(--color-sky-300);
-  }
-  .underline-offset-2 {
-    text-underline-offset: 2px;
   }
   .opacity-50 {
     opacity: 50%;
@@ -983,13 +947,6 @@
     &:hover {
       @media (hover: hover) {
         background-color: var(--color-white);
-      }
-    }
-  }
-  .hover\:text-amber-700 {
-    &:hover {
-      @media (hover: hover) {
-        color: var(--color-amber-700);
       }
     }
   }
