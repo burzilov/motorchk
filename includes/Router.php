@@ -104,6 +104,7 @@ class Router
         $canEdit = !empty($_SESSION['admin_authenticated']);
         $inlineEditSaveUrl = $canEdit ? AdminUrl::pageBlocks($slug) : '';
         $inlineEditCsrf = $canEdit ? Csrf::token() : '';
+        $config = $this->config;
 
         http_response_code(200);
         header('Content-Type: text/html; charset=UTF-8');
