@@ -21,8 +21,6 @@ function motorchk_migrate(array $config, string $toVersion): void
     }
 
     motorchk_replaceExampleTheme($config);
-    motorchk_removeLegacyThemePaths($config['site_path']);
-    motorchk_patch_htaccess($config['site_path'] . '/.htaccess');
     SiteMeta::setEngineVersion($config, $toVersion);
 
     $cachePath = $config['cache_path'] ?? '';
@@ -71,50 +69,6 @@ function motorchk_replaceExampleTheme(array $config): void
     } catch (Throwable $e) {
         motorchk_removeTree($next);
         throw $e;
-    }
-}
-
-function motorchk_removeLegacyThemePaths(string $sitePath): void
-{
-    motorchk_removeTree(rtrim($sitePath, '/') . '/templates');
-    motorchk_removeTree(rtrim($sitePath, '/') . '/assets');
-}
-
-function motorchk_patch_htaccess(string $path): void
-{
-    if (!is_file($path)) {
-        return;
-    }
-
-    $contents = file_get_contents($path);
-    if ($contents === false) {
-        throw new RuntimeException('Не удалось прочитать .htaccess');
-    }
-
-    $patched = preg_replace(
-        '/^[ \t]*RedirectMatch 403 \^\/templates\/\R?/m',
-        '',
-        $contents
-    );
-    if ($patched === null) {
-        throw new RuntimeException('Не удалось обновить .htaccess');
-    }
-
-    if (!str_contains($patched, '# motorchk:theme-assets')) {
-        $marker = '    # Админка — front controller ядра';
-        $rules = "    # motorchk:theme-assets\n"
-            . "    RewriteCond %{REQUEST_URI} ^/themes/ [NC]\n"
-            . "    RewriteCond %{REQUEST_URI} !^/themes/[^/]+/assets/ [NC]\n"
-            . "    RewriteRule ^ - [F,L]\n\n";
-
-        if (!str_contains($patched, $marker)) {
-            throw new RuntimeException('Не удалось найти секцию mod_rewrite в .htaccess');
-        }
-        $patched = str_replace($marker, $rules . $marker, $patched);
-    }
-
-    if ($patched !== $contents && file_put_contents($path, $patched) === false) {
-        throw new RuntimeException('Не удалось записать .htaccess');
     }
 }
 
