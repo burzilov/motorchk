@@ -131,9 +131,9 @@ $pagesJson = json_encode($pages, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HE
     x-data="menuEditor(
         <?= $itemsJson ?>,
         <?= $pagesJson ?>,
-        <?= json_encode($locationId, JSON_UNESCAPED_UNICODE) ?>,
-        <?= json_encode($locationLabel, JSON_UNESCAPED_UNICODE) ?>,
-        <?= json_encode($defaultLocation, JSON_UNESCAPED_UNICODE) ?>
+        <?= htmlspecialchars(json_encode($locationId, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>,
+        <?= htmlspecialchars(json_encode($locationLabel, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>,
+        <?= htmlspecialchars(json_encode($defaultLocation, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>
     )"
 >
     <div class="flex flex-wrap items-start justify-between gap-4">
