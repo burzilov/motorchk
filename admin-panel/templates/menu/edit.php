@@ -5,8 +5,8 @@ $locationLabel = $locationLabel ?? $locationId;
 $items = $items ?? [];
 $pages = $pages ?? [];
 $defaultLocation = $defaultLocation ?? MenuWriter::DEFAULT_LOCATION;
-$itemsJson = json_encode($items, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
-$pagesJson = json_encode($pages, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+$itemsJson = htmlspecialchars(json_encode($items, JSON_UNESCAPED_UNICODE), ENT_QUOTES);
+$pagesJson = htmlspecialchars(json_encode($pages, JSON_UNESCAPED_UNICODE), ENT_QUOTES);
 ?>
 <script>
     document.addEventListener('alpine:init', () => {
