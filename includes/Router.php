@@ -20,6 +20,18 @@ class Router
 
     public function dispatchPublic(string $requestUri): void
     {
+        $path = parse_url($requestUri, PHP_URL_PATH) ?? '/';
+        $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+        if ($path === '/api/forms/submit') {
+            if ($method !== 'POST') {
+                $this->jsonResponse(405, ['ok' => false, 'errors' => ['_form' => 'Метод не поддерживается']]);
+                return;
+            }
+            $this->handleFormSubmit();
+            return;
+        }
+
         $slug = $this->normalizeSlug($requestUri);
         $filePath = $this->pageLoader->slugToPath($slug);
         $isPreview = ($_GET['preview'] ?? '') === '1';
@@ -53,6 +65,33 @@ class Router
         }
 
         $this->renderPage($page, $slug, false);
+    }
+
+    private function handleFormSubmit(): void
+    {
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';
+        $input = $_POST;
+        if (str_contains(strtolower($contentType), 'application/json')) {
+            $raw = file_get_contents('php://input');
+            $decoded = is_string($raw) ? json_decode($raw, true) : null;
+            $input = is_array($decoded) ? $decoded : [];
+        }
+
+        $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+        $result = (new FormSubmitHandler($this->config))->handle($input, $ip);
+        $status = (int) ($result['status'] ?? 500);
+        unset($result['status']);
+        $this->jsonResponse($status, $result);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function jsonResponse(int $status, array $payload): void
+    {
+        http_response_code($status);
+        header('Content-Type: application/json; charset=UTF-8');
+        echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
     }
 
     private function normalizeSlug(string $requestUri): string
@@ -110,6 +149,7 @@ class Router
         $inlineEditSaveUrl = $canEdit ? AdminUrl::pageBlocks($slug) : '';
         $inlineEditCsrf = $canEdit ? Csrf::token() : '';
         $config = $this->config;
+        Form::setConfig($this->config);
 
         http_response_code(200);
         header('Content-Type: text/html; charset=UTF-8');

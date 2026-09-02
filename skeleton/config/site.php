@@ -10,6 +10,8 @@ return [
     'content_path' => $sitePath . '/content',
     'cache_path' => $sitePath . '/cache',
     'themes_path' => $sitePath . '/themes',
+    'forms_path' => $sitePath . '/content/forms',
+    'submissions_path' => $sitePath . '/submissions',
     'admin_templates_path' => $corePath . '/admin-panel/templates',
     'menu_file' => $sitePath . '/content/_menus.yaml',
     'skeleton_path' => $corePath . '/skeleton',

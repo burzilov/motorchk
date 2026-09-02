@@ -44,6 +44,18 @@ $items = $menus['ceo-lead'] ?? [];
 
 Хранение: `content/_menus.yaml`. Редактор: `/admin-panel/menu`.
 
+## Формы заявок
+
+Meta: `content/forms/{id}.yaml`. В шаблоне:
+
+```php
+<?php Form::begin('contact'); ?>
+  <!-- HTML полей -->
+<?php Form::end(); ?>
+```
+
+Пример: `partials/contact-form.php`. Скрипт отправки: `/core/assets/js/forms.js` (подключён в `partials/scripts.php`). Документация: `core/docs/09-forms.md`.
+
 ## Обязательные подключения ядра
 
 В `<head>` после CSS темы:

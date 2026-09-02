@@ -23,6 +23,11 @@ function motorchk_migrate(array $config, string $toVersion): void
     motorchk_replaceExampleTheme($config);
     SiteMeta::setEngineVersion($config, $toVersion);
 
+    $submissionsPath = $config['submissions_path'] ?? (($config['site_path'] ?? '') . '/submissions');
+    if ($submissionsPath !== '' && !is_dir($submissionsPath)) {
+        @mkdir($submissionsPath, 0755, true);
+    }
+
     $cachePath = $config['cache_path'] ?? '';
     if ($cachePath !== '' && is_dir($cachePath)) {
         $cache = new Cache($cachePath);

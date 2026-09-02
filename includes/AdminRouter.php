@@ -92,8 +92,36 @@ class AdminRouter
             return;
         }
 
+        if ($path === '/system/smtp' && $method === 'POST') {
+            $this->requireCsrf();
+            $this->handleSaveSmtp();
+            return;
+        }
+
+        if ($path === '/system/smtp/test' && $method === 'POST') {
+            $this->requireCsrf();
+            $this->handleTestSmtp();
+            return;
+        }
+
+        if ($path === '/system/password' && $method === 'POST') {
+            $this->requireCsrf();
+            $this->handleChangePassword();
+            return;
+        }
+
         if ($path === '/system' && $method === 'GET') {
             $this->renderSystemPage();
+            return;
+        }
+
+        if ($path === '/submissions' && $method === 'GET') {
+            $this->renderSubmissionsList();
+            return;
+        }
+
+        if (preg_match('#^/submissions/([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$#', $path, $m) && $method === 'GET') {
+            $this->renderSubmissionView($m[1], $m[2]);
             return;
         }
 
@@ -238,6 +266,126 @@ class AdminRouter
             'updateMessage' => $_GET['updated'] ?? null,
             'updateError' => $_GET['error'] ?? null,
             'checked' => isset($_GET['checked']),
+            'smtpMessage' => $_GET['smtp'] ?? null,
+            'smtpError' => $_GET['smtp_error'] ?? null,
+            'smtpTestMessage' => $_GET['smtp_test'] ?? null,
+            'smtpTestError' => $_GET['smtp_test_error'] ?? null,
+            'passwordMessage' => $_GET['password'] ?? null,
+            'passwordError' => $_GET['password_error'] ?? null,
+            'smtp' => (new Mailer($this->config))->settingsFromEnv(),
+            'smtpPasswordSet' => Env::get('SMTP_PASSWORD', '') !== '',
+        ]);
+    }
+
+    private function handleSaveSmtp(): void
+    {
+        $passwordInput = (string) ($_POST['smtp_password'] ?? '');
+        $updates = [
+            'SMTP_HOST' => trim((string) ($_POST['smtp_host'] ?? '')),
+            'SMTP_PORT' => trim((string) ($_POST['smtp_port'] ?? '587')),
+            'SMTP_ENCRYPTION' => strtolower(trim((string) ($_POST['smtp_encryption'] ?? ''))),
+            'SMTP_USERNAME' => trim((string) ($_POST['smtp_username'] ?? '')),
+            'SMTP_FROM' => trim((string) ($_POST['smtp_from'] ?? '')),
+            'SMTP_FROM_NAME' => trim((string) ($_POST['smtp_from_name'] ?? '')),
+            'SMTP_TO' => trim((string) ($_POST['smtp_to'] ?? '')),
+        ];
+
+        if (!in_array($updates['SMTP_ENCRYPTION'], ['', 'tls', 'ssl'], true)) {
+            $this->redirect('/admin-panel/system?smtp_error=' . rawurlencode('Некорректное шифрование SMTP'));
+            return;
+        }
+
+        if ($passwordInput !== '') {
+            $updates['SMTP_PASSWORD'] = $passwordInput;
+        }
+
+        try {
+            $writer = new EnvWriter($this->config['site_path'] . '/.env');
+            $writer->merge($updates);
+            $this->redirect('/admin-panel/system?smtp=1');
+        } catch (Throwable $e) {
+            $this->redirect('/admin-panel/system?smtp_error=' . rawurlencode($e->getMessage()));
+        }
+    }
+
+    private function handleTestSmtp(): void
+    {
+        try {
+            (new Mailer($this->config))->testConnection();
+            $this->redirect('/admin-panel/system?smtp_test=1');
+        } catch (Throwable $e) {
+            $this->redirect('/admin-panel/system?smtp_test_error=' . rawurlencode($e->getMessage()));
+        }
+    }
+
+    private function handleChangePassword(): void
+    {
+        $current = (string) ($_POST['current_password'] ?? '');
+        $next = (string) ($_POST['new_password'] ?? '');
+        $confirm = (string) ($_POST['new_password_confirm'] ?? '');
+        $hash = (string) Env::get('ADMIN_PASSWORD_HASH', '');
+
+        if ($hash === '' || !password_verify($current, $hash)) {
+            $this->redirect('/admin-panel/system?password_error=' . rawurlencode('Неверный текущий пароль'));
+            return;
+        }
+        if (strlen($next) < 8) {
+            $this->redirect('/admin-panel/system?password_error=' . rawurlencode('Новый пароль не короче 8 символов'));
+            return;
+        }
+        if ($next !== $confirm) {
+            $this->redirect('/admin-panel/system?password_error=' . rawurlencode('Пароли не совпадают'));
+            return;
+        }
+
+        $newHash = password_hash($next, PASSWORD_BCRYPT, ['cost' => 12]);
+        if ($newHash === false) {
+            $this->redirect('/admin-panel/system?password_error=' . rawurlencode('Не удалось создать хэш пароля'));
+            return;
+        }
+
+        try {
+            $writer = new EnvWriter($this->config['site_path'] . '/.env');
+            $writer->merge(['ADMIN_PASSWORD_HASH' => $newHash]);
+            $this->redirect('/admin-panel/system?password=1');
+        } catch (Throwable $e) {
+            $this->redirect('/admin-panel/system?password_error=' . rawurlencode($e->getMessage()));
+        }
+    }
+
+    private function renderSubmissionsList(): void
+    {
+        $formId = trim((string) ($_GET['form_id'] ?? ''));
+        $mailStatus = trim((string) ($_GET['mail_status'] ?? ''));
+        $store = new SubmissionStore($this->config);
+        $repo = new FormRepository($this->config);
+
+        $this->render('submissions/index.php', [
+            'items' => $store->list($formId !== '' ? $formId : null, $mailStatus !== '' ? $mailStatus : null),
+            'forms' => $repo->listMeta(),
+            'filterFormId' => $formId,
+            'filterMailStatus' => $mailStatus,
+        ]);
+    }
+
+    private function renderSubmissionView(string $formId, string $id): void
+    {
+        $item = (new SubmissionStore($this->config))->get($formId, $id);
+        if ($item === null) {
+            http_response_code(404);
+            echo 'Not found';
+            return;
+        }
+
+        $formLabel = $formId;
+        try {
+            $formLabel = (new FormRepository($this->config))->get($formId)['label'];
+        } catch (Throwable) {
+        }
+
+        $this->render('submissions/view.php', [
+            'item' => $item,
+            'formLabel' => $formLabel,
         ]);
     }
 

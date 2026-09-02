@@ -22,6 +22,8 @@ $defaultConfig = [
     'content_path' => $sitePath . '/content',
     'cache_path' => $sitePath . '/cache',
     'themes_path' => $sitePath . '/themes',
+    'forms_path' => $sitePath . '/content/forms',
+    'submissions_path' => $sitePath . '/submissions',
     'admin_templates_path' => $corePath . '/admin-panel/templates',
     'menu_file' => $sitePath . '/content/_menus.yaml',
     'skeleton_path' => $corePath . '/skeleton',
@@ -41,7 +43,7 @@ $config['site_path'] = $sitePath;
 $config['core_path'] = $corePath;
 $config['installed'] = $installed;
 
-foreach ([$config['cache_path'], $config['content_path']] as $dir) {
+foreach ([$config['cache_path'], $config['content_path'], $config['submissions_path']] as $dir) {
     if (!is_dir($dir)) {
         @mkdir($dir, 0755, true);
     }

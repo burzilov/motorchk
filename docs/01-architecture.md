@@ -8,12 +8,14 @@
 | `core/assets/` | CSS/JS админки, библиотек и chrome публичных страниц (`site-chrome.css`) |
 | `core/skeleton/` | шаблон первичной установки |
 | `content/`, `themes/` | сайт |
-| `.env`, `config/site.php`, `cache/` | сайт / runtime |
+| `.env`, `config/site.php`, `cache/`, `submissions/` | сайт / runtime |
 
 Публичный front controller: `public_html/index.php` → `core/includes/bootstrap.php`.  
 Админка: rewrite `/admin-panel` → `core/admin-panel/index.php`.
 
-Конфиг сайта задаёт пути (`content_path`, `themes_path`, `core_path`, …); bootstrap подмешивает их после установки.
+Конфиг сайта задаёт пути (`content_path`, `themes_path`, `forms_path`, `submissions_path`, `core_path`, …); bootstrap подмешивает их после установки.
+
+Формы заявок: meta в `content/forms/*.yaml`, разметка в теме через `Form::begin`/`end`, приём `POST /api/forms/submit`, хранение в `submissions/`. Подробнее — [09-forms.md](09-forms.md).
 
 ## Темы и шаблоны страниц
 

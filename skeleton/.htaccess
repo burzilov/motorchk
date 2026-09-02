@@ -11,6 +11,7 @@ Options -Indexes
 RedirectMatch 403 ^/content/
 RedirectMatch 403 ^/config/
 RedirectMatch 403 ^/cache/
+RedirectMatch 403 ^/submissions/
 RedirectMatch 403 ^/core/includes/
 RedirectMatch 403 ^/core/vendor/
 RedirectMatch 403 ^/core/skeleton/

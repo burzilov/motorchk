@@ -54,6 +54,12 @@
                 <?= $blocks['content'] ?? '' ?>
             </section>
         <?php endif; ?>
+
+        <section class="mt-10 rounded-2xl bg-white p-8 shadow-sm">
+            <h2 class="mb-2 text-xl font-semibold text-slate-900">Обратная связь</h2>
+            <p class="mb-6 text-sm text-slate-600">Пример формы заявки: разметка в теме, meta в <code>content/forms/contact.yaml</code>.</p>
+            <?php require __DIR__ . '/partials/contact-form.php'; ?>
+        </section>
     </main>
     <footer class="border-t border-slate-200 bg-white">
         <div class="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between">

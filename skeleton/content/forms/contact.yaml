@@ -1,0 +1,4 @@
+id: contact
+label: Обратная связь
+subject: "Заявка с сайта: {{name}}"
+success_message: "Спасибо, мы свяжемся с вами"

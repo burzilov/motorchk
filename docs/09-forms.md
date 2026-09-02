@@ -1,0 +1,41 @@
+# Формы заявок
+
+Ядро принимает заявки с публичных страниц, сохраняет их в `submissions/` и отправляет письмо через SMTP.
+
+## Meta формы
+
+Файл: `content/forms/{id}.yaml` (только метаданные, без списка полей):
+
+```yaml
+id: contact
+label: Обратная связь
+subject: "Заявка с сайта: {{name}}"
+success_message: "Спасибо, мы свяжемся с вами"
+```
+
+Плейсхолдеры `{{field}}` в `subject` берутся из имён полей HTML.
+
+## Разметка в теме
+
+```php
+<?php Form::begin('contact'); ?>
+  <!-- произвольный HTML: text, email, tel, textarea, select, checkbox, radio -->
+  <input name="name" type="text" required>
+  …
+<?php Form::end(); ?>
+```
+
+`Form::begin` / `Form::end` добавляют CSRF, honeypot, timestamp и подписанный контракт полей (HMAC от разметки). Поля, добавленные JS после рендера, в контракт не входят.
+
+Подключите `/core/assets/js/forms.js` (см. `themes/example/partials/scripts.php`).
+
+Эндпоинт: `POST /api/forms/submit` (JSON).
+
+## SMTP и заявки
+
+Настройки SMTP и смена пароля админа — страница **Система**.  
+Список заявок — **Заявки** (`/admin-panel/submissions`). Файлы: `submissions/{form_id}/*.json` (каталог закрыт от HTTP).
+
+Антиспам: CSRF, honeypot, минимальное время заполнения, rate-limit 10 заявок/час с IP на форму. Капчи нет.
+
+Если письмо не ушло, посетитель всё равно видит успех; в заявке будет `mail_status: failed`.

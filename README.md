@@ -28,7 +28,8 @@ Composer на сервере не нужен: `vendor/` уже внутри rele
 ```text
 public_html/
 ├── core/          ← этот репозиторий / release zip
-├── content/       ← сайт
+├── content/       ← сайт (в т.ч. content/forms/*.yaml)
+├── submissions/   ← заявки с форм (закрыто от HTTP)
 ├── themes/        ← темы сайта: {theme}/, PHP-шаблоны и assets внутри темы
 ├── config/site.php
 ├── index.php

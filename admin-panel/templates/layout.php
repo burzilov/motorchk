@@ -17,6 +17,7 @@
                 <nav class="flex gap-4 text-sm">
                     <a href="/admin-panel/pages" class="text-slate-600 hover:text-sky-700">Страницы</a>
                     <a href="/admin-panel/menu" class="text-slate-600 hover:text-sky-700">Меню</a>
+                    <a href="/admin-panel/submissions" class="text-slate-600 hover:text-sky-700">Заявки</a>
                     <a href="/admin-panel/system" class="text-slate-600 hover:text-sky-700">Система</a>
                 </nav>
             </div>
