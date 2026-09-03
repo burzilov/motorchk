@@ -66,16 +66,6 @@
   background: rgb(226 232 240);
 }
 
-.inline-edit-toolbar__status {
-  margin-left: 0.25rem;
-  font-size: 0.75rem;
-  color: rgb(100 116 139);
-}
-
-.inline-edit-toolbar__status.is-error {
-  color: rgb(220 38 38);
-}
-
 .motorchk-banner {
   position: sticky;
   top: 0;

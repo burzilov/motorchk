@@ -143,13 +143,6 @@ $pagesJson = htmlspecialchars(json_encode($pages, JSON_UNESCAPED_UNICODE), ENT_Q
         </div>
     </div>
 
-    <?php if (!empty($saved)): ?>
-        <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">Сохранено</div>
-    <?php endif; ?>
-    <?php if (!empty($error)): ?>
-        <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><?= htmlspecialchars($error) ?></div>
-    <?php endif; ?>
-
     <div class="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
         <?php foreach ($locations as $loc): ?>
             <a

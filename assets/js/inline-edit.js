@@ -39,7 +39,6 @@
       <span class="inline-edit-toolbar__sep"></span>
       <button type="button" data-cmd="save" class="inline-edit-toolbar__save">Сохранить</button>
       <button type="button" data-cmd="cancel" class="inline-edit-toolbar__cancel">Отмена</button>
-      <span class="inline-edit-toolbar__status" aria-live="polite"></span>
     `;
 
     toolbar.addEventListener('mousedown', (event) => {
@@ -93,16 +92,18 @@
     return toolbar;
   }
 
-  function setStatus(message, isError) {
-    if (!active) {
+  function notify(message, isError) {
+    if (window.Motorchk && Motorchk.toast) {
+      if (isError) {
+        Motorchk.toast.error(message);
+      } else {
+        Motorchk.toast.success(message);
+      }
       return;
     }
-    const status = active.toolbar.querySelector('.inline-edit-toolbar__status');
-    if (!status) {
-      return;
+    if (isError) {
+      window.alert(message);
     }
-    status.textContent = message || '';
-    status.classList.toggle('is-error', Boolean(isError));
   }
 
   function cancelEdit() {
@@ -139,13 +140,12 @@
       markdown = turndownHtml(active.el.innerHTML);
     } catch (err) {
       active.el.appendChild(active.toolbar);
-      setStatus(err.message || 'Ошибка конвертации', true);
+      notify(err.message || 'Ошибка конвертации', true);
       return;
     }
 
     saveBtn.disabled = true;
     active.el.appendChild(active.toolbar);
-    setStatus('Сохранение…', false);
 
     const form = new FormData();
     form.append('_csrf', csrf);
@@ -169,8 +169,9 @@
       active.toolbar.remove();
       active.snapshot = active.el.innerHTML;
       teardownEdit();
+      notify('Сохранено', false);
     } catch (err) {
-      setStatus(err.message || 'Не удалось сохранить', true);
+      notify(err.message || 'Не удалось сохранить', true);
       saveBtn.disabled = false;
     }
   }

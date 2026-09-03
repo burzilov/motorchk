@@ -42,11 +42,6 @@
       box.hidden = true;
       box.textContent = '';
     }
-    const ok = form.querySelector('[data-form-success]');
-    if (ok) {
-      ok.hidden = true;
-      ok.textContent = '';
-    }
   }
 
   function showErrors(form, errors) {
@@ -72,10 +67,8 @@
   }
 
   function showSuccess(form, message) {
-    const ok = form.querySelector('[data-form-success]');
-    if (ok) {
-      ok.hidden = false;
-      ok.textContent = message || 'Отправлено';
+    if (window.Motorchk && Motorchk.toast) {
+      Motorchk.toast.success(message || 'Отправлено');
     }
     form.reset();
   }

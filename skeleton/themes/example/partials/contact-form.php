@@ -2,7 +2,6 @@
 Form::begin('contact');
 ?>
     <div data-form-errors class="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" hidden></div>
-    <div data-form-success class="mb-4 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800" hidden></div>
 
     <div class="grid gap-4 sm:grid-cols-2">
         <label class="block text-sm text-slate-700">

@@ -41,7 +41,7 @@ $pageHeading = trim((string) ($fm['title'] ?? '')) !== '' ? $fm['title'] : 'Ре
         method="post"
         action="<?= htmlspecialchars(AdminUrl::page($fm['slug'])) ?>"
         hx-post="<?= htmlspecialchars(AdminUrl::page($fm['slug'])) ?>"
-        hx-target="#save-status"
+        hx-swap="none"
         hx-disabled-elt="#save-button"
         hx-indicator="#save-indicator"
     >
@@ -156,7 +156,6 @@ $pageHeading = trim((string) ($fm['title'] ?? '')) !== '' ? $fm['title'] : 'Ре
                     Сохранить
                 </button>
                 <span id="save-indicator" class="htmx-indicator text-sm text-slate-500">Сохранение…</span>
-                <div id="save-status" class="min-h-8 text-sm"></div>
                 <label class="ml-auto flex items-center gap-2 text-sm">
                     <input type="checkbox" name="published" value="1" <?= !empty($fm['published']) ? 'checked' : '' ?>>
                     Опубликовано

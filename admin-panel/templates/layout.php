@@ -7,6 +7,7 @@
     <link rel="icon" href="/core/assets/favicon.svg" type="image/svg+xml">
     <link href="/core/assets/css/admin.css" rel="stylesheet">
     <script src="/core/assets/js/htmx.min.js" defer></script>
+    <script src="/core/assets/js/toast.js" defer></script>
     <script src="/core/assets/js/alpine.min.js" defer></script>
     <style>[x-cloak]{display:none!important}</style>
 </head>
@@ -25,7 +26,23 @@
                 <a href="/" target="_blank" rel="noopener noreferrer" class="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
                     На сайт
                 </a>
-                <span class="text-xs text-slate-400">v<?= htmlspecialchars(Version::current()) ?></span>
+                <span class="inline-flex items-center gap-1 text-xs text-slate-400">
+                    v<?= htmlspecialchars(Version::current()) ?>
+                    <?php if (!empty($coreUpdate) && !empty($coreUpdate['version'])): ?>
+                        <?php
+                        $updateHint = 'Доступна новая версия ядра: v' . $coreUpdate['version'];
+                        ?>
+                        <span
+                            class="inline-flex text-amber-500"
+                            title="<?= htmlspecialchars($updateHint, ENT_QUOTES, 'UTF-8') ?>"
+                            aria-label="<?= htmlspecialchars($updateHint, ENT_QUOTES, 'UTF-8') ?>"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.168 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                            </svg>
+                        </span>
+                    <?php endif; ?>
+                </span>
                 <form method="post" action="/admin-panel/logout" hx-post="/admin-panel/logout" hx-target="body">
                     <?= Csrf::field() ?>
                     <button type="submit" class="text-sm text-slate-600 hover:text-red-600">Выйти</button>
@@ -33,16 +50,10 @@
             </div>
         </div>
     </header>
-    <?php if (!empty($coreUpdate) && !empty($coreUpdate['version'])): ?>
-        <div class="border-b border-amber-200 bg-amber-50">
-            <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm text-amber-900">
-                <span>Доступна новая версия ядра: <strong>v<?= htmlspecialchars($coreUpdate['version']) ?></strong> (сейчас v<?= htmlspecialchars(Version::current()) ?>)</span>
-                <a href="/admin-panel/system" class="font-medium text-amber-900 underline hover:no-underline">Обновить</a>
-            </div>
-        </div>
-    <?php endif; ?>
     <main class="mx-auto max-w-6xl px-4 py-8">
         <?= $content ?? '' ?>
     </main>
+    <?php require dirname(__DIR__, 2) . '/includes/views/toast-host.php'; ?>
+    <?php require dirname(__DIR__, 2) . '/includes/views/toast-boot.php'; ?>
 </body>
 </html>

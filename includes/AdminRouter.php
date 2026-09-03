@@ -256,22 +256,95 @@ class AdminRouter
             $checkError = $e->getMessage();
         }
 
+        $toasts = [];
+        $toastCleanParams = [];
+
+        if ($checkError !== null && $checkError !== '') {
+            $toasts[] = [
+                'message' => 'Не удалось проверить обновления: ' . $checkError,
+                'type' => 'info',
+            ];
+        }
+
+        if (isset($_GET['updated'])) {
+            $toasts[] = [
+                'message' => 'Ядро обновлено до v' . (string) $_GET['updated'] . '.',
+                'type' => 'success',
+            ];
+            $toastCleanParams[] = 'updated';
+        }
+        if (isset($_GET['error'])) {
+            $toasts[] = [
+                'message' => (string) $_GET['error'],
+                'type' => 'error',
+            ];
+            $toastCleanParams[] = 'error';
+        }
+        if (isset($_GET['checked']) && !isset($_GET['error']) && ($checkError === null || $checkError === '')) {
+            $toasts[] = [
+                'message' => 'Проверка обновлений выполнена.',
+                'type' => 'info',
+            ];
+            $toastCleanParams[] = 'checked';
+        }
+        if (isset($_GET['smtp'])) {
+            $toasts[] = [
+                'message' => 'Настройки SMTP сохранены.',
+                'type' => 'success',
+            ];
+            $toastCleanParams[] = 'smtp';
+        }
+        if (isset($_GET['smtp_error'])) {
+            $toasts[] = [
+                'message' => (string) $_GET['smtp_error'],
+                'type' => 'error',
+            ];
+            $toastCleanParams[] = 'smtp_error';
+        }
+        if (isset($_GET['smtp_test'])) {
+            $toasts[] = [
+                'message' => 'SMTP-соединение успешно установлено.',
+                'type' => 'success',
+            ];
+            $toastCleanParams[] = 'smtp_test';
+        }
+        if (isset($_GET['smtp_test_error'])) {
+            $toasts[] = [
+                'message' => 'Проверка SMTP не удалась: ' . (string) $_GET['smtp_test_error'],
+                'type' => 'error',
+            ];
+            $toastCleanParams[] = 'smtp_test_error';
+        }
+        if (isset($_GET['password'])) {
+            $toasts[] = [
+                'message' => 'Пароль администратора обновлён.',
+                'type' => 'success',
+            ];
+            $toastCleanParams[] = 'password';
+        }
+        if (isset($_GET['password_error'])) {
+            $toasts[] = [
+                'message' => (string) $_GET['password_error'],
+                'type' => 'error',
+            ];
+            $toastCleanParams[] = 'password_error';
+        }
+        if (isset($_GET['theme'])) {
+            $toasts[] = [
+                'message' => 'Тема сохранена.',
+                'type' => 'success',
+            ];
+            $toastCleanParams[] = 'theme';
+        }
+
         $this->render('system.php', [
             'currentVersion' => Version::current(),
             'update' => $update,
             'capabilities' => $updater->capabilities(),
-            'checkError' => $checkError,
             'meta' => SiteMeta::load($this->config),
             'themes' => $this->listThemes(),
-            'updateMessage' => $_GET['updated'] ?? null,
-            'updateError' => $_GET['error'] ?? null,
-            'checked' => isset($_GET['checked']),
-            'smtpMessage' => $_GET['smtp'] ?? null,
-            'smtpError' => $_GET['smtp_error'] ?? null,
-            'smtpTestMessage' => $_GET['smtp_test'] ?? null,
-            'smtpTestError' => $_GET['smtp_test_error'] ?? null,
-            'passwordMessage' => $_GET['password'] ?? null,
-            'passwordError' => $_GET['password_error'] ?? null,
+            'toasts' => $toasts,
+            'toastCleanParams' => $toastCleanParams,
             'smtp' => (new Mailer($this->config))->settingsFromEnv(),
             'smtpPasswordSet' => Env::get('SMTP_PASSWORD', '') !== '',
         ]);
@@ -555,14 +628,14 @@ class AdminRouter
                 : Slugifier::buildFullSlug($data['parent'], $data['leaf_slug']);
 
             if ($this->isHtmx()) {
-                $this->renderPartial('partials/save-status.php', ['message' => 'Сохранено'], '#save-status');
+                $this->htmxToast('Сохранено');
                 return;
             }
 
             $this->redirect(AdminUrl::page($newSlug));
         } catch (Throwable $e) {
             if ($this->isHtmx()) {
-                $this->renderPartial('partials/save-status.php', ['message' => $e->getMessage(), 'error' => true], '#save-status');
+                $this->htmxToast($e->getMessage(), 'error');
                 return;
             }
             http_response_code(400);
@@ -655,15 +728,17 @@ class AdminRouter
                     break;
             }
 
-            $view = array_merge($this->menuEditor->viewData($location), ['saved' => true]);
+            $view = $this->menuEditor->viewData($location);
             if ($this->isHtmx()) {
+                $this->htmxToast('Сохранено');
                 $this->renderPartial('menu/edit.php', $view, '#menu-editor');
                 return;
             }
             $this->redirect('/admin-panel/menu?location=' . rawurlencode($location));
         } catch (Throwable $e) {
-            $view = array_merge($this->menuEditor->viewData($location), ['error' => $e->getMessage()]);
+            $view = $this->menuEditor->viewData($location);
             if ($this->isHtmx()) {
+                $this->htmxToast($e->getMessage(), 'error');
                 $this->renderPartial('menu/edit.php', $view, '#menu-editor');
                 return;
             }
@@ -748,6 +823,20 @@ class AdminRouter
     private function isHtmx(): bool
     {
         return ($_SERVER['HTTP_HX_REQUEST'] ?? '') === 'true';
+    }
+
+    private function htmxToast(string $message, string $type = 'success'): void
+    {
+        $payload = json_encode(
+            [
+                'mc:toast' => [
+                    'message' => $message,
+                    'type' => $type,
+                ],
+            ],
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+        );
+        header('HX-Trigger: ' . $payload);
     }
 
     private function htmxRedirect(string $url): void

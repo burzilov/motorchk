@@ -362,9 +362,6 @@
   .h-7 {
     height: calc(var(--spacing) * 7);
   }
-  .min-h-8 {
-    min-height: calc(var(--spacing) * 8);
-  }
   .min-h-screen {
     min-height: 100vh;
   }
@@ -570,9 +567,6 @@
   .border-amber-200 {
     border-color: var(--color-amber-200);
   }
-  .border-emerald-200 {
-    border-color: var(--color-emerald-200);
-  }
   .border-red-200 {
     border-color: var(--color-red-200);
   }
@@ -599,12 +593,6 @@
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in oklab, var(--color-black) 40%, transparent);
     }
-  }
-  .bg-emerald-50 {
-    background-color: var(--color-emerald-50);
-  }
-  .bg-green-50 {
-    background-color: var(--color-green-50);
   }
   .bg-red-50 {
     background-color: var(--color-red-50);
@@ -800,12 +788,6 @@
   }
   .text-emerald-700 {
     color: var(--color-emerald-700);
-  }
-  .text-emerald-800 {
-    color: var(--color-emerald-800);
-  }
-  .text-green-700 {
-    color: var(--color-green-700);
   }
   .text-red-600 {
     color: var(--color-red-600);
@@ -1173,6 +1155,62 @@
 .menu-pages-tree .menu-page-item.dragging > div {
   background-color: rgb(241 245 249);
   border-radius: 0.5rem;
+}
+.mc-toast-stack {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 60;
+  display: flex;
+  max-width: min(24rem, calc(100vw - 2rem));
+  flex-direction: column;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+.mc-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border-radius: 0.5rem;
+  border-width: 1px;
+  border-style: solid;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+.mc-toast__message {
+  flex: 1;
+  min-width: 0;
+}
+.mc-toast__close {
+  margin: -0.25rem -0.25rem -0.25rem 0;
+  border: 0;
+  background: transparent;
+  padding: 0.25rem;
+  font-size: 1.125rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.6;
+}
+.mc-toast__close:hover {
+  opacity: 1;
+}
+.mc-toast--success {
+  border-color: rgb(167 243 208);
+  background-color: rgb(236 253 245);
+  color: rgb(6 95 70);
+}
+.mc-toast--error {
+  border-color: rgb(254 202 202);
+  background-color: rgb(254 242 242);
+  color: rgb(185 28 28);
+}
+.mc-toast--info {
+  border-color: rgb(226 232 240);
+  background-color: rgb(248 250 252);
+  color: rgb(51 65 85);
 }
 @property --tw-rotate-x {
   syntax: "*";

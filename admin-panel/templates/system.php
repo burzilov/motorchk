@@ -7,61 +7,6 @@ $enc = (string) ($smtp['encryption'] ?? 'tls');
 <div class="space-y-6">
     <h1 class="text-2xl font-bold">Система</h1>
 
-    <?php if (!empty($updateMessage)): ?>
-        <div class="rounded border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            Ядро обновлено до v<?= htmlspecialchars((string) $updateMessage) ?>.
-        </div>
-    <?php endif; ?>
-
-    <?php if (!empty($updateError)): ?>
-        <div class="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            <?= htmlspecialchars((string) $updateError) ?>
-        </div>
-    <?php endif; ?>
-
-    <?php if (!empty($checkError)): ?>
-        <div class="rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            Не удалось проверить обновления: <?= htmlspecialchars($checkError) ?>
-        </div>
-    <?php endif; ?>
-
-    <?php if (!empty($checked) && empty($checkError) && empty($updateError)): ?>
-        <div class="rounded border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-            Проверка обновлений выполнена.
-        </div>
-    <?php endif; ?>
-
-    <?php if (!empty($smtpMessage)): ?>
-        <div class="rounded border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            Настройки SMTP сохранены.
-        </div>
-    <?php endif; ?>
-    <?php if (!empty($smtpError)): ?>
-        <div class="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            <?= htmlspecialchars((string) $smtpError) ?>
-        </div>
-    <?php endif; ?>
-    <?php if (!empty($smtpTestMessage)): ?>
-        <div class="rounded border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            SMTP-соединение успешно установлено.
-        </div>
-    <?php endif; ?>
-    <?php if (!empty($smtpTestError)): ?>
-        <div class="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            Проверка SMTP не удалась: <?= htmlspecialchars((string) $smtpTestError) ?>
-        </div>
-    <?php endif; ?>
-    <?php if (!empty($passwordMessage)): ?>
-        <div class="rounded border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            Пароль администратора обновлён.
-        </div>
-    <?php endif; ?>
-    <?php if (!empty($passwordError)): ?>
-        <div class="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            <?= htmlspecialchars((string) $passwordError) ?>
-        </div>
-    <?php endif; ?>
-
     <section class="rounded-xl bg-white p-6 shadow-sm">
         <h2 class="mb-3 text-lg font-semibold">Тема сайта</h2>
         <form method="post" action="/admin-panel/system/theme" class="flex flex-wrap items-end gap-3">

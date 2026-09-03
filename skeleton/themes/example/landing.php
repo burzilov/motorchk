@@ -18,6 +18,7 @@
     <link href="<?= htmlspecialchars($themeAssetsUrl) ?>/css/app.css" rel="stylesheet">
     <?php require $config['core_path'] . '/includes/views/site-chrome.php'; ?>
     <script src="/core/assets/js/htmx.min.js" defer></script>
+    <script src="/core/assets/js/toast.js" defer></script>
     <script src="/core/assets/js/alpine.min.js" defer></script>
 </head>
 <body
@@ -54,6 +55,7 @@
             <?php require __DIR__ . '/partials/footer-menu.php'; ?>
         </div>
     </footer>
+    <?php require $config['core_path'] . '/includes/views/toast-host.php'; ?>
     <?php require __DIR__ . '/partials/scripts.php'; ?>
 </body>
 </html>
