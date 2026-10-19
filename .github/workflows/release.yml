@@ -40,7 +40,8 @@ jobs:
         run: |
           STAGE="motorchk-core-${VERSION}"
           mkdir -p "/tmp/${STAGE}"
-          rsync -a --exclude '.git' ./ "/tmp/${STAGE}/"
+          # tests/ — только для разработки; plugins/ и plugin-data/ принадлежат сайту и в ядро не входят
+          rsync -a --exclude '.git' --exclude '/tests' --exclude '/plugins' --exclude '/plugin-data' ./ "/tmp/${STAGE}/"
           (cd /tmp && zip -r "${GITHUB_WORKSPACE}/${STAGE}.zip" "${STAGE}")
 
       - name: Create GitHub Release
