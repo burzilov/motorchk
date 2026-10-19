@@ -103,14 +103,105 @@ final class PluginContext
         return '/admin-panel/plugins/' . $this->id() . self::joinPath($path);
     }
 
-    public function publicUrl(string $path = '/'): string
+    /**
+     * Адрес страницы плагина на сайте. На публичных страницах проходит через фильтр «url»
+     * (например, i18n добавляет /en/); $locale — язык ссылки, по умолчанию текущий.
+     * В админке фильтры не работают — адрес без языкового префикса.
+     */
+    public function publicUrl(string $path = '/', ?string $locale = null): string
     {
         $prefix = $this->prefix();
         if ($prefix === null) {
             throw new LogicException('У плагина нет public.prefix в plugin.json');
         }
 
-        return '/' . $prefix . self::joinPath($path);
+        return SiteLocale::url('/' . $prefix . self::joinPath($path), $locale, 'plugin');
+    }
+
+    // ---------- язык ----------
+
+    /** Язык текущего запроса (без службы i18n — всегда основной, «ru»). */
+    public function locale(): string
+    {
+        return SiteLocale::current();
+    }
+
+    public function defaultLocale(): string
+    {
+        return SiteLocale::default();
+    }
+
+    /** @return list<string> языки сайта, первым — основной */
+    public function locales(): array
+    {
+        return SiteLocale::locales();
+    }
+
+    /**
+     * Значение для текущего языка из массива ['ru' => …, 'en' => …]: текущий язык,
+     * затем основной, затем первое непустое.
+     *
+     * @param array<string, mixed> $values
+     */
+    public function localized(array $values, ?string $locale = null): mixed
+    {
+        foreach ([$locale ?? $this->locale(), $this->defaultLocale()] as $key) {
+            if (isset($values[$key]) && $values[$key] !== '') {
+                return $values[$key];
+            }
+        }
+        foreach ($values as $value) {
+            if ($value !== null && $value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    // ---------- службы и хуки ----------
+
+    /**
+     * Предоставить службу другим плагинам. Имя должно быть в plugin.json "provides".
+     * Вызывайте в точке входа: ядро загружает плагин-владелец при первом обращении к службе.
+     */
+    public function provide(string $name, object $service): void
+    {
+        $this->manager->registerService($this->id(), $name, $service);
+    }
+
+    /**
+     * Служба другого плагина или null, если её нет. Вызывайте в обработчиках, а не в точке
+     * входа: так порядок загрузки плагинов не важен.
+     */
+    public function service(string $name): ?object
+    {
+        return $this->manager->service($name);
+    }
+
+    /**
+     * Событие публичной части. Хук должен быть в plugin.json "hooks".
+     * request — function (SiteRequest $request): void, до маршрутизации (админка не затрагивается).
+     */
+    public function on(string $event, callable $handler, int $priority = 10): void
+    {
+        if ((PluginManager::HOOKS[$event] ?? null) !== 'event') {
+            throw new InvalidArgumentException('«' . $event . '» — не событие; для фильтров используйте filter()');
+        }
+        $this->manager->registerHook($this->id(), $event, $handler, $priority);
+    }
+
+    /**
+     * Фильтр публичной части: function (mixed $value, array $context): mixed — вернуть значение того же типа.
+     * url (string), menu (array меню), head (string HTML в <head>), output (string HTML страницы).
+     * Хук должен быть в plugin.json "hooks".
+     */
+    public function filter(string $name, callable $handler, int $priority = 10): void
+    {
+        if ((PluginManager::HOOKS[$name] ?? null) !== 'filter') {
+            throw new InvalidArgumentException('«' . $name . '» — не фильтр; для событий используйте on()');
+        }
+        $this->manager->registerHook($this->id(), $name, $handler, $priority);
     }
 
     /** URL статики из assets/ плагина с ?v={версия} для кеширования. */
@@ -218,9 +309,11 @@ final class PluginContext
      * Шаблон плагина (templates/{name}.php) внутри layout админки.
      *
      * @param array<string, mixed> $data переменные шаблона; $plugin доступен всегда
-     * @param array{title?: string, fullscreen?: bool, styles?: list<string>, scripts?: list<string>, status?: int} $options
+     * @param array{title?: string, fullscreen?: bool, styles?: list<string>, scripts?: list<string>, scripts_after_alpine?: list<string>, status?: int} $options
      *        fullscreen — редактор на всю ширину/высоту окна под шапкой админки;
-     *        styles/scripts — URL (обычно $plugin->assetUrl(...)) для <head>
+     *        styles/scripts — URL (обычно $plugin->assetUrl(...)) для <head>; scripts подключаются
+     *        до Alpine.js (компоненты регистрируйте в document.addEventListener('alpine:init', …)),
+     *        scripts_after_alpine — после него (как в 0.3)
      */
     public function render(string $template, array $data = [], array $options = []): void
     {
@@ -235,9 +328,12 @@ final class PluginContext
      * Шаблон плагина внутри шаблона активной темы (шапка, меню, подвал).
      * HTML попадает в $blocks['content'] шаблона темы.
      *
-     * @param array{title?: string, description?: string, template?: string, scripts?: list<string>, hero?: string, menu_location?: string, status?: int, vars?: array<string, mixed>} $options
-     *        template — шаблон темы (по умолчанию default); scripts — /plugin-assets/{id}/...js;
-     *        vars — доступны шаблону темы как $pluginVars
+     * @param array{title?: string, description?: string, template?: string, scripts?: list<string>, head_scripts?: list<string>, styles?: list<string>, hero?: string, menu_location?: string, status?: int, vars?: array<string, mixed>, alternates?: bool|array<string, string>} $options
+     *        template — шаблон темы (по умолчанию default); scripts — /plugin-assets/{id}/...js в конце страницы;
+     *        styles — CSS и head_scripts — JS (defer, до Alpine.js темы) в <head> через site-chrome.php;
+     *        vars — доступны шаблону темы как $pluginVars;
+     *        alternates — переводы страницы для hreflang: true — на всех языках сайта по тому же пути,
+     *        ['en' => '/en/…'] — явно, false/нет — без hreflang
      */
     public function renderPublic(string $template, array $data = [], array $options = []): void
     {

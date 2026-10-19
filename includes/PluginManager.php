@@ -6,7 +6,8 @@
  * Плагин в папке = включён. Невалидные и несовместимые плагины не загружаются;
  * причина видна на странице «Система». Ядро не выполняет код плагина, пока
  * к нему не пришёл запрос (админка /admin-panel/plugins/{id}/..., публичный
- * префикс /{prefix}/...) или пока не открыта «Система».
+ * префикс /{prefix}/...), пока не нужна его служба (plugin.json "provides"),
+ * пока не срабатывает объявленный им хук (plugin.json "hooks") или пока не открыта «Система».
  */
 class PluginManager
 {
@@ -40,6 +41,15 @@ class PluginManager
 
     public const STATE_FILE = '.plugin-state.json';
 
+    /** События (on) и фильтры (filter) публичной части, которые плагин объявляет в plugin.json "hooks". */
+    public const HOOKS = [
+        'request' => 'event',
+        'url' => 'filter',
+        'menu' => 'filter',
+        'head' => 'filter',
+        'output' => 'filter',
+    ];
+
     private const DENY_HTACCESS = "# motorchk: служебная папка — прямой HTTP-доступ запрещён.\n"
         . "# Статика плагинов отдаётся ядром по /plugin-assets/{id}/...\n"
         . "<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n"
@@ -53,6 +63,20 @@ class PluginManager
 
     /** @var array<string, bool> */
     private array $autoloaded = [];
+
+    /** @var array<string, PluginContext> плагины, чья точка входа выполняется сейчас */
+    private array $booting = [];
+
+    /** @var array<string, object> имя службы → объект */
+    private array $services = [];
+
+    /** @var array<string, list<array{priority: int, seq: int, plugin: string, fn: callable}>> */
+    private array $hooks = [];
+
+    /** @var array<string, bool> хуки, для которых объявившие их плагины уже загружены */
+    private array $hooksLoaded = [];
+
+    private int $hookSeq = 0;
 
     public function __construct(private array $config)
     {
@@ -183,6 +207,9 @@ class PluginManager
         if (isset($this->booted[$id])) {
             return $this->booted[$id];
         }
+        if (isset($this->booting[$id])) {
+            return $this->booting[$id];
+        }
 
         $info = $this->discover()[$id] ?? null;
         if ($info === null || $info['status'] !== 'ok') {
@@ -190,6 +217,7 @@ class PluginManager
         }
 
         $context = new PluginContext($this->config, $info, $this);
+        $this->booting[$id] = $context;
         try {
             $this->registerAutoload($info);
             $entry = (string) $info['entry_path'];
@@ -207,13 +235,168 @@ class PluginManager
 
             $this->runInstall($context, $info);
         } catch (Throwable $e) {
+            unset($this->booting[$id]);
+            $this->forgetPlugin($id);
             $this->markFailed($id, 'Ошибка загрузки: ' . $e->getMessage());
             error_log('motorchk plugin ' . $id . ': ' . $e->getMessage());
 
             return null;
         }
+        unset($this->booting[$id]);
 
         return $this->booted[$id] = $context;
+    }
+
+    // ---------- службы ----------
+
+    /** id плагина, объявившего службу в plugin.json "provides" (первый по алфавиту), или null. */
+    public function serviceOwner(string $name): ?string
+    {
+        foreach ($this->enabled() as $id => $plugin) {
+            if (in_array($name, $plugin['provides'] ?? [], true)) {
+                return $id;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Служба другого плагина. Плагин-владелец загружается при первом обращении;
+     * нет владельца, он не загрузился или не вызвал provide() — null.
+     */
+    public function service(string $name): ?object
+    {
+        if (isset($this->services[$name])) {
+            return $this->services[$name];
+        }
+        $owner = $this->serviceOwner($name);
+        if ($owner === null || $this->boot($owner) === null) {
+            return null;
+        }
+
+        return $this->services[$name] ?? null;
+    }
+
+    /** @internal PluginContext::provide() */
+    public function registerService(string $plugin, string $name, object $service): void
+    {
+        if ($this->serviceOwner($name) !== $plugin) {
+            throw new LogicException('Служба «' . $name . '» не объявлена в plugin.json "provides" плагина «' . $plugin . '» (или занята другим плагином)');
+        }
+        $this->services[$name] = $service;
+    }
+
+    // ---------- хуки ----------
+
+    /** Объявил ли хоть один валидный плагин хук (по plugin.json, без загрузки кода). */
+    public function declaresHook(string $name): bool
+    {
+        if (!$this->hasPluginsDir()) {
+            return false;
+        }
+        foreach ($this->enabled() as $plugin) {
+            if (in_array($name, $plugin['hooks'] ?? [], true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @internal PluginContext::on()/filter() */
+    public function registerHook(string $plugin, string $name, callable $fn, int $priority): void
+    {
+        $declared = $this->discover()[$plugin]['hooks'] ?? [];
+        if (!isset(self::HOOKS[$name])) {
+            throw new InvalidArgumentException('Неизвестный хук «' . $name . '». Доступны: ' . implode(', ', array_keys(self::HOOKS)));
+        }
+        if (!in_array($name, $declared, true)) {
+            throw new LogicException('Хук «' . $name . '» не объявлен в plugin.json "hooks" плагина «' . $plugin . '»');
+        }
+        $this->hooks[$name][] = ['priority' => $priority, 'seq' => $this->hookSeq++, 'plugin' => $plugin, 'fn' => $fn];
+    }
+
+    /**
+     * Обработчики хука по порядку (priority по возрастанию, затем порядок регистрации).
+     * Загружает плагины, объявившие хук.
+     *
+     * @return list<array{plugin: string, fn: callable}>
+     */
+    public function hookHandlers(string $name): array
+    {
+        if (!isset($this->hooksLoaded[$name])) {
+            $this->hooksLoaded[$name] = true;
+            if ($this->hasPluginsDir()) {
+                foreach ($this->enabled() as $id => $plugin) {
+                    if (in_array($name, $plugin['hooks'] ?? [], true)) {
+                        $this->boot($id);
+                    }
+                }
+            }
+        }
+        $handlers = $this->hooks[$name] ?? [];
+        usort($handlers, static fn(array $a, array $b): int => [$a['priority'], $a['seq']] <=> [$b['priority'], $b['seq']]);
+
+        return array_map(static fn(array $h): array => ['plugin' => $h['plugin'], 'fn' => $h['fn']], $handlers);
+    }
+
+    /**
+     * Событие: обработчики вызываются по очереди с одними аргументами. Исключение обработчика
+     * пишется в error_log и не мешает остальным.
+     */
+    public function dispatch(string $name, mixed ...$args): void
+    {
+        if (!$this->declaresHook($name)) {
+            return;
+        }
+        foreach ($this->hookHandlers($name) as $handler) {
+            try {
+                ($handler['fn'])(...$args);
+            } catch (Throwable $e) {
+                error_log('motorchk plugin ' . $handler['plugin'] . ' hook ' . $name . ': ' . $e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * Фильтр: значение проходит через обработчики по очереди. Если обработчик бросил исключение
+     * или вернул значение другого типа, значение остаётся прежним (ошибка — в error_log).
+     *
+     * @param array<string, mixed> $context
+     */
+    public function filter(string $name, mixed $value, array $context = []): mixed
+    {
+        if (!$this->declaresHook($name)) {
+            return $value;
+        }
+        foreach ($this->hookHandlers($name) as $handler) {
+            try {
+                $next = ($handler['fn'])($value, $context);
+                if (get_debug_type($next) === get_debug_type($value)) {
+                    $value = $next;
+                } else {
+                    error_log('motorchk plugin ' . $handler['plugin'] . ' filter ' . $name . ': вернул ' . get_debug_type($next) . ' вместо ' . get_debug_type($value));
+                }
+            } catch (Throwable $e) {
+                error_log('motorchk plugin ' . $handler['plugin'] . ' filter ' . $name . ': ' . $e->getMessage());
+            }
+        }
+
+        return $value;
+    }
+
+    /** Убрать службы и хуки плагина, чья загрузка сорвалась. */
+    private function forgetPlugin(string $id): void
+    {
+        foreach ($this->services as $name => $_) {
+            if ($this->serviceOwner($name) === $id) {
+                unset($this->services[$name]);
+            }
+        }
+        foreach ($this->hooks as $name => $handlers) {
+            $this->hooks[$name] = array_values(array_filter($handlers, static fn(array $h): bool => $h['plugin'] !== $id));
+        }
     }
 
     /**
@@ -452,6 +635,8 @@ class PluginManager
             'menu' => null,
             'prefix' => null,
             'autoload' => [],
+            'provides' => [],
+            'hooks' => [],
             'compatible' => null,
             'data_dir' => $this->dataRoot() . '/' . $folder,
             'data_writable' => false,
@@ -562,6 +747,32 @@ class PluginManager
             }
         }
 
+        if (isset($manifest['provides'])) {
+            $provides = $manifest['provides'];
+            if (!is_array($provides) || !array_is_list($provides)) {
+                return self::fail($info, 'provides — список имён служб ["i18n"]');
+            }
+            foreach ($provides as $service) {
+                if (!is_string($service) || !preg_match(self::ID_PATTERN, $service)) {
+                    return self::fail($info, 'provides: имя службы должно соответствовать ^[a-z0-9-]+$');
+                }
+            }
+            $info['provides'] = array_values(array_unique($provides));
+        }
+
+        if (isset($manifest['hooks'])) {
+            $hooks = $manifest['hooks'];
+            if (!is_array($hooks) || !array_is_list($hooks)) {
+                return self::fail($info, 'hooks — список хуков ["request", "url", …]');
+            }
+            foreach ($hooks as $hook) {
+                if (!is_string($hook) || !isset(self::HOOKS[$hook])) {
+                    return self::fail($info, 'hooks: неизвестный хук «' . (is_string($hook) ? $hook : gettype($hook)) . '». Доступны: ' . implode(', ', array_keys(self::HOOKS)));
+                }
+            }
+            $info['hooks'] = array_values(array_unique($hooks));
+        }
+
         if (!$compatible) {
             return self::fail($info, 'Несовместим: требуется ядро ' . $info['core'] . ', установлено ' . Version::current());
         }
@@ -571,6 +782,21 @@ class PluginManager
 
     private function detectConflicts(): void
     {
+        $serviceOwners = [];
+        foreach ($this->plugins as $id => $plugin) {
+            if ($plugin['status'] !== 'ok') {
+                continue;
+            }
+            foreach ($plugin['provides'] as $service) {
+                if (isset($serviceOwners[$service])) {
+                    $this->plugins[$id]['provides'] = array_values(array_diff($this->plugins[$id]['provides'], [$service]));
+                    $this->plugins[$id]['warnings'][] = 'Служба «' . $service . '» уже предоставляется плагином «' . $serviceOwners[$service] . '» — объявление проигнорировано';
+                    continue;
+                }
+                $serviceOwners[$service] = $id;
+            }
+        }
+
         $owners = [];
         $contentPath = rtrim((string) ($this->config['content_path'] ?? ''), '/');
         foreach ($this->plugins as $id => $plugin) {
