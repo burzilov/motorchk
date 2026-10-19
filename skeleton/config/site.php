@@ -12,6 +12,8 @@ return [
     'themes_path' => $sitePath . '/themes',
     'forms_path' => $sitePath . '/content/forms',
     'submissions_path' => $sitePath . '/submissions',
+    'plugins_path' => $sitePath . '/plugins',
+    'plugin_data_path' => $sitePath . '/plugin-data',
     'admin_templates_path' => $corePath . '/admin-panel/templates',
     'menu_file' => $sitePath . '/content/_menus.yaml',
     'skeleton_path' => $corePath . '/skeleton',
