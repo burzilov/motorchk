@@ -112,7 +112,7 @@ function tp_rm(string $path): void
     rmdir($path);
 }
 
-function tp_plugin(string $site, string $folder, array $manifest, string $entry = null, array $files = []): void
+function tp_plugin(string $site, string $folder, array $manifest, ?string $entry = null, array $files = []): void
 {
     $dir = $site . '/plugins/' . $folder;
     @mkdir($dir, 0775, true);
