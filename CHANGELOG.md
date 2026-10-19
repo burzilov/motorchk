@@ -10,6 +10,7 @@
 - Переводы Markdown-страниц `about.en.md` рядом с `about.md`: показ по языку с откатом на оригинал (canonical), hreflang только для существующих переводов, `<html lang>` по языку содержимого, подписи меню из заголовков переводов. Только при активной службе `i18n`.
 - Переменные темы `$locale`, `$defaultLocale`, `$contentLocale`, `$alternates`, `$i18n`; тема-пример выводит `<html lang>` из `$contentLocale`.
 - `renderPublic()`: опции `styles`, `head_scripts` (в `<head>` до Alpine.js) и `alternates`.
+- `PluginContext::readJsonStrict($rel, $default = [])`: нет файла — `$default`, повреждённый JSON или не объект/массив — `PluginDataException` с именем файла; ничего не перезаписывает. `readJson()` не изменился (по-прежнему молча возвращает `$default` для повреждённого файла).
 - Админка: скрипты плагина (`scripts`) подключаются до Alpine.js — компоненты регистрируются в `alpine:init`; прежний порядок — `scripts_after_alpine`.
 - Без плагина со службой `i18n` вывод сайта и админки не меняется.
 - Документация `docs/11-i18n.md`, тесты `php tests/i18n.php`; пример `hello` требует `^0.4`.

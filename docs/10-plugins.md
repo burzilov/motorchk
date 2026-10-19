@@ -155,9 +155,24 @@ return static function (PluginContext $plugin): void {
 
 **CSRF:** `csrfToken()`, `csrfField()`, `csrfValid($request)`.
 
-**Данные** (относительные пути внутри `dataDir()`, без `..` и скрытых файлов): `dataPath($rel)`, `writeFile($rel, $content)` (через `FileWriter`, flock, папки создаются), `readFile($rel)`, `writeJson($rel, $data)`, `readJson($rel, $default)`, `deleteFile($rel)`.
+**Данные** (относительные пути внутри `dataDir()`, без `..` и скрытых файлов): `dataPath($rel)`, `writeFile($rel, $content)` (через `FileWriter`, flock, папки создаются), `readFile($rel)`, `writeJson($rel, $data)`, `readJson($rel, $default)`, `readJsonStrict($rel, $default = [])`, `deleteFile($rel)`.
 
-> `readJson()` возвращает `$default` и когда файла нет, и когда файл **повреждён** (не JSON). Если плагин после этого перезапишет файл, данные потеряются. Для важных данных читайте `readFile()` и сами проверяйте `json_decode()` — при ошибке не перезаписывайте файл.
+> `readJson()` возвращает `$default` и когда файла нет, и когда файл **повреждён** (не JSON). Если плагин после этого перезапишет файл, данные потеряются. Для важных данных используйте `readJsonStrict()`.
+
+`readJsonStrict($rel, ?array $default = [])` (с 0.4.0):
+
+- файла нет — `$default`;
+- файл не читается, не JSON или на верхнем уровне не объект/массив (`"text"`, `42`, `null`, пустой файл) — исключение `PluginDataException` (наследник `RuntimeException`) с сообщением вида «Файл plugin-data/{id}/items.json повреждён (не JSON: Syntax error). Файл не изменён — восстановите его из резервной копии.»; `relativePath()` — путь, переданный в метод;
+- ничего не записывает. Если исключение не перехвачено, маршрут получит 500, а файл останется как есть.
+
+```php
+try {
+    $items = $plugin->readJsonStrict('items.json');   // [] при первом запуске
+} catch (PluginDataException $e) {
+    $plugin->jsonError($e->getMessage(), 500);        // не перезаписываем файл
+    return;
+}
+```
 
 **Установка/обновление:** `onInstall(fn (?string $from, string $to, PluginContext $plugin))`. Хук вызывается при первой загрузке новой версии плагина (под блокировкой файла), затем версия записывается в `plugin-data/{id}/.plugin-state.json`. Хук должен быть идемпотентным; если он бросил исключение, версия не записывается, плагин не загружается, ошибка видна на «Системе», при следующем запросе хук повторится.
 
