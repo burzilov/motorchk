@@ -200,7 +200,7 @@ $_SESSION = [];
 // ---------------------------------------------------------------- discovery
 out("\n[обнаружение и валидация]\n");
 tp_copy($corePath . '/docs/examples/plugins/hello', $site . '/plugins/hello');
-$ok = static fn(array $extra = []) => $extra + ['name' => 'T', 'version' => '1.0.0', 'core' => '^0.3', 'entry' => 'plugin.php'];
+$ok = static fn(array $extra = []) => $extra + ['name' => 'T', 'version' => '1.0.0', 'core' => '^0.4', 'entry' => 'plugin.php'];
 $noop = "<?php\nreturn static function (PluginContext \$p): void {};\n";
 tp_plugin($site, 'bad-json', [], null, []);
 file_put_contents($site . '/plugins/bad-json/plugin.json', '{oops');
