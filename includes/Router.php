@@ -7,6 +7,7 @@ class Router
     private PageLoader $pageLoader;
     private PageTree $pageTree;
     private MenuBuilder $menuBuilder;
+    private ?PluginManager $pluginManager = null;
 
     public function __construct(private array $config)
     {
@@ -29,6 +30,10 @@ class Router
                 return;
             }
             $this->handleFormSubmit();
+            return;
+        }
+
+        if ($this->dispatchPlugins($path, $method)) {
             return;
         }
 
@@ -67,6 +72,100 @@ class Router
         $this->renderPage($page, $slug, false);
     }
 
+    /**
+     * Статика /plugin-assets/{id}/... и публичные префиксы плагинов (приоритет над Markdown-страницами).
+     * Без папки plugins/ ничего не делает.
+     */
+    private function dispatchPlugins(string $path, string $method): bool
+    {
+        $manager = $this->pluginManager ??= new PluginManager($this->config);
+        if (!$manager->hasPluginsDir()) {
+            return false;
+        }
+
+        if (str_starts_with($path, '/plugin-assets/')) {
+            if (!in_array($method, ['GET', 'HEAD'], true)) {
+                http_response_code(405);
+                header('Allow: GET, HEAD');
+                return true;
+            }
+            $manager->serveAsset(rawurldecode(substr($path, strlen('/plugin-assets/'))));
+            return true;
+        }
+
+        $trimmed = trim($path, '/');
+        $segment = explode('/', $trimmed, 2)[0];
+        $owner = $manager->prefixOwner($segment);
+        if ($owner === null) {
+            return false;
+        }
+
+        $relative = '/' . (explode('/', $trimmed, 2)[1] ?? '');
+        $context = $manager->boot($owner);
+        if ($context === null) {
+            $this->render500('Плагин временно недоступен');
+            return true;
+        }
+
+        $context->setPublicRenderer(function (string $html, array $options) use ($trimmed): void {
+            $this->renderPluginPage($html, $options, $trimmed === '' ? 'index' : $trimmed);
+        });
+
+        try {
+            $status = $manager->handle($context, 'public', $method, $relative, true);
+        } catch (Throwable $e) {
+            error_log('motorchk plugin ' . $owner . ': ' . $e->getMessage());
+            if (!headers_sent()) {
+                $this->render500('Ошибка плагина');
+            }
+            return true;
+        }
+
+        if ($status === 403) {
+            $this->jsonResponse(403, ['ok' => false, 'error' => 'CSRF validation failed']);
+        } elseif ($status === 405) {
+            http_response_code(405);
+            header('Content-Type: text/plain; charset=UTF-8');
+            echo 'Method not allowed';
+        } elseif ($status === 404) {
+            $this->render404();
+        }
+
+        return true;
+    }
+
+    /**
+     * HTML плагина в шаблоне активной темы ($blocks['content']).
+     *
+     * @param array<string, mixed> $options
+     */
+    private function renderPluginPage(string $html, array $options, string $slug): void
+    {
+        $page = [
+            'front_matter' => [
+                'title' => (string) ($options['title'] ?? 'motorchk'),
+                'description' => (string) ($options['description'] ?? ''),
+                'template' => (string) ($options['template'] ?? 'default'),
+                'og_title' => (string) ($options['og_title'] ?? ''),
+                'og_description' => (string) ($options['og_description'] ?? ''),
+                'og_image' => (string) ($options['og_image'] ?? ''),
+                'scripts' => $options['scripts'] ?? [],
+                'published' => true,
+                'menu_location' => (string) ($options['menu_location'] ?? MenuWriter::DEFAULT_LOCATION),
+            ],
+            'blocks' => [
+                'hero' => (string) ($options['hero'] ?? ''),
+                'content' => $html,
+            ],
+        ];
+
+        $this->renderPage($page, $slug, false, [
+            'editable' => false,
+            'status' => (int) ($options['status'] ?? 200),
+            'vars' => (array) ($options['vars'] ?? []),
+        ]);
+    }
+
     private function handleFormSubmit(): void
     {
         $contentType = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';
@@ -102,7 +201,10 @@ class Router
         return $path === '' ? 'index' : $path;
     }
 
-    private function renderPage(array $page, string $slug, bool $isPreview = false): void
+    /**
+     * @param array{editable?: bool, status?: int, vars?: array<string, mixed>} $options
+     */
+    private function renderPage(array $page, string $slug, bool $isPreview = false, array $options = []): void
     {
         $frontMatter = $page['front_matter'];
         $blocks = $page['blocks'];
@@ -145,13 +247,14 @@ class Router
         $scripts = PageScripts::normalize($frontMatter['scripts'] ?? []);
         $pagePublished = !empty($frontMatter['published']);
         $adminEditUrl = AdminUrl::page($slug);
-        $canEdit = !empty($_SESSION['admin_authenticated']);
+        $canEdit = ($options['editable'] ?? true) && !empty($_SESSION['admin_authenticated']);
+        $pluginVars = $options['vars'] ?? [];
         $inlineEditSaveUrl = $canEdit ? AdminUrl::pageBlocks($slug) : '';
         $inlineEditCsrf = $canEdit ? Csrf::token() : '';
         $config = $this->config;
         Form::setConfig($this->config);
 
-        http_response_code(200);
+        http_response_code((int) ($options['status'] ?? 200));
         header('Content-Type: text/html; charset=UTF-8');
 
         require $templateFile;
