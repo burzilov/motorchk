@@ -291,6 +291,38 @@ check($threw, 'dataPath() отклоняет скрытые файлы');
 $hello->writeJson('sub/x.json', ['a' => 1]);
 check($hello->readJson('sub/x.json') === ['a' => 1] && $hello->readJson('missing.json', 'def') === 'def', 'writeJson()/readJson()');
 check($hello->deleteFile('sub/x.json') && $hello->readFile('sub/x.json') === null, 'deleteFile()');
+// readJsonStrict(): нет файла — default, повреждённый — исключение с именем файла, файл не меняется
+$strictErr = static function (callable $fn): ?PluginDataException {
+    try {
+        $fn();
+    } catch (PluginDataException $e) {
+        return $e;
+    }
+    return null;
+};
+check($hello->readJsonStrict('missing.json') === [] && $hello->readJsonStrict('missing.json', ['d' => 1]) === ['d' => 1] && $hello->readJsonStrict('missing.json', null) === null, 'readJsonStrict(): нет файла — значение по умолчанию');
+$hello->writeJson('strict/ok.json', ['a' => [1, 2]]);
+$hello->writeFile('strict/list.json', '[1, 2]');
+check($hello->readJsonStrict('strict/ok.json') === ['a' => [1, 2]] && $hello->readJsonStrict('strict/list.json') === [1, 2], 'readJsonStrict(): объект и массив');
+$hello->writeFile('strict/bad.json', '{"a": [ broken');
+$e = $strictErr(fn() => $hello->readJsonStrict('strict/bad.json', ['fallback']));
+check($e !== null && str_contains($e->getMessage(), 'plugin-data/hello/strict/bad.json') && str_contains($e->getMessage(), 'не JSON') && $e->relativePath() === 'strict/bad.json' && $e instanceof RuntimeException, 'readJsonStrict(): не JSON — PluginDataException с именем файла');
+check($hello->readFile('strict/bad.json') === '{"a": [ broken' && $hello->readJson('strict/bad.json', 'def') === 'def', 'повреждённый файл не перезаписан; readJson() по-прежнему возвращает default');
+foreach (['"text"', '42', 'null', 'true', ''] as $scalar) {
+    $hello->writeFile('strict/scalar.json', $scalar);
+    $e = $strictErr(fn() => $hello->readJsonStrict('strict/scalar.json'));
+    check($e !== null && str_contains($e->getMessage(), 'plugin-data/hello/strict/scalar.json'), 'readJsonStrict(): верхний уровень ' . ($scalar === '' ? 'пустой файл' : $scalar) . ' — исключение');
+}
+mkdir($hello->dataPath('strict/dir.json'), 0775, true);
+$e = $strictErr(fn() => $hello->readJsonStrict('strict/dir.json'));
+check($e !== null && str_contains($e->getMessage(), 'не читается'), 'readJsonStrict(): не файл — исключение «не читается»');
+$threw = false;
+try {
+    $hello->readJsonStrict('../x.json');
+} catch (InvalidArgumentException) {
+    $threw = true;
+}
+check($threw, 'readJsonStrict(): путь проверяется как в dataPath()');
 $r = $hello->matchRoute('public', 'GET', '/to/Ivan');
 check(($r['params']['name'] ?? null) === 'Ivan', 'маршрут /to/{name}');
 $r = $hello->matchRoute('admin', 'POST', '/api/greeting');

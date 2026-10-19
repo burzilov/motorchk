@@ -490,6 +490,38 @@ final class PluginContext
         return $data === null && trim($raw) !== 'null' ? $default : $data;
     }
 
+    /**
+     * Строгое чтение JSON: нет файла — $default; файл не читается, не JSON или верхний уровень
+     * не объект/массив — PluginDataException с именем файла (plugin-data/{id}/{путь}).
+     * Ничего не записывает: повреждённый файл остаётся как есть, решать — администратору.
+     * В отличие от readJson(), не подменяет повреждённые данные значением по умолчанию.
+     *
+     * @param array<mixed>|null $default
+     * @return array<mixed>|null
+     */
+    public function readJsonStrict(string $relative, ?array $default = []): ?array
+    {
+        $path = $this->dataPath($relative);
+        $name = 'plugin-data/' . $this->id() . '/' . ltrim($relative, '/');
+        if (!file_exists($path)) {
+            return $default;
+        }
+        $raw = is_file($path) && is_readable($path) ? file_get_contents($path) : false;
+        if ($raw === false) {
+            throw new PluginDataException('Файл ' . $name . ' не читается. Проверьте права доступа.', $relative);
+        }
+        try {
+            $data = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $e) {
+            throw new PluginDataException('Файл ' . $name . ' повреждён (не JSON: ' . $e->getMessage() . '). Файл не изменён — восстановите его из резервной копии.', $relative, $e);
+        }
+        if (!is_array($data)) {
+            throw new PluginDataException('Файл ' . $name . ' повреждён (ожидается JSON-объект или массив, а не ' . get_debug_type($data) . '). Файл не изменён — восстановите его из резервной копии.', $relative);
+        }
+
+        return $data;
+    }
+
     public function deleteFile(string $relative): bool
     {
         $path = $this->dataPath($relative);
