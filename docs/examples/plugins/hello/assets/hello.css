@@ -1,0 +1,12 @@
+.hello-card { max-width: 40rem; padding: 1.5rem; border-radius: .75rem; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / .06); }
+.hello-card h1 { margin: 0 0 .5rem; font-size: 1.5rem; font-weight: 700; }
+.hello-card p { margin: .5rem 0; font-size: .875rem; color: #475569; }
+.hello-card a { color: #0369a1; text-decoration: underline; }
+.hello-card form { display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end; margin-top: 1rem; }
+.hello-card label { display: grid; gap: .25rem; font-size: .875rem; }
+.hello-card input { min-width: 18rem; padding: .5rem .75rem; border: 1px solid #cbd5e1; border-radius: .25rem; }
+.hello-card button { padding: .5rem 1rem; border: 0; border-radius: .25rem; background: #0284c7; color: #fff; cursor: pointer; }
+.hello-status { min-height: 1.25rem; }
+.hello-fullscreen { position: absolute; inset: 0; display: grid; place-items: center; background: repeating-conic-gradient(#e2e8f0 0 25%, #f8fafc 0 50%) 0 0 / 24px 24px; }
+.hello-fullscreen > div { padding: 2rem; border-radius: .75rem; background: #fff; text-align: center; }
+.hello-public h1 { color: #0369a1; }
