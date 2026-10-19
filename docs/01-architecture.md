@@ -7,13 +7,15 @@
 | `core/includes/`, `core/admin-panel/`, `core/vendor/` | ядро |
 | `core/assets/` | CSS/JS админки, библиотек и chrome публичных страниц (`site-chrome.css`) |
 | `core/skeleton/` | шаблон первичной установки |
-| `content/`, `themes/` | сайт |
-| `.env`, `config/site.php`, `cache/`, `submissions/` | сайт / runtime |
+| `content/`, `themes/`, `plugins/` | сайт |
+| `.env`, `config/site.php`, `cache/`, `submissions/`, `plugin-data/` | сайт / runtime |
 
 Публичный front controller: `public_html/index.php` → `core/includes/bootstrap.php`.  
 Админка: rewrite `/admin-panel` → `core/admin-panel/index.php`.
 
 Конфиг сайта задаёт пути (`content_path`, `themes_path`, `forms_path`, `submissions_path`, `core_path`, …); bootstrap подмешивает их после установки.
+
+Плагины: `core/includes/PluginManager.php` читает `plugins/*/plugin.json`; `AdminRouter` передаёт `/admin-panel/plugins/{id}/…` плагину после проверки входа и CSRF, `Router` до Markdown-страниц обслуживает `/plugin-assets/{id}/…` и публичные префиксы плагинов. API — `PluginContext`, `PluginRequest`. Подробнее — [10-plugins.md](10-plugins.md).
 
 Формы заявок: meta в `content/forms/*.yaml`, разметка в теме через `Form::begin`/`end`, приём `POST /api/forms/submit`, хранение в `submissions/`. Подробнее — [09-forms.md](09-forms.md).
 

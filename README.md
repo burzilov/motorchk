@@ -19,7 +19,7 @@ Composer на сервере не нужен: `vendor/` уже внутри rele
 
 ## Обновление
 
-В админке: **Система** — проверка GitHub Releases (`burzilov/motorchk`) и кнопка обновления. Контент, пользовательские темы и `.env` не затрагиваются; `themes/example/` заменяется версией из release.
+В админке: **Система** — проверка GitHub Releases (`burzilov/motorchk`) и кнопка обновления. Контент, пользовательские темы, плагины (`plugins/`, `plugin-data/`) и `.env` не затрагиваются; `themes/example/` заменяется версией из release.
 
 Вручную: замените папку `core/` на новую версию и откройте сайт (миграции применятся при апдейте через админку; при ручной замене выполните логику из `install/migrate.php` при необходимости).
 
@@ -31,11 +31,17 @@ public_html/
 ├── content/       ← сайт (в т.ч. content/forms/*.yaml)
 ├── submissions/   ← заявки с форм (закрыто от HTTP)
 ├── themes/        ← темы сайта: {theme}/, PHP-шаблоны и assets внутри темы
+├── plugins/       ← плагины: {id}/plugin.json (закрыто от HTTP)
+├── plugin-data/   ← данные плагинов (закрыто от HTTP)
 ├── config/site.php
 ├── index.php
 ├── .htaccess
 └── .env
 ```
+
+## Плагины
+
+Плагин устанавливается распаковкой архива в `public_html/plugins/{id}/`; плагин в папке включён. Плагины добавляют страницы и JSON API в админку (`/admin-panel/plugins/{id}/`), публичные адреса (`/{prefix}/`) и статику (`/plugin-assets/{id}/`). Self-update ядра не трогает `plugins/` и `plugin-data/`. Подробнее — [docs/10-plugins.md](docs/10-plugins.md), пример — [docs/examples/plugins/hello](docs/examples/plugins/hello/).
 
 ## Темы
 
