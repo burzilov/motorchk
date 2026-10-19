@@ -77,6 +77,10 @@ class AdminRouter
             return;
         }
 
+        // служба i18n (если есть): файлы переводов about.en.md не показываются как отдельные страницы.
+        // Хуки сайта (request, url, …) в админке не работают.
+        SiteLocale::init($this->plugins(), false);
+
         if (preg_match('#^/plugins/([a-z0-9-]+)(/.*)?$#', $path, $m)) {
             if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
                 $this->requireCsrf();
@@ -447,6 +451,7 @@ class AdminRouter
             'layoutFullscreen' => !empty($options['fullscreen']),
             'layoutStyles' => self::sameOriginUrls($options['styles'] ?? []),
             'layoutScripts' => self::sameOriginUrls($options['scripts'] ?? []),
+            'layoutScriptsAfterAlpine' => self::sameOriginUrls($options['scripts_after_alpine'] ?? []),
         ]);
     }
 

@@ -12,7 +12,8 @@
     <link href="/core/assets/css/admin.css" rel="stylesheet">
     <script src="/core/assets/js/htmx.min.js" defer></script>
     <script src="/core/assets/js/toast.js" defer></script>
-    <script src="/core/assets/js/alpine.min.js" defer></script>
+    <?php foreach ($layoutScripts ?? [] as $layoutScript): ?><script src="<?= htmlspecialchars($layoutScript, ENT_QUOTES, 'UTF-8') ?>" defer></script>
+    <?php endforeach; ?><script src="/core/assets/js/alpine.min.js" defer></script>
     <style>
         [x-cloak]{display:none!important}
         .mc-admin--fullscreen{display:flex;flex-direction:column;height:100vh;overflow:hidden}
@@ -23,7 +24,7 @@
     <?php foreach ($layoutStyles ?? [] as $layoutStyle): ?>
         <link href="<?= htmlspecialchars($layoutStyle, ENT_QUOTES, 'UTF-8') ?>" rel="stylesheet">
     <?php endforeach; ?>
-    <?php foreach ($layoutScripts ?? [] as $layoutScript): ?>
+    <?php foreach ($layoutScriptsAfterAlpine ?? [] as $layoutScript): ?>
         <script src="<?= htmlspecialchars($layoutScript, ENT_QUOTES, 'UTF-8') ?>" defer></script>
     <?php endforeach; ?>
 </head>
