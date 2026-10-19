@@ -3,15 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Админка — motorchk</title>
+    <?php
+    $layoutTitle = trim((string) ($pageTitle ?? ''));
+    $layoutFullscreen = !empty($layoutFullscreen);
+    ?>
+    <title><?= htmlspecialchars($layoutTitle !== '' ? $layoutTitle . ' — Админка motorchk' : 'Админка — motorchk') ?></title>
     <link rel="icon" href="/core/assets/favicon.svg" type="image/svg+xml">
     <link href="/core/assets/css/admin.css" rel="stylesheet">
     <script src="/core/assets/js/htmx.min.js" defer></script>
     <script src="/core/assets/js/toast.js" defer></script>
     <script src="/core/assets/js/alpine.min.js" defer></script>
-    <style>[x-cloak]{display:none!important}</style>
+    <style>
+        [x-cloak]{display:none!important}
+        .mc-admin--fullscreen{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+        .mc-admin--fullscreen>header{flex:0 0 auto}
+        .mc-admin--fullscreen>header>div{max-width:none;padding-top:.5rem;padding-bottom:.5rem}
+        .mc-admin--fullscreen>main{flex:1 1 auto;min-height:0;position:relative;overflow:hidden}
+    </style>
+    <?php foreach ($layoutStyles ?? [] as $layoutStyle): ?>
+        <link href="<?= htmlspecialchars($layoutStyle, ENT_QUOTES, 'UTF-8') ?>" rel="stylesheet">
+    <?php endforeach; ?>
+    <?php foreach ($layoutScripts ?? [] as $layoutScript): ?>
+        <script src="<?= htmlspecialchars($layoutScript, ENT_QUOTES, 'UTF-8') ?>" defer></script>
+    <?php endforeach; ?>
 </head>
-<body class="min-h-screen bg-slate-100 text-slate-900">
+<body class="min-h-screen bg-slate-100 text-slate-900<?= $layoutFullscreen ? ' mc-admin--fullscreen' : '' ?>">
     <header class="border-b border-slate-200 bg-white">
         <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
             <div class="flex items-center gap-6">
@@ -20,6 +36,9 @@
                     <a href="/admin-panel/menu" class="text-slate-600 hover:text-sky-700">Меню</a>
                     <a href="/admin-panel/submissions" class="text-slate-600 hover:text-sky-700">Заявки</a>
                     <a href="/admin-panel/system" class="text-slate-600 hover:text-sky-700">Система</a>
+                    <?php foreach ($pluginMenu ?? [] as $pluginItem): ?>
+                        <a href="<?= htmlspecialchars($pluginItem['url'], ENT_QUOTES, 'UTF-8') ?>" class="<?= !empty($pluginItem['active']) ? 'font-medium text-sky-700' : 'text-slate-600' ?> hover:text-sky-700"><?= htmlspecialchars($pluginItem['label']) ?></a>
+                    <?php endforeach; ?>
                 </nav>
             </div>
             <div class="flex items-center gap-4">
@@ -50,9 +69,15 @@
             </div>
         </div>
     </header>
-    <main class="mx-auto max-w-6xl px-4 py-8">
-        <?= $content ?? '' ?>
-    </main>
+    <?php if ($layoutFullscreen): ?>
+        <main id="mc-admin-main">
+            <?= $content ?? '' ?>
+        </main>
+    <?php else: ?>
+        <main class="mx-auto max-w-6xl px-4 py-8">
+            <?= $content ?? '' ?>
+        </main>
+    <?php endif; ?>
     <?php require dirname(__DIR__, 2) . '/includes/views/toast-host.php'; ?>
     <?php require dirname(__DIR__, 2) . '/includes/views/toast-boot.php'; ?>
 </body>

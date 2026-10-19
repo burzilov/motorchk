@@ -107,6 +107,66 @@ $enc = (string) ($smtp['encryption'] ?? 'tls');
     </section>
 
     <section class="rounded-xl bg-white p-6 shadow-sm">
+        <h2 class="mb-3 text-lg font-semibold">Плагины</h2>
+        <p class="mb-4 text-sm text-slate-600">
+            Плагин устанавливается распаковкой архива в <code><?= htmlspecialchars((string) ($pluginsPath ?? '')) ?>/{id}/</code>;
+            плагин в папке включён. Данные плагинов — <code><?= htmlspecialchars((string) ($pluginDataPath ?? '')) ?>/{id}/</code>.
+        </p>
+        <?php $pluginList = $plugins ?? []; ?>
+        <?php if ($pluginList === []): ?>
+            <p class="text-sm text-slate-500">Плагины не установлены.</p>
+        <?php else: ?>
+            <ul class="space-y-3">
+                <?php foreach ($pluginList as $pluginId => $pluginInfo): ?>
+                    <?php $pluginOk = ($pluginInfo['status'] ?? '') === 'ok'; ?>
+                    <li class="rounded-lg border <?= $pluginOk ? 'border-slate-200' : 'border-red-200 bg-red-50' ?> p-4 text-sm">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <span class="font-medium"><?= htmlspecialchars((string) $pluginInfo['name']) ?></span>
+                            <span class="font-mono text-xs text-slate-500"><?= htmlspecialchars((string) $pluginId) ?><?= ($pluginInfo['version'] ?? '') !== '' ? ' v' . htmlspecialchars((string) $pluginInfo['version']) : '' ?></span>
+                        </div>
+                        <?php if (($pluginInfo['description'] ?? '') !== ''): ?>
+                            <p class="mt-1 text-slate-600"><?= htmlspecialchars((string) $pluginInfo['description']) ?></p>
+                        <?php endif; ?>
+                        <ul class="mt-2 space-y-1 text-slate-700">
+                            <li class="<?= $pluginOk ? 'text-emerald-700' : 'text-red-700' ?>">
+                                <?= $pluginOk ? '✓ Включён' : '✗ Не загружен: ' . htmlspecialchars(implode('; ', $pluginInfo['errors'] ?? [])) ?>
+                            </li>
+                            <li>
+                                Ядро: <code><?= htmlspecialchars(($pluginInfo['core'] ?? '') !== '' ? (string) $pluginInfo['core'] : '—') ?></code>
+                                <?php if (($pluginInfo['compatible'] ?? null) === true): ?>
+                                    <span class="text-emerald-700">✓ совместим с v<?= htmlspecialchars($currentVersion ?? '') ?></span>
+                                <?php elseif (($pluginInfo['compatible'] ?? null) === false): ?>
+                                    <span class="text-red-700">✗ несовместим с v<?= htmlspecialchars($currentVersion ?? '') ?></span>
+                                <?php endif; ?>
+                            </li>
+                            <?php if (!empty($pluginInfo['installed_version'])): ?>
+                                <li>Установленная версия данных: <code><?= htmlspecialchars((string) $pluginInfo['installed_version']) ?></code></li>
+                            <?php endif; ?>
+                            <?php if (!empty($pluginInfo['prefix'])): ?>
+                                <li>Публичный адрес: <code>/<?= htmlspecialchars((string) $pluginInfo['prefix']) ?>/</code></li>
+                            <?php endif; ?>
+                            <?php if (!empty($pluginInfo['menu']) && $pluginOk): ?>
+                                <li>Админка: <a class="text-sky-700 underline" href="/admin-panel/plugins/<?= htmlspecialchars((string) $pluginId) ?>"><?= htmlspecialchars((string) $pluginInfo['menu']) ?></a></li>
+                            <?php endif; ?>
+                            <li class="<?= !empty($pluginInfo['data_writable']) ? 'text-emerald-700' : 'text-red-700' ?>">
+                                <?= !empty($pluginInfo['data_writable']) ? '✓' : '✗' ?> Запись в <code><?= htmlspecialchars((string) $pluginInfo['data_dir']) ?></code>
+                            </li>
+                            <?php foreach ($pluginInfo['warnings'] ?? [] as $pluginWarning): ?>
+                                <li class="text-amber-800">⚠ <?= htmlspecialchars((string) $pluginWarning) ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        <?php endif; ?>
+        <?php foreach (['plugins' => 'plugins/', 'data' => 'plugin-data/'] as $protKey => $protLabel): ?>
+            <?php if (($pluginProtection[$protKey] ?? null) === false): ?>
+                <p class="mt-3 text-sm text-red-700">✗ В <code><?= $protLabel ?></code> нет защитного <code>.htaccess</code> (не удалось создать) — закройте папку от HTTP вручную.</p>
+            <?php endif; ?>
+        <?php endforeach; ?>
+    </section>
+
+    <section class="rounded-xl bg-white p-6 shadow-sm">
         <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
             <h2 class="text-lg font-semibold">Обновление ядра</h2>
             <form method="post" action="/admin-panel/system/check-update">

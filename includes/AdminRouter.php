@@ -10,6 +10,8 @@ class AdminRouter
     private MenuBuilder $menuBuilder;
     private MenuWriter $menuWriter;
     private MenuEditor $menuEditor;
+    private ?PluginManager $pluginManager = null;
+    private string $currentPath = '/';
 
     public function __construct(private array $config)
     {
@@ -27,6 +29,7 @@ class AdminRouter
     {
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         $path = $this->normalizePath($requestUri);
+        $this->currentPath = $path;
         $installed = !empty($this->config['installed']);
 
         if (!$installed) {
@@ -71,6 +74,14 @@ class AdminRouter
 
         if (!$this->isAuthenticated()) {
             $this->redirect('/admin-panel/login');
+            return;
+        }
+
+        if (preg_match('#^/plugins/([a-z0-9-]+)(/.*)?$#', $path, $m)) {
+            if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+                $this->requireCsrf();
+            }
+            $this->dispatchPlugin($m[1], $m[2] ?? '/', $method);
             return;
         }
 
@@ -347,7 +358,120 @@ class AdminRouter
             'toastCleanParams' => $toastCleanParams,
             'smtp' => (new Mailer($this->config))->settingsFromEnv(),
             'smtpPasswordSet' => Env::get('SMTP_PASSWORD', '') !== '',
+            'plugins' => $this->systemPlugins(),
+            'pluginProtection' => $this->plugins()->protectionStatus(),
+            'pluginsPath' => $this->plugins()->pluginsPath(),
+            'pluginDataPath' => $this->plugins()->dataRoot(),
         ]);
+    }
+
+    /**
+     * Плагины для страницы «Система»: загружаем валидные, чтобы показать ошибки загрузки и install-хуков.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private function systemPlugins(): array
+    {
+        $manager = $this->plugins();
+        $manager->bootAll();
+
+        return $manager->discover();
+    }
+
+    private function plugins(): PluginManager
+    {
+        return $this->pluginManager ??= new PluginManager($this->config);
+    }
+
+    private function dispatchPlugin(string $id, string $path, string $method): void
+    {
+        $manager = $this->plugins();
+        $context = $manager->boot($id);
+        if ($context === null) {
+            http_response_code(404);
+            $info = $manager->discover()[$id] ?? null;
+            $reason = $info !== null ? implode('; ', $info['errors']) : 'плагин не установлен';
+            $this->renderPluginContent(
+                '<div class="rounded-xl bg-white p-6 shadow-sm"><h1 class="mb-2 text-lg font-semibold">Плагин недоступен</h1>'
+                . '<p class="text-sm text-slate-600">' . htmlspecialchars($id . ': ' . $reason) . '. Подробности — на странице «Система».</p></div>',
+                ['title' => 'Плагин недоступен']
+            );
+            return;
+        }
+
+        $context->setAdminRenderer(function (string $html, array $options): void {
+            $this->renderPluginContent($html, $options);
+        });
+
+        try {
+            $status = $manager->handle($context, 'admin', $method, $path, false);
+        } catch (Throwable $e) {
+            error_log('motorchk plugin ' . $id . ': ' . $e->getMessage());
+            if (!headers_sent()) {
+                http_response_code(500);
+            }
+            if ($this->wantsJson()) {
+                header('Content-Type: application/json; charset=UTF-8');
+                echo json_encode(['ok' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+                return;
+            }
+            echo '<p>Ошибка плагина ' . htmlspecialchars($id) . ': ' . htmlspecialchars($e->getMessage()) . '</p>';
+            return;
+        }
+
+        if ($status !== 0) {
+            http_response_code($status);
+            if ($this->wantsJson()) {
+                header('Content-Type: application/json; charset=UTF-8');
+                echo json_encode(['ok' => false, 'error' => $status === 405 ? 'Method not allowed' : 'Not found']);
+                return;
+            }
+            echo $status === 405 ? 'Method not allowed' : 'Not found';
+        }
+    }
+
+    /**
+     * HTML плагина внутри layout админки.
+     *
+     * @param array{title?: string, fullscreen?: bool, styles?: list<string>, scripts?: list<string>, status?: int} $options
+     */
+    private function renderPluginContent(string $html, array $options): void
+    {
+        if (isset($options['status'])) {
+            http_response_code((int) $options['status']);
+        }
+        header('Content-Type: text/html; charset=UTF-8');
+        $this->render('', [
+            'pluginHtml' => $html,
+            'pageTitle' => (string) ($options['title'] ?? ''),
+            'layoutFullscreen' => !empty($options['fullscreen']),
+            'layoutStyles' => self::sameOriginUrls($options['styles'] ?? []),
+            'layoutScripts' => self::sameOriginUrls($options['scripts'] ?? []),
+        ]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function sameOriginUrls(mixed $urls): array
+    {
+        $out = [];
+        foreach ((array) $urls as $url) {
+            $url = (string) $url;
+            if (str_starts_with($url, '/') && !str_starts_with($url, '//') && !preg_match('/[\s"\'<>\\\\]/', $url)) {
+                $out[] = $url;
+            }
+        }
+
+        return $out;
+    }
+
+    private function wantsJson(): bool
+    {
+        $accept = strtolower((string) ($_SERVER['HTTP_ACCEPT'] ?? ''));
+        $type = strtolower((string) ($_SERVER['CONTENT_TYPE'] ?? ''));
+
+        return str_contains($accept, 'application/json') || str_contains($type, 'application/json');
     }
 
     private function handleSaveSmtp(): void
@@ -868,9 +992,21 @@ class AdminRouter
             }
         }
 
-        ob_start();
-        require $adminTemplates . '/' . $template;
-        $content = ob_get_clean();
+        $pluginMenu = [];
+        if ($withLayout && !empty($this->config['installed']) && $this->isAuthenticated()) {
+            foreach ($this->plugins()->adminMenu() as $item) {
+                $item['active'] = str_starts_with($this->currentPath . '/', '/plugins/' . $item['id'] . '/');
+                $pluginMenu[] = $item;
+            }
+        }
+
+        if ($template === '') {
+            $content = (string) ($data['pluginHtml'] ?? '');
+        } else {
+            ob_start();
+            require $adminTemplates . '/' . $template;
+            $content = ob_get_clean();
+        }
 
         if ($withLayout && $template !== 'layout.php') {
             require $adminTemplates . '/layout.php';
