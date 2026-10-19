@@ -23,6 +23,14 @@ class Router
     {
         $path = parse_url($requestUri, PHP_URL_PATH) ?? '/';
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+        SiteLocale::reset();
+
+        if (!str_starts_with($path, '/plugin-assets/')) {
+            $path = $this->beforeRouting($path, $method);
+            if ($path === null) {
+                return;
+            }
+        }
 
         if ($path === '/api/forms/submit') {
             if ($method !== 'POST') {
@@ -37,9 +45,15 @@ class Router
             return;
         }
 
-        $slug = $this->normalizeSlug($requestUri);
+        $slug = $this->normalizeSlug($path);
+        if (PageLoader::translationLocale($slug, SiteLocale::translationLocales()) !== null) {
+            // about.en.md — перевод, а не отдельная страница /about.en
+            $this->render404();
+            return;
+        }
         $filePath = $this->pageLoader->slugToPath($slug);
         $isPreview = ($_GET['preview'] ?? '') === '1';
+        $translateTo = SiteLocale::isActive() && !SiteLocale::isDefault() ? SiteLocale::current() : null;
 
         if (!is_file($filePath)) {
             $this->render404();
@@ -57,9 +71,12 @@ class Router
                 $this->render404();
                 return;
             }
+            if ($translateTo !== null) {
+                $page = $this->pageLoader->loadBySlug($slug, false, $translateTo) ?? $page;
+            }
 
             header('X-Robots-Tag: noindex');
-            $this->renderPage($page, $slug, true);
+            $this->renderPage($page, $slug, true, ['i18n' => $this->pageLocaleMeta($slug, $page)]);
             return;
         }
 
@@ -68,8 +85,64 @@ class Router
             $this->render404();
             return;
         }
+        if ($translateTo !== null) {
+            $page = $this->pageLoader->loadBySlug($slug, true, $translateTo) ?? $page;
+        }
 
-        $this->renderPage($page, $slug, false);
+        $this->renderPage($page, $slug, false, ['i18n' => $this->pageLocaleMeta($slug, $page)]);
+    }
+
+    /**
+     * Служба i18n и событие «request» до маршрутизации. Возвращает путь для маршрутизации
+     * или null, если хук сам ответил (редирект). Без plugins/ — путь как есть.
+     */
+    private function beforeRouting(string $path, string $method): ?string
+    {
+        $manager = $this->manager();
+        if (!$manager->hasPluginsDir()) {
+            return $path;
+        }
+        SiteLocale::init($manager, true);
+        if (!$manager->declaresHook('request')) {
+            return $path;
+        }
+        $request = new SiteRequest($method, $path);
+        $manager->dispatch('request', $request);
+
+        return $request->isHandled() ? null : $request->path();
+    }
+
+    private function manager(): PluginManager
+    {
+        return $this->pluginManager ??= new PluginManager($this->config);
+    }
+
+    /**
+     * Язык содержимого, hreflang и canonical Markdown-страницы. Без службы i18n — пусто.
+     *
+     * @return array{content_locale?: string, alternates?: array<string, string>, canonical?: ?string}
+     */
+    private function pageLocaleMeta(string $slug, array $page): array
+    {
+        if (!SiteLocale::isActive()) {
+            return [];
+        }
+        $default = SiteLocale::default();
+        $contentLocale = (string) ($page['front_matter']['locale'] ?? $default);
+        $path = $slug === 'index' ? '/' : '/' . $slug;
+        $alternates = [];
+        foreach (SiteLocale::locales() as $locale) {
+            if ($locale === $default || $this->pageLoader->loadBySlug($slug, true, $locale) !== null) {
+                $alternates[$locale] = SiteLocale::url($path, $locale, 'alternate');
+            }
+        }
+
+        return [
+            'content_locale' => $contentLocale,
+            'alternates' => count($alternates) > 1 ? $alternates : [],
+            // перевода нет — показан оригинал, поисковикам указываем его адрес
+            'canonical' => $contentLocale !== SiteLocale::current() ? SiteLocale::url($path, $contentLocale, 'canonical') : null,
+        ];
     }
 
     /**
@@ -78,7 +151,7 @@ class Router
      */
     private function dispatchPlugins(string $path, string $method): bool
     {
-        $manager = $this->pluginManager ??= new PluginManager($this->config);
+        $manager = $this->manager();
         if (!$manager->hasPluginsDir()) {
             return false;
         }
@@ -107,8 +180,8 @@ class Router
             return true;
         }
 
-        $context->setPublicRenderer(function (string $html, array $options) use ($trimmed): void {
-            $this->renderPluginPage($html, $options, $trimmed === '' ? 'index' : $trimmed);
+        $context->setPublicRenderer(function (string $html, array $options) use ($trimmed, $path): void {
+            $this->renderPluginPage($html, $options, $trimmed === '' ? 'index' : $trimmed, $path);
         });
 
         try {
@@ -139,7 +212,7 @@ class Router
      *
      * @param array<string, mixed> $options
      */
-    private function renderPluginPage(string $html, array $options, string $slug): void
+    private function renderPluginPage(string $html, array $options, string $slug, string $path = '/'): void
     {
         $page = [
             'front_matter' => [
@@ -163,7 +236,36 @@ class Router
             'editable' => false,
             'status' => (int) ($options['status'] ?? 200),
             'vars' => (array) ($options['vars'] ?? []),
+            'styles' => $options['styles'] ?? [],
+            'head_scripts' => $options['head_scripts'] ?? [],
+            'i18n' => $this->pluginLocaleMeta($options['alternates'] ?? false, $path),
         ]);
+    }
+
+    /**
+     * hreflang страницы плагина: true — все языки сайта по тому же пути, массив — явно.
+     *
+     * @return array{content_locale?: string, alternates?: array<string, string>}
+     */
+    private function pluginLocaleMeta(mixed $alternates, string $path): array
+    {
+        if (!SiteLocale::isActive()) {
+            return [];
+        }
+        $out = [];
+        if ($alternates === true) {
+            foreach (SiteLocale::locales() as $locale) {
+                $out[$locale] = SiteLocale::url($path, $locale, 'alternate');
+            }
+        } elseif (is_array($alternates)) {
+            foreach ($alternates as $locale => $url) {
+                if (in_array($locale, SiteLocale::locales(), true) && self::isSiteUrl((string) $url)) {
+                    $out[$locale] = (string) $url;
+                }
+            }
+        }
+
+        return ['content_locale' => SiteLocale::current(), 'alternates' => count($out) > 1 ? $out : []];
     }
 
     private function handleFormSubmit(): void
@@ -232,7 +334,20 @@ class Router
         }
         $themeAssetsUrl = '/themes/' . $themeName . '/assets';
 
+        $locale = SiteLocale::current();
+        $defaultLocale = SiteLocale::default();
+        $i18nMeta = (array) ($options['i18n'] ?? []);
+        $contentLocale = (string) ($i18nMeta['content_locale'] ?? $locale);
+        $alternates = (array) ($i18nMeta['alternates'] ?? []);
+        $i18n = SiteLocale::provider();
+        $manager = $this->pluginManager !== null && $this->pluginManager->hasPluginsDir() ? $this->pluginManager : null;
+        $hookContext = ['slug' => $slug, 'locale' => $locale, 'content_locale' => $contentLocale, 'preview' => $isPreview];
+
+        $this->menuBuilder->setLocale(SiteLocale::isActive() && $locale !== $defaultLocale ? $locale : null);
         $menus = $this->menuBuilder->buildAll($slug, true);
+        if ($manager !== null) {
+            $menus = $this->filterMenus($manager, $menus, $hookContext);
+        }
         $menuId = trim((string) ($frontMatter['menu_location'] ?? MenuWriter::DEFAULT_LOCATION));
         if ($menuId === '' || !array_key_exists($menuId, $menus)) {
             $menuId = MenuWriter::DEFAULT_LOCATION;
@@ -247,31 +362,123 @@ class Router
         $scripts = PageScripts::normalize($frontMatter['scripts'] ?? []);
         $pagePublished = !empty($frontMatter['published']);
         $adminEditUrl = AdminUrl::page($slug);
-        $canEdit = ($options['editable'] ?? true) && !empty($_SESSION['admin_authenticated']);
+        // inline-edit пишет в оригинал страницы — на других языках выключен
+        $canEdit = ($options['editable'] ?? true) && !empty($_SESSION['admin_authenticated']) && $locale === $defaultLocale;
         $pluginVars = $options['vars'] ?? [];
         $inlineEditSaveUrl = $canEdit ? AdminUrl::pageBlocks($slug) : '';
         $inlineEditCsrf = $canEdit ? Csrf::token() : '';
         $config = $this->config;
         Form::setConfig($this->config);
+        $siteHead = $this->siteHead($options, $alternates, $i18nMeta['canonical'] ?? null);
+        if ($manager !== null) {
+            $siteHead = (string) $manager->filter('head', $siteHead, $hookContext);
+        }
 
         http_response_code((int) ($options['status'] ?? 200));
         header('Content-Type: text/html; charset=UTF-8');
 
-        require $templateFile;
+        $buffer = SiteLocale::isActive() || ($manager !== null && $manager->declaresHook('output'));
+        if (!$buffer) {
+            require $templateFile;
+            return;
+        }
+
+        ob_start();
+        try {
+            require $templateFile;
+        } catch (Throwable $e) {
+            echo (string) ob_get_clean();
+            throw $e;
+        }
+        $html = (string) ob_get_clean();
+        if (SiteLocale::isActive()) {
+            // темы до 0.4.0 пишут <html lang="ru"> — язык страницы ставит ядро
+            $html = preg_replace('/(<html\b[^>]*?\blang=")[^"]*(")/i', '${1}' . $contentLocale . '${2}', $html, 1) ?? $html;
+        }
+        if ($manager !== null) {
+            $html = (string) $manager->filter('output', $html, $hookContext + ['status' => http_response_code()]);
+        }
+        echo $html;
+    }
+
+    /**
+     * Фильтр «url» для внутренних ссылок меню и фильтр «menu» для всех меню.
+     *
+     * @param array<string, list<array<string, mixed>>> $menus
+     * @param array<string, mixed> $context
+     */
+    private function filterMenus(PluginManager $manager, array $menus, array $context): array
+    {
+        if ($manager->declaresHook('url')) {
+            $localize = static function (array $items) use (&$localize): array {
+                foreach ($items as $i => $item) {
+                    if (empty($item['external']) && str_starts_with((string) ($item['url'] ?? ''), '/')) {
+                        $items[$i]['url'] = SiteLocale::url((string) $item['url'], null, 'menu');
+                    }
+                    $items[$i]['children'] = $localize($item['children'] ?? []);
+                }
+
+                return $items;
+            };
+            foreach ($menus as $id => $items) {
+                $menus[$id] = $localize($items);
+            }
+        }
+
+        return (array) $manager->filter('menu', $menus, $context);
+    }
+
+    /**
+     * Дополнения <head> (выводит includes/views/site-chrome.php): CSS и head_scripts страницы
+     * плагина, canonical и hreflang. Пустая строка — вывод темы как до 0.4.0.
+     *
+     * @param array<string, mixed> $options
+     * @param array<string, string> $alternates
+     */
+    private function siteHead(array $options, array $alternates, ?string $canonical): string
+    {
+        $e = static fn(string $v): string => htmlspecialchars($v, ENT_QUOTES, 'UTF-8');
+        $lines = [];
+        foreach ((array) ($options['styles'] ?? []) as $url) {
+            if (self::isSiteUrl((string) $url)) {
+                $lines[] = '<link href="' . $e((string) $url) . '" rel="stylesheet">';
+            }
+        }
+        foreach (PageScripts::normalize($options['head_scripts'] ?? []) as $url) {
+            $lines[] = '<script src="' . $e($url) . '" defer></script>';
+        }
+        if (is_string($canonical) && self::isSiteUrl($canonical)) {
+            $lines[] = '<link rel="canonical" href="' . $e(SiteLocale::absolute($canonical)) . '">';
+        }
+        foreach ($alternates as $locale => $url) {
+            $lines[] = '<link rel="alternate" hreflang="' . $e((string) $locale) . '" href="' . $e(SiteLocale::absolute((string) $url)) . '">';
+        }
+        $default = SiteLocale::default();
+        if ($alternates !== [] && isset($alternates[$default])) {
+            $lines[] = '<link rel="alternate" hreflang="x-default" href="' . $e(SiteLocale::absolute($alternates[$default])) . '">';
+        }
+
+        return $lines === [] ? '' : '    ' . implode("\n    ", $lines) . "\n";
+    }
+
+    /** Ссылка внутри сайта: /путь без //, пробелов и кавычек. */
+    private static function isSiteUrl(string $url): bool
+    {
+        return str_starts_with($url, '/') && !str_starts_with($url, '//') && !preg_match('/[\s"\'<>\\\\]/', $url);
     }
 
     private function render404(): void
     {
         http_response_code(404);
         header('Content-Type: text/html; charset=UTF-8');
-        echo '<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>404</title></head><body><h1>Страница не найдена</h1></body></html>';
+        echo '<!DOCTYPE html><html lang="' . htmlspecialchars(SiteLocale::current(), ENT_QUOTES, 'UTF-8') . '"><head><meta charset="UTF-8"><title>404</title></head><body><h1>Страница не найдена</h1></body></html>';
     }
 
     private function render500(string $message): void
     {
         http_response_code(500);
         header('Content-Type: text/html; charset=UTF-8');
-        echo '<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>500</title></head><body><h1>'
+        echo '<!DOCTYPE html><html lang="' . htmlspecialchars(SiteLocale::current(), ENT_QUOTES, 'UTF-8') . '"><head><meta charset="UTF-8"><title>500</title></head><body><h1>'
             . htmlspecialchars($message, ENT_QUOTES, 'UTF-8')
             . '</h1></body></html>';
     }

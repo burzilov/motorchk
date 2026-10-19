@@ -2,6 +2,9 @@
 
 class MenuBuilder
 {
+    /** Язык перевода для подписей из заголовков страниц; null — основной (как до 0.4.0). */
+    private ?string $locale = null;
+
     public function __construct(
         private array $config,
         private Cache $cache,
@@ -11,11 +14,24 @@ class MenuBuilder
     ) {
     }
 
+    /**
+     * Подписи пунктов без label берутся из заголовка перевода страницы (about.en.md), если он есть.
+     * Такие меню не кешируются: переводы правятся вне админки.
+     */
+    public function setLocale(?string $locale): void
+    {
+        $this->locale = $locale !== '' ? $locale : null;
+    }
+
     public function build(string $currentSlug, string $menuId = MenuWriter::DEFAULT_LOCATION, bool $forPublic = true): array
     {
         $menus = $this->menuWriter->loadMenus();
         if (!isset($menus[$menuId])) {
             $menuId = MenuWriter::DEFAULT_LOCATION;
+        }
+
+        if ($this->locale !== null) {
+            return $this->normalizeItems($this->loadRawItems($menus[$menuId]['items'] ?? []), $currentSlug, $forPublic);
         }
 
         $cacheKey = 'menu:tree:' . $menuId;
@@ -67,6 +83,10 @@ class MenuBuilder
             $label = trim((string) ($item['label'] ?? ''));
 
             if ($slug !== null) {
+                if ($label === '' && $this->locale !== null) {
+                    $translated = $this->pageLoader->loadBySlug($slug, true, $this->locale);
+                    $label = trim((string) ($translated['front_matter']['title'] ?? ''));
+                }
                 if ($label === '' && $this->pageLoader->exists($slug)) {
                     $page = $this->pageLoader->loadBySlug($slug, false);
                     $label = (string) ($page['front_matter']['title'] ?? $slug);

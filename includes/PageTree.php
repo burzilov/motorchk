@@ -14,18 +14,18 @@ class PageTree
     {
         $cached = $this->cache->get('pages:tree');
         if (is_array($cached)) {
-            return $cached;
+            return $this->withoutTranslationsTree($cached);
         }
 
         $tree = $this->buildTree();
         $this->cache->set('pages:tree', $tree);
 
-        return $tree;
+        return $this->withoutTranslationsTree($tree);
     }
 
-    public function getChildren(?string $parent): array
+    public function getChildren(?string $parent, bool $withTranslations = false): array
     {
-        $tree = $this->getFlatNodes();
+        $tree = $this->getFlatNodes($withTranslations);
         $children = [];
 
         foreach ($tree as $node) {
@@ -101,7 +101,7 @@ class PageTree
     private function buildBranch(?string $parent): array
     {
         $branch = [];
-        foreach ($this->getChildren($parent) as $node) {
+        foreach ($this->getChildren($parent, true) as $node) {
             $node['children'] = $this->buildBranch($node['slug']);
             $branch[] = $node;
         }
@@ -109,8 +109,31 @@ class PageTree
         return $branch;
     }
 
-    private function getFlatNodes(): array
+    /**
+     * Файлы переводов (about.en.md) не страницы, пока активна служба i18n. В кеше 'pages:tree'
+     * дерево хранится полным, переводы убираются при чтении — PageWriter сбрасывает тот же ключ.
+     */
+    private function withoutTranslationsTree(array $tree): array
     {
+        $skip = SiteLocale::translationLocales();
+        if ($skip === []) {
+            return $tree;
+        }
+        $out = [];
+        foreach ($tree as $node) {
+            if (PageLoader::translationLocale((string) ($node['slug'] ?? ''), $skip) !== null) {
+                continue;
+            }
+            $node['children'] = $this->withoutTranslationsTree($node['children'] ?? []);
+            $out[] = $node;
+        }
+
+        return $out;
+    }
+
+    private function getFlatNodes(bool $withTranslations = false): array
+    {
+        $skip = $withTranslations ? [] : SiteLocale::translationLocales();
         $nodes = [];
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($this->config['content_path'], FilesystemIterator::SKIP_DOTS)
@@ -129,6 +152,10 @@ class PageTree
             $parsed = $this->renderer->parseFile($file->getPathname());
             $slug = $this->pageLoader->pathToSlug($file->getPathname());
             $frontMatter = $parsed['front_matter'];
+
+            if ($skip !== [] && PageLoader::translationLocale($slug, $skip) !== null) {
+                continue;
+            }
 
             $nodes[] = [
                 'slug' => $slug,
