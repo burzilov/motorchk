@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Мультиязычность и точки расширения (0.4.0)
+
+- Службы плагинов: `provides` в `plugin.json`, `PluginContext::provide()` / `service()` (владелец загружается при первом обращении, нет службы — `null`).
+- Хуки сайта: событие `request` до маршрутизации (`SiteRequest`: переписать путь, задать язык, ответить редиректом) и фильтры `url`, `menu`, `head`, `output`; объявляются в `plugin.json` `hooks`, в админке не работают.
+- Язык запроса в ядре: `SiteLocale`, интерфейс `LocaleProvider` для службы `i18n`; `PluginContext::locale()`, `defaultLocale()`, `locales()`, `localized()`, `publicUrl($path, $locale)`.
+- Переводы Markdown-страниц `about.en.md` рядом с `about.md`: показ по языку с откатом на оригинал (canonical), hreflang только для существующих переводов, `<html lang>` по языку содержимого, подписи меню из заголовков переводов. Только при активной службе `i18n`.
+- Переменные темы `$locale`, `$defaultLocale`, `$contentLocale`, `$alternates`, `$i18n`; тема-пример выводит `<html lang>` из `$contentLocale`.
+- `renderPublic()`: опции `styles`, `head_scripts` (в `<head>` до Alpine.js) и `alternates`.
+- Админка: скрипты плагина (`scripts`) подключаются до Alpine.js — компоненты регистрируются в `alpine:init`; прежний порядок — `scripts_after_alpine`.
+- Без плагина со службой `i18n` вывод сайта и админки не меняется.
+- Документация `docs/11-i18n.md`, тесты `php tests/i18n.php`; пример `hello` требует `^0.4`.
+- Плагины с `"core": "^0.3"` на 0.4 не загружаются (правило `^` для 0.x) — поднимите ограничение.
+
 ### Плагины (0.3.0)
 
 - Плагины в `public_html/plugins/{id}/` рядом с `core/`: установка распаковкой архива, плагин в папке включён, self-update их не трогает.

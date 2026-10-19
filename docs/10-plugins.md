@@ -37,12 +37,14 @@ public_html/
     "id": "hello",
     "name": "Hello — пример плагина",
     "version": "1.0.0",
-    "core": "^0.3",
+    "core": "^0.4",
     "entry": "plugin.php",
     "description": "Необязательное описание",
     "admin": { "menu": "Hello" },
     "public": { "prefix": "hello" },
-    "autoload": { "Hello\\": "lib/Hello" }
+    "autoload": { "Hello\\": "lib/Hello" },
+    "provides": [],
+    "hooks": []
 }
 ```
 
@@ -56,15 +58,18 @@ public_html/
 | `admin.menu` | нет | подпись пункта меню админки (до 40 символов) → `/admin-panel/plugins/{id}` |
 | `public.prefix` | нет | первый сегмент URL сайта, который занимает плагин (`^[a-z0-9-]+$`) |
 | `autoload` | нет | PSR-4: `{"Namespace\\": "папка/"}` внутри плагина |
+| `provides` | нет | службы для других плагинов: `["i18n"]` (имена `^[a-z0-9-]+$`), см. «Службы» |
+| `hooks` | нет | хуки сайта, на которые плагин подписывается: `request`, `url`, `menu`, `head`, `output` ([11-i18n.md](11-i18n.md)) |
 
-`^0.3` означает `>=0.3.0 <0.4.0` (для `0.x` минорная версия считается несовместимой), `^1.2` — `>=1.2.0 <2.0.0`.
+`^0.3` означает `>=0.3.0 <0.4.0` (для `0.x` минорная версия считается несовместимой), `^1.2` — `>=1.2.0 <2.0.0`. Поэтому плагины с `"core": "^0.3"` на ядре 0.4 не загружаются: API 0.3 в 0.4 сохранён, поднимите ограничение до `">=0.3.0 <0.5.0"` или `"^0.4"`.
 
 Зарезервированные префиксы: `admin-panel`, `api`, `core`, `themes`, `content`, `config`, `cache`, `submissions`, `plugins`, `plugin-data`, `plugin-assets`.
 
 Конфликты:
 
 - два плагина с одним префиксом — загружается первый по алфавиту, второй получает ошибку, первый — предупреждение;
-- префикс совпадает со страницей `content/{prefix}.md` или папкой `content/{prefix}/` — плагин важнее, страница перекрыта (предупреждение на «Системе»).
+- префикс совпадает со страницей `content/{prefix}.md` или папкой `content/{prefix}/` — плагин важнее, страница перекрыта (предупреждение на «Системе»);
+- два плагина объявили одну службу в `provides` — служба за первым по алфавиту, второй получает предупреждение.
 
 ## Точка входа
 
@@ -95,7 +100,7 @@ return static function (PluginContext $plugin): void {
 
 Классы объявляйте в autoload-папке, а не в точке входа: ядро может подключить entry больше одного раза за процесс.
 
-Код плагина выполняется только при запросе к нему: `/admin-panel/plugins/{id}/…`, публичный префикс `/{prefix}/…`, а также при открытии страницы **Система** (там загружаются все валидные плагины, чтобы показать ошибки загрузки и install-хуков). На остальных страницах ядро только читает `plugin.json`.
+Код плагина выполняется только когда он нужен: запрос к `/admin-panel/plugins/{id}/…` или к публичному префиксу `/{prefix}/…`, обращение к его службе (`provides`), срабатывание объявленного им хука (`hooks`; например, `request` — на каждой публичной странице) и открытие страницы **Система** (там загружаются все валидные плагины, чтобы показать ошибки загрузки и install-хуков). Остальные плагины на странице не загружаются — ядро только читает их `plugin.json`.
 
 ## Маршруты
 
@@ -126,14 +131,20 @@ return static function (PluginContext $plugin): void {
 
 **Сведения:** `id()`, `name()`, `version()`, `manifest()`, `dir()` (код плагина), `dataDir()` (`plugin-data/{id}`, создаётся ядром), `prefix()`, `coreVersion()`, `config($key)`, `path('content_path' | 'themes_path' | 'site_path' | …)`, `isAdmin()`.
 
-**URL:** `adminUrl('/api/x')`, `publicUrl('/x')`, `assetUrl('app.js')` → `/plugin-assets/{id}/app.js?v={version}`.
+**URL:** `adminUrl('/api/x')`, `publicUrl('/x', $locale = null)`, `assetUrl('app.js')` → `/plugin-assets/{id}/app.js?v={version}`. На публичных страницах `publicUrl()` проходит через фильтр `url` (плагин i18n добавляет `/en/`); в админке — без изменений.
+
+**Язык** ([11-i18n.md](11-i18n.md)): `locale()` — язык запроса, `defaultLocale()`, `locales()`, `localized(['ru' => …, 'en' => …])` — значение для текущего языка с откатом на основной. Без службы `i18n` язык всегда `ru`.
+
+**Службы:** `provide('i18n', $object)` — в точке входа, имя должно быть в `provides`; `service('i18n')` — объект или `null`, если службы нет. Владелец службы загружается при первом обращении, поэтому порядок загрузки не важен; вызывайте `service()` в обработчиках, а не в точке входа.
+
+**Хуки сайта:** `on('request', fn (SiteRequest $r))` и `filter('url' | 'menu' | 'head' | 'output', fn ($value, array $context))` — только публичная часть, имя хука должно быть в `hooks`. Описание — [11-i18n.md](11-i18n.md).
 
 **Ответы:**
 
 | Метод | Назначение |
 |-------|------------|
-| `render($template, $data, $options)` | `templates/{template}.php` плагина внутри layout админки. Опции: `title`, `fullscreen` (рабочая область на всё окно под шапкой админки — для редакторов), `styles`, `scripts` (URL для `<head>`, только свой сайт), `status` |
-| `renderPublic($template, $data, $options)` | шаблон плагина внутри шаблона **активной темы** (шапка, меню, подвал): HTML попадает в `$blocks['content']`. Опции: `title`, `description`, `og_*`, `template` (шаблон темы, по умолчанию `default`), `hero`, `menu_location`, `scripts` (`/plugin-assets/...js`), `status`, `vars` (в шаблоне темы — `$pluginVars`). Inline-edit на таких страницах выключен |
+| `render($template, $data, $options)` | `templates/{template}.php` плагина внутри layout админки. Опции: `title`, `fullscreen` (рабочая область на всё окно под шапкой админки — для редакторов), `styles`, `scripts` (URL для `<head>`, только свой сайт; с 0.4 подключаются **до** Alpine.js), `scripts_after_alpine` (после Alpine.js, как `scripts` в 0.3), `status` |
+| `renderPublic($template, $data, $options)` | шаблон плагина внутри шаблона **активной темы** (шапка, меню, подвал): HTML попадает в `$blocks['content']`. Опции: `title`, `description`, `og_*`, `template` (шаблон темы, по умолчанию `default`), `hero`, `menu_location`, `scripts` (`/plugin-assets/...js`, в конце страницы), `styles` (CSS в `<head>`), `head_scripts` (JS в `<head>`, до Alpine.js темы), `alternates` (hreflang: `true` — все языки сайта по тому же пути, `['en' => '/en/…']` — явно), `status`, `vars` (в шаблоне темы — `$pluginVars`). Inline-edit на таких страницах выключен. `styles` и `head_scripts` выводит `includes/views/site-chrome.php` — его подключают все темы |
 | `partial($template, $data)` | шаблон плагина в строку |
 | `json($data, $status)`, `jsonError($message, $status)` | JSON-ответ (`Cache-Control: no-store`) |
 | `raw($body, $contentType, $status)` | ответ как есть, без layout |
@@ -146,7 +157,21 @@ return static function (PluginContext $plugin): void {
 
 **Данные** (относительные пути внутри `dataDir()`, без `..` и скрытых файлов): `dataPath($rel)`, `writeFile($rel, $content)` (через `FileWriter`, flock, папки создаются), `readFile($rel)`, `writeJson($rel, $data)`, `readJson($rel, $default)`, `deleteFile($rel)`.
 
+> `readJson()` возвращает `$default` и когда файла нет, и когда файл **повреждён** (не JSON). Если плагин после этого перезапишет файл, данные потеряются. Для важных данных читайте `readFile()` и сами проверяйте `json_decode()` — при ошибке не перезаписывайте файл.
+
 **Установка/обновление:** `onInstall(fn (?string $from, string $to, PluginContext $plugin))`. Хук вызывается при первой загрузке новой версии плагина (под блокировкой файла), затем версия записывается в `plugin-data/{id}/.plugin-state.json`. Хук должен быть идемпотентным; если он бросил исключение, версия не записывается, плагин не загружается, ошибка видна на «Системе», при следующем запросе хук повторится.
+
+## Alpine.js в плагинах
+
+Alpine.js ядра запускается сразу после загрузки своего скрипта (`defer`). Компоненты регистрируйте до старта — в обработчике `alpine:init`:
+
+```js
+document.addEventListener('alpine:init', () => {
+    Alpine.data('myWidget', () => ({ open: false }));
+});
+```
+
+Для этого скрипт должен выполниться раньше Alpine: в админке — опция `scripts` у `render()` (с 0.4 они подключаются до Alpine), на сайте — `head_scripts` у `renderPublic()` (выводятся в `site-chrome.php`, который тема подключает до Alpine). Скрипты, которым на момент загрузки нужен уже запущенный `window.Alpine`, подключайте через `scripts_after_alpine` (админка) или `scripts` (сайт, конец страницы).
 
 ## Статика и безопасность
 
@@ -170,6 +195,7 @@ return static function (PluginContext $plugin): void {
 
 ```bash
 php tests/plugins.php
+php tests/i18n.php
 ```
 
-Скрипт создаёт временный сайт из skeleton, копирует пример `hello` и набор заведомо сломанных плагинов и проверяет обнаружение, валидацию, install-хуки, маршруты админки и сайта, CSRF, статику и поведение без `plugins/`. Папка `tests/` в release zip не попадает.
+`plugins.php` создаёт временный сайт из skeleton, копирует пример `hello` и набор заведомо сломанных плагинов и проверяет обнаружение, валидацию, install-хуки, маршруты админки и сайта, CSRF, статику и поведение без `plugins/`. `i18n.php` — службы, хуки, язык запроса, переводы страниц и hreflang на тестовых плагинах. Папка `tests/` в release zip не попадает.
