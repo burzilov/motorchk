@@ -376,6 +376,11 @@ check($st === 404, 'неизвестный маршрут плагина → 404
 check($st === 404 && str_contains($body, 'Несовместим'), 'несовместимый плагин → 404 с причиной');
 [$st, $body] = tp_capture(fn() => (new AdminRouter($config))->dispatchAdmin('/admin-panel/pages'));
 check($st === 200 && str_contains($body, '<title>Админка — motorchk</title>') && str_contains($body, '>Hello</a>'), 'встроенные страницы: прежний title, меню с плагином');
+// «Заявки» при плагине с пунктом меню: переменная шаблона $item (заявка) не затирается меню плагинов
+$sub = (new SubmissionStore($config))->create('contact', ['name' => 'Тест заявки'], [['name' => 'name', 'type' => 'text', 'required' => true, 'label' => 'Имя']], '127.0.0.1');
+[$st, $body] = tp_capture(fn() => (new AdminRouter($config))->dispatchAdmin('/admin-panel/submissions/contact/' . $sub['id']));
+check($st === 200 && str_contains($body, 'Тест заявки') && str_contains($body, $sub['id']) && str_contains($body, '>Hello</a>'), 'заявка открывается при плагине с пунктом меню');
+tp_rm($config['submissions_path'] . '/contact');
 
 // PUT-обработчик напрямую (тело запроса в CLI не передать через php://input)
 $route = $hello->matchRoute('admin', 'PUT', '/api/greeting');

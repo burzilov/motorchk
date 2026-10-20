@@ -1009,9 +1009,10 @@ class AdminRouter
 
         $pluginMenu = [];
         if ($withLayout && !empty($this->config['installed']) && $this->isAuthenticated()) {
-            foreach ($this->plugins()->adminMenu() as $item) {
-                $item['active'] = str_starts_with($this->currentPath . '/', '/plugins/' . $item['id'] . '/');
-                $pluginMenu[] = $item;
+            // не $item: переменные шаблона уже извлечены (extract), «Заявка» (submissions/view.php) — это $item
+            foreach ($this->plugins()->adminMenu() as $menuItem) {
+                $menuItem['active'] = str_starts_with($this->currentPath . '/', '/plugins/' . $menuItem['id'] . '/');
+                $pluginMenu[] = $menuItem;
             }
         }
 
