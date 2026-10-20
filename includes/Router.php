@@ -356,8 +356,8 @@ class Router
 
         $title = $frontMatter['title'] ?? 'motorchk';
         $description = $frontMatter['description'] ?? '';
-        $ogTitle = $frontMatter['og_title'] ?: $title;
-        $ogDescription = $frontMatter['og_description'] ?: $description;
+        $ogTitle = ($frontMatter['og_title'] ?? '') ?: $title;
+        $ogDescription = ($frontMatter['og_description'] ?? '') ?: $description;
         $ogImage = $frontMatter['og_image'] ?? '';
         $scripts = PageScripts::normalize($frontMatter['scripts'] ?? []);
         $pagePublished = !empty($frontMatter['published']);
