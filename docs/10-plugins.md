@@ -63,7 +63,7 @@ public_html/
 
 `^0.3` означает `>=0.3.0 <0.4.0` (для `0.x` минорная версия считается несовместимой), `^1.2` — `>=1.2.0 <2.0.0`. Поэтому плагины с `"core": "^0.3"` на ядре 0.4 не загружаются: API 0.3 в 0.4 сохранён, поднимите ограничение до `">=0.3.0 <0.5.0"` или `"^0.4"`.
 
-Зарезервированные префиксы: `admin-panel`, `api`, `core`, `themes`, `content`, `config`, `cache`, `submissions`, `plugins`, `plugin-data`, `plugin-assets`.
+Зарезервированные префиксы: `admin-panel`, `api`, `core`, `themes`, `content`, `config`, `cache`, `submissions`, `plugins`, `plugin-data`, `plugin-assets`, `media`.
 
 Конфликты:
 
@@ -211,6 +211,7 @@ document.addEventListener('alpine:init', () => {
 ```bash
 php tests/plugins.php
 php tests/i18n.php
+php tests/themes.php
 ```
 
-`plugins.php` создаёт временный сайт из skeleton, копирует пример `hello` и набор заведомо сломанных плагинов и проверяет обнаружение, валидацию, install-хуки, маршруты админки и сайта, CSRF, статику и поведение без `plugins/`. `i18n.php` — службы, хуки, язык запроса, переводы страниц и hreflang на тестовых плагинах. Папка `tests/` в release zip не попадает.
+`plugins.php` создаёт временный сайт из skeleton, копирует пример `hello` и набор заведомо сломанных плагинов и проверяет обнаружение, валидацию, install-хуки, маршруты админки и сайта, CSRF, статику и поведение без `plugins/`. `i18n.php` — службы, хуки, язык запроса, переводы страниц и hreflang на тестовых плагинах. `themes.php` — страницы без `og_*`, сверка кеша страниц и меню с файлами, `media/`, `MenuRenderer` и меню темы-примера. Папка `tests/` в release zip не попадает.

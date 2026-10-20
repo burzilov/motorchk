@@ -7,7 +7,7 @@
 | `core/includes/`, `core/admin-panel/`, `core/vendor/` | ядро |
 | `core/assets/` | CSS/JS админки, библиотек и chrome публичных страниц (`site-chrome.css`) |
 | `core/skeleton/` | шаблон первичной установки |
-| `content/`, `themes/`, `plugins/` | сайт |
+| `content/`, `themes/`, `plugins/`, `media/` | сайт (`media/` — публичные файлы содержимого, [12-themes.md](12-themes.md)) |
 | `.env`, `config/site.php`, `cache/`, `submissions/`, `plugin-data/` | сайт / runtime |
 
 Публичный front controller: `public_html/index.php` → `core/includes/bootstrap.php`.  
@@ -36,6 +36,8 @@ themes/example/
 ```
 
 Front matter `template` выбирает PHP-файл в активной теме: `themes/{theme}/{template}.php`. Отсутствующий шаблон — ошибка 500. Публична только статика по `/themes/{theme}/assets/...`; все остальные пути внутри `/themes/` возвращают 403.
+
+Данные для шаблонов (меню, переменные, кеш страниц, картинки содержимого) — [12-themes.md](12-themes.md).
 
 `themes/example/` — управляемая тема-пример. Self-update всегда целиком заменяет её версией из release; пользовательские темы не затрагиваются. Для сайта создайте отдельный каталог темы, поскольку ручные изменения в `example/` будут перезаписаны.
 
