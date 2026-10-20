@@ -29,18 +29,22 @@ $items = $menus['ceo-lead'] ?? [];
     'slug' => 'about',          // null для url/якоря
     'url' => '/about',          // или '#quiz', 'https://…'
     'external' => false,
-    'active' => false,
+    'active' => false,          // страница пункта или раздел, в котором открыта страница
+    'current' => false,         // ровно страница пункта (для aria-current="page")
     'broken' => false,
     'children' => [],
 ]
 ```
 
-Рендер готовым хелпером:
+Тема-пример рисует меню сама из этих данных (Tailwind и Alpine.js): `partials/menu.php`.
+Нейтральная разметка без классов фреймворков — хелпером ядра:
 
 ```php
-<?php MenuRenderer::render($menu ?? [], 'desktop'); ?>
-<?php MenuRenderer::render($menus['footer'] ?? [], 'mobile'); ?>
+<?php MenuRenderer::render($menus['footer'] ?? [], ['class' => 'footer-menu']); ?>
+<?= MenuRenderer::html($menu ?? [], ['class' => 'nav', 'depth' => 2]) ?>
 ```
+
+Разметка, классы и состояния — `core/docs/12-themes.md`.
 
 Хранение: `content/_menus.yaml`. Редактор: `/admin-panel/menu`.
 

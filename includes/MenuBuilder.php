@@ -16,7 +16,7 @@ class MenuBuilder
 
     /**
      * Подписи пунктов без label берутся из заголовка перевода страницы (about.en.md), если он есть.
-     * Такие меню не кешируются: переводы правятся вне админки.
+     * Кеш меню — отдельно для каждого языка, сверяется с отпечатком content/ (PageLoader::contentStamp()).
      */
     public function setLocale(?string $locale): void
     {
@@ -30,19 +30,18 @@ class MenuBuilder
             $menuId = MenuWriter::DEFAULT_LOCATION;
         }
 
-        if ($this->locale !== null) {
-            return $this->normalizeItems($this->loadRawItems($menus[$menuId]['items'] ?? []), $currentSlug, $forPublic);
-        }
-
-        $cacheKey = 'menu:tree:' . $menuId;
+        // подписи берутся из заголовков страниц, пункты — из _menus.yaml: кеш сверяется с отпечатком content/
+        $cacheKey = 'menu:tree:' . $menuId . ($this->locale !== null ? '@' . $this->locale : '');
+        $stamp = $this->pageLoader->contentStamp();
         $cached = $this->cache->get($cacheKey);
-
-        if (!is_array($cached)) {
-            $cached = $this->loadRawItems($menus[$menuId]['items'] ?? []);
-            $this->cache->set($cacheKey, $cached);
+        if (is_array($cached) && ($cached['stamp'] ?? null) === $stamp && is_array($cached['items'] ?? null)) {
+            $items = $cached['items'];
+        } else {
+            $items = $this->loadRawItems($menus[$menuId]['items'] ?? []);
+            $this->cache->set($cacheKey, ['stamp' => $stamp, 'items' => $items]);
         }
 
-        return $this->normalizeItems($cached, $currentSlug, $forPublic);
+        return $this->normalizeItems($items, $currentSlug, $forPublic);
     }
 
     public function buildAll(string $currentSlug, bool $forPublic = true): array
@@ -133,7 +132,8 @@ class MenuBuilder
                 'slug' => $slug,
                 'url' => $url,
                 'external' => $external,
-                'active' => $this->isActive($slug, $currentSlug),
+                'active' => $this->isActive($this->target($slug, $url, $external), $currentSlug),
+                'current' => $this->target($slug, $url, $external) === $currentSlug,
                 'broken' => false,
                 'children' => $this->normalizeItems($item['children'] ?? [], $currentSlug, $forPublic),
             ];
@@ -151,6 +151,23 @@ class MenuBuilder
         }
 
         return $normalized;
+    }
+
+    /**
+     * Страница, на которую ведёт пункт: slug или путь внутреннего url (/customizer/ → customizer,
+     * / → index); для внешних ссылок и якорей — null.
+     */
+    private function target(?string $slug, string $url, bool $external): ?string
+    {
+        if ($slug !== null && $slug !== '') {
+            return $slug;
+        }
+        if ($external || !str_starts_with($url, '/') || str_starts_with($url, '//')) {
+            return null;
+        }
+        $path = trim((string) parse_url($url, PHP_URL_PATH), '/');
+
+        return $path === '' ? 'index' : $path;
     }
 
     private function isActive(?string $itemSlug, string $currentSlug): bool
