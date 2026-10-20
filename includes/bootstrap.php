@@ -26,6 +26,7 @@ $defaultConfig = [
     'submissions_path' => $sitePath . '/submissions',
     'plugins_path' => $sitePath . '/plugins',
     'plugin_data_path' => $sitePath . '/plugin-data',
+    'media_path' => $sitePath . '/media',
     'admin_templates_path' => $corePath . '/admin-panel/templates',
     'menu_file' => $sitePath . '/content/_menus.yaml',
     'skeleton_path' => $corePath . '/skeleton',

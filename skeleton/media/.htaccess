@@ -1,0 +1,35 @@
+# motorchk: публичная папка файлов содержимого — /media/… (core/docs/12-themes.md).
+# Отдаются только картинки, видео, аудио и PDF; код здесь не исполняется, листинга нет.
+Options -Indexes -ExecCGI
+
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+RemoveHandler .php .phtml .phar .php3 .php4 .php5 .php7 .php8 .pht .phps .cgi .pl .py .sh
+RemoveType .php .phtml .phar
+
+<IfModule mod_authz_core.c>
+    Require all denied
+    <FilesMatch "^[^.].*\.(?i:jpe?g|png|gif|webp|avif|svg|ico|mp4|webm|mp3|ogg|pdf)$">
+        Require all granted
+    </FilesMatch>
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    <FilesMatch "\.(?i:svg)$">
+        Header set Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox"
+    </FilesMatch>
+</IfModule>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/webp "access plus 1 month"
+    ExpiresByType image/avif "access plus 1 month"
+    ExpiresByType image/gif "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+    ExpiresByType video/mp4 "access plus 1 month"
+    ExpiresByType video/webm "access plus 1 month"
+</IfModule>

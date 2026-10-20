@@ -16,6 +16,12 @@ function motorchk_migrate(array $config, string $toVersion): void
     if (!class_exists('Version', false)) {
         require_once dirname(__DIR__) . '/includes/Version.php';
     }
+    if (!class_exists('PluginManager', false)) {
+        require_once dirname(__DIR__) . '/includes/PluginManager.php';
+    }
+    if (!class_exists('Media', false)) {
+        require_once dirname(__DIR__) . '/includes/Media.php';
+    }
     if (!class_exists('Cache', false)) {
         require_once dirname(__DIR__) . '/includes/Cache.php';
     }
@@ -27,6 +33,8 @@ function motorchk_migrate(array $config, string $toVersion): void
     if ($submissionsPath !== '' && !is_dir($submissionsPath)) {
         @mkdir($submissionsPath, 0755, true);
     }
+
+    Media::ensure($config);
 
     $cachePath = $config['cache_path'] ?? '';
     if ($cachePath !== '' && is_dir($cachePath)) {

@@ -16,7 +16,7 @@ class PluginManager
     /** Первые сегменты URL, которые плагин не может занять. */
     public const RESERVED_PREFIXES = [
         'admin-panel', 'api', 'core', 'themes', 'content', 'config', 'cache',
-        'submissions', 'plugins', 'plugin-data', 'plugin-assets', 'index.php',
+        'submissions', 'plugins', 'plugin-data', 'plugin-assets', 'media', 'index.php',
     ];
 
     /** Разрешённые типы статики плагина (только из папки assets/ плагина). */

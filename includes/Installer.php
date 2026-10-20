@@ -65,7 +65,7 @@ class Installer
             throw new RuntimeException('Не удалось записать .env');
         }
 
-        foreach (['content', 'cache', 'themes', 'config', 'submissions'] as $dir) {
+        foreach (['content', 'cache', 'themes', 'config', 'submissions', 'media'] as $dir) {
             $path = $sitePath . '/' . $dir;
             if (!is_dir($path)) {
                 mkdir($path, 0755, true);
