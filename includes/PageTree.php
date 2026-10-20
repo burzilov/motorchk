@@ -12,13 +12,14 @@ class PageTree
 
     public function getTree(): array
     {
+        $stamp = $this->pageLoader->contentStamp();
         $cached = $this->cache->get('pages:tree');
-        if (is_array($cached)) {
-            return $this->withoutTranslationsTree($cached);
+        if (is_array($cached) && ($cached['stamp'] ?? null) === $stamp && is_array($cached['tree'] ?? null)) {
+            return $this->withoutTranslationsTree($cached['tree']);
         }
 
         $tree = $this->buildTree();
-        $this->cache->set('pages:tree', $tree);
+        $this->cache->set('pages:tree', ['stamp' => $stamp, 'tree' => $tree]);
 
         return $this->withoutTranslationsTree($tree);
     }
@@ -111,7 +112,7 @@ class PageTree
 
     /**
      * Файлы переводов (about.en.md) не страницы, пока активна служба i18n. В кеше 'pages:tree'
-     * дерево хранится полным, переводы убираются при чтении — PageWriter сбрасывает тот же ключ.
+     * дерево хранится полным (с отпечатком содержимого PageLoader::contentStamp()), переводы убираются при чтении — PageWriter сбрасывает тот же ключ.
      */
     private function withoutTranslationsTree(array $tree): array
     {

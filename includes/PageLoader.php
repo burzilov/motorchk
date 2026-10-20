@@ -59,32 +59,52 @@ class PageLoader
     public function loadBySlug(string $slug, bool $requirePublished = true, ?string $locale = null): ?array
     {
         if ($locale !== null && $locale !== '') {
-            return $this->loadTranslation($slug, $locale, $requirePublished);
-        }
-
-        $cacheKey = 'page:' . $slug;
-        $cached = $this->cache->get($cacheKey);
-        if (is_array($cached)) {
-            if ($requirePublished && empty($cached['front_matter']['published'])) {
-                return null;
+            $page = $this->loadCached('page:' . $slug . '@' . $locale, $this->slugToPath($slug, $locale), trim($slug, '/') === '' ? 'index' : trim($slug, '/'));
+            if ($page !== null) {
+                $page['front_matter']['locale'] = $locale;
             }
-
-            return $cached;
+        } else {
+            $page = $this->loadCached('page:' . $slug, $this->slugToPath($slug), null);
         }
 
-        $filePath = $this->slugToPath($slug);
-        if (!is_file($filePath)) {
-            return null;
-        }
-
-        $page = $this->load($filePath);
-        $this->cache->set($cacheKey, $page);
-
-        if ($requirePublished && empty($page['front_matter']['published'])) {
+        if ($page === null || ($requirePublished && empty($page['front_matter']['published']))) {
             return null;
         }
 
         return $page;
+    }
+
+    /**
+     * Отпечаток файла для сверки кеша: «mtime:размер»; null — файла нет.
+     */
+    public static function fileStamp(string $path): ?string
+    {
+        clearstatcache(true, $path);
+        $stat = @stat($path);
+
+        return $stat === false ? null : $stat['mtime'] . ':' . $stat['size'];
+    }
+
+    /**
+     * Отпечаток всего содержимого: пути, mtime и размеры файлов .md и .yaml в content/.
+     * Меняется при правке, добавлении и удалении файла — в том числе вне админки.
+     */
+    public function contentStamp(): string
+    {
+        $root = rtrim($this->config['content_path'], '/');
+        $parts = [];
+        if (is_dir($root)) {
+            $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
+            foreach ($iterator as $file) {
+                if (!$file->isFile() || !in_array($file->getExtension(), ['md', 'yaml'], true)) {
+                    continue;
+                }
+                $parts[] = substr($file->getPathname(), strlen($root)) . '|' . $file->getMTime() . ':' . $file->getSize();
+            }
+        }
+        sort($parts);
+
+        return hash('sha256', implode("\n", $parts));
     }
 
     public function exists(string $slug, ?string $locale = null): bool
@@ -100,28 +120,21 @@ class PageLoader
     }
 
     /**
-     * Перевод страницы. Файлы переводов правятся вне админки, поэтому кеш сверяется с mtime файла.
+     * Страница из кеша, если отпечаток файла (mtime и размер) не изменился, иначе — с диска.
+     * Так правки файлов вне админки видны сразу.
      */
-    private function loadTranslation(string $slug, string $locale, bool $requirePublished): ?array
+    private function loadCached(string $cacheKey, string $filePath, ?string $slug): ?array
     {
-        $filePath = $this->slugToPath($slug, $locale);
-        $mtime = @filemtime($filePath);
-        if ($mtime === false) {
+        $stamp = self::fileStamp($filePath);
+        if ($stamp === null) {
             return null;
         }
-        $cacheKey = 'page:' . $slug . '@' . $locale;
         $cached = $this->cache->get($cacheKey);
-        if (is_array($cached) && ($cached['mtime'] ?? null) === $mtime && is_array($cached['page'] ?? null)) {
-            $page = $cached['page'];
-        } else {
-            $page = $this->load($filePath, trim($slug, '/') === '' ? 'index' : trim($slug, '/'));
-            $page['front_matter']['locale'] = $locale;
-            $this->cache->set($cacheKey, ['mtime' => $mtime, 'page' => $page]);
+        if (is_array($cached) && ($cached['stamp'] ?? null) === $stamp && is_array($cached['page'] ?? null)) {
+            return $cached['page'];
         }
-
-        if ($requirePublished && empty($page['front_matter']['published'])) {
-            return null;
-        }
+        $page = $this->load($filePath, $slug);
+        $this->cache->set($cacheKey, ['stamp' => $stamp, 'page' => $page]);
 
         return $page;
     }
