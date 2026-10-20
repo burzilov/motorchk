@@ -112,7 +112,7 @@ return static function (PluginContext $plugin): void {
 - Методы: `GET` (обслуживает и `HEAD`), `POST`, `PUT`, `PATCH`, `DELETE`. Нет маршрута — 404, другой метод — 405 с `Allow`.
 - Шаблон: `/`, `/items/{id}`, `/files/{path*}`. `{name}` — один сегмент `[A-Za-z0-9_.-]` (URL-кодирование допускается, `/` и `..` нет); `{name*}` — относительный путь без `..` и скрытых сегментов.
 - Обработчик: `function (PluginRequest $request, PluginContext $plugin): void`.
-- **CSRF.** В админке ядро проверяет токен на всех `POST`/`PUT`/`PATCH`/`DELETE` до вызова плагина — поле `_csrf` или заголовок `X-CSRF-Token` (`$plugin->csrfToken()`). Отключить нельзя. На сайте проверка тоже включена по умолчанию (ответ `403` JSON); для конкретного маршрута: `publicRoute('POST', '/hook', $fn, ['csrf' => false])`.
+- **CSRF.** В админке ядро проверяет токен на всех `POST`/`PUT`/`PATCH`/`DELETE` до вызова плагина — поле `_csrf` или заголовок `X-CSRF-Token` (`$plugin->csrfToken()`). Отключить нельзя. Неверный токен — `CsrfException`, `AdminRouter::dispatchAdmin()` отвечает `403` с текстом `CSRF validation failed` (запрос не обрывается `exit`, поэтому проверяется в тестах без отдельного процесса). На сайте проверка тоже включена по умолчанию (ответ `403` JSON); для конкретного маршрута: `publicRoute('POST', '/hook', $fn, ['csrf' => false])`.
 - Исключение в обработчике: админка — 500 с текстом ошибки (JSON, если клиент шлёт `Accept`/`Content-Type: application/json`); сайт — общая страница 500, текст в `error_log`.
 
 ## PluginRequest
@@ -133,7 +133,7 @@ return static function (PluginContext $plugin): void {
 
 **URL:** `adminUrl('/api/x')`, `publicUrl('/x', $locale = null)`, `assetUrl('app.js')` → `/plugin-assets/{id}/app.js?v={version}`. На публичных страницах `publicUrl()` проходит через фильтр `url` (плагин i18n добавляет `/en/`); в админке — без изменений.
 
-**Язык** ([11-i18n.md](11-i18n.md)): `locale()` — язык запроса, `defaultLocale()`, `locales()`, `localized(['ru' => …, 'en' => …])` — значение для текущего языка с откатом на основной. Без службы `i18n` язык всегда `ru`.
+**Язык** ([11-i18n.md](11-i18n.md)): `locale()` — язык запроса, `defaultLocale()`, `locales()`, `localized(['ru' => …, 'en' => …])` — значение для текущего языка с откатом на основной, затем на первое непустое (то же, что `SiteLocale::localized()`; своей копии у службы `i18n` нет). Без службы `i18n` язык всегда `ru`.
 
 **Службы:** `provide('i18n', $object)` — в точке входа, имя должно быть в `provides`; `service('i18n')` — объект или `null`, если службы нет. Владелец службы загружается при первом обращении, поэтому порядок загрузки не важен; вызывайте `service()` в обработчиках, а не в точке входа.
 

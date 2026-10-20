@@ -21,23 +21,6 @@ spl_autoload_register(static function (string $class) use ($corePath): void {
     }
 });
 
-// ---------- подпроцесс для сценариев с exit() ----------
-if (($argv[1] ?? '') === '--case') {
-    $site = $argv[2];
-    $config = tp_config($corePath, $site);
-    Env::set('APP_SECRET', 'plugins-test-secret');
-    ob_start();
-    $_SESSION = ['admin_authenticated' => true, 'csrf_token' => 'tok'];
-    $_SERVER['REQUEST_METHOD'] = $argv[3];
-    if (isset($argv[5])) {
-        $_SERVER['HTTP_X_CSRF_TOKEN'] = $argv[5];
-    }
-    (new AdminRouter($config))->dispatchAdmin($argv[4]);
-    $out = ob_get_clean();
-    fwrite(STDOUT, json_encode(['status' => http_response_code(), 'body' => $out], JSON_UNESCAPED_UNICODE));
-    exit;
-}
-
 ob_start();
 Env::set('APP_SECRET', 'plugins-test-secret');
 
@@ -138,17 +121,6 @@ function tp_capture(callable $fn): array
     }
 
     return [http_response_code(), $body];
-}
-
-function tp_case(string $site, string $method, string $uri, ?string $csrf = null): array
-{
-    $cmd = [PHP_BINARY, __FILE__, '--case', $site, $method, $uri];
-    if ($csrf !== null) {
-        $cmd[] = $csrf;
-    }
-    $out = shell_exec(implode(' ', array_map('escapeshellarg', $cmd)));
-
-    return json_decode((string) $out, true) ?: ['status' => 0, 'body' => (string) $out];
 }
 
 $site = sys_get_temp_dir() . '/motorchk-plugins-test-' . getmypid();
@@ -412,15 +384,35 @@ check($st === 200 && (json_decode($body, true)['greeting'] ?? '') === 'Здра�
 [$st, $body] = tp_capture(fn() => ($route['handler'])(new PluginRequest('PUT', '/api/greeting', [], [], [], [], [], '{"greeting":""}'), $hello));
 check($st === 422, 'PUT с пустым приветствием → 422');
 
-// CSRF в админке (AdminRouter::requireCsrf() делает exit — отдельный процесс)
-$res = tp_case($site, 'PUT', '/admin-panel/plugins/hello/api/greeting');
-check($res['body'] === 'CSRF validation failed', 'PUT без X-CSRF-Token → отказ CSRF (403, exit)', json_encode($res, JSON_UNESCAPED_UNICODE));
-$res = tp_case($site, 'PUT', '/admin-panel/plugins/hello/api/greeting', 'wrong');
-check($res['body'] === 'CSRF validation failed', 'PUT с неверным X-CSRF-Token → отказ CSRF');
-$res = tp_case($site, 'PUT', '/admin-panel/plugins/hello/api/greeting', 'tok');
-check($res['status'] === 422, 'PUT с верным X-CSRF-Token доходит до плагина (пустое тело → 422)', json_encode($res, JSON_UNESCAPED_UNICODE));
-$res = tp_case($site, 'DELETE', '/admin-panel/plugins/hello/api/greeting', 'tok');
-check($res['status'] === 405, 'DELETE на GET/PUT-маршрут → 405');
+// CSRF в админке: AdminRouter::requireCsrf() бросает CsrfException, dispatchAdmin() отвечает 403
+$adminCase = static function (string $method, string $uri, ?string $header = null, ?string $post = null) use ($config): array {
+    $_SERVER['REQUEST_METHOD'] = $method;
+    unset($_SERVER['HTTP_X_CSRF_TOKEN']);
+    if ($header !== null) {
+        $_SERVER['HTTP_X_CSRF_TOKEN'] = $header;
+    }
+    $_POST = $post !== null ? ['_csrf' => $post] : [];
+    try {
+        return tp_capture(fn() => (new AdminRouter($config))->dispatchAdmin($uri));
+    } finally {
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        unset($_SERVER['HTTP_X_CSRF_TOKEN']);
+        $_POST = [];
+    }
+};
+[$st, $body] = $adminCase('PUT', '/admin-panel/plugins/hello/api/greeting');
+check($st === 403 && $body === 'CSRF validation failed', 'PUT без X-CSRF-Token → 403 CSRF', "status {$st}: {$body}");
+[$st, $body] = $adminCase('PUT', '/admin-panel/plugins/hello/api/greeting', 'wrong');
+check($st === 403 && $body === 'CSRF validation failed', 'PUT с неверным X-CSRF-Token → 403 CSRF', "status {$st}: {$body}");
+[$st, $body] = $adminCase('PUT', '/admin-panel/plugins/hello/api/greeting', 'tok');
+check($st === 422, 'PUT с верным X-CSRF-Token доходит до плагина (пустое тело → 422)', "status {$st}: {$body}");
+[$st] = $adminCase('DELETE', '/admin-panel/plugins/hello/api/greeting', 'tok');
+check($st === 405, 'DELETE на GET/PUT-маршрут → 405');
+$themeBefore = SiteMeta::getTheme($config);
+[$st, $body] = $adminCase('POST', '/admin-panel/system/theme', null, 'wrong');
+check($st === 403 && $body === 'CSRF validation failed' && SiteMeta::getTheme($config) === $themeBefore, 'встроенный маршрут: POST /system/theme с неверным _csrf → 403, тема не меняется', "status {$st}: {$body}");
+[$st, $body] = $adminCase('POST', '/admin-panel/logout');
+check($st === 403 && !empty($_SESSION['admin_authenticated']), 'POST /logout без _csrf → 403, сессия цела', "status {$st}");
 
 [$st, $body] = tp_capture(fn() => (new AdminRouter($config))->dispatchAdmin('/admin-panel/system'));
 check($st === 200 && str_contains($body, 'Hello — пример плагина') && str_contains($body, '✗ Не загружен: Несовместим'), '«Система»: список плагинов с причинами');

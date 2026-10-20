@@ -27,6 +27,17 @@ class AdminRouter
 
     public function dispatchAdmin(string $requestUri): void
     {
+        try {
+            $this->route($requestUri);
+        } catch (CsrfException $e) {
+            http_response_code(403);
+            header('Content-Type: text/plain; charset=UTF-8');
+            echo $e->getMessage();
+        }
+    }
+
+    private function route(string $requestUri): void
+    {
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         $path = $this->normalizePath($requestUri);
         $this->currentPath = $path;
@@ -933,6 +944,7 @@ class AdminRouter
         return !empty($_SESSION['admin_authenticated']);
     }
 
+    /** @throws CsrfException токен не совпал — dispatchAdmin() ответит 403 */
     private function requireCsrf(): void
     {
         $token = $_POST['_csrf'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? null;
@@ -943,9 +955,7 @@ class AdminRouter
         }
 
         if (!Csrf::validate($token)) {
-            http_response_code(403);
-            echo 'CSRF validation failed';
-            exit;
+            throw new CsrfException();
         }
     }
 
