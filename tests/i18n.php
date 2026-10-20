@@ -150,6 +150,7 @@ check($baseline['/about'][0] === 200 && str_contains($baseline['/about'][1], '<h
 check($baseline['/about.en'][0] === 200 && str_contains($baseline['/about.en'][1], 'English about text.'), 'без службы i18n about.en.md — обычная страница /about.en (как раньше)');
 check($baseline['/en/about'][0] === 404, '/en/about без i18n — 404');
 check(SiteLocale::current() === 'ru' && SiteLocale::locales() === ['ru'] && !SiteLocale::isActive(), 'SiteLocale: ru, неактивен');
+check(SiteLocale::localized(['en' => 'Item', 'ru' => 'Товар']) === 'Товар' && SiteLocale::localized(['ru' => '', 'en' => 'Item']) === 'Item' && SiteLocale::localized(['ru' => 'Товар', 'en' => 'Item'], 'en') === 'Item' && SiteLocale::localized(['ru' => '']) === null, 'SiteLocale::localized() без службы: язык → ru → первое непустое → null');
 check(str_contains($baseline['/about'][1], "site-chrome.css\">\n    <script src=\"/core/assets/js/htmx.min.js\""), 'site-chrome.php без дополнений выводит ровно одну строку');
 
 // ---------------------------------------------------------------- плагины без i18n
@@ -240,6 +241,7 @@ check($m->service('i18n') instanceof LocaleProvider && $m->service('nothing') ==
 check($st === 200 && str_contains($ru, 'Русский текст about.') && str_contains($ru, '<html lang="ru">'), '/about — русский оригинал');
 check(str_contains($ru, '<link rel="alternate" hreflang="ru" href="http://example.test/about">') && str_contains($ru, '<link rel="alternate" hreflang="en" href="http://example.test/en/about">') && str_contains($ru, 'hreflang="x-default" href="http://example.test/about"'), '/about: hreflang ru, en и x-default (абсолютные адреса)');
 check(SiteLocale::locales() === ['ru', 'en'], 'некорректный код языка службы отброшен');
+check(SiteLocale::localized(['ru' => 'Товар', 'en' => 'Item']) === 'Товар' && SiteLocale::localized(['ru' => 'Товар', 'en' => ''], 'en') === 'Товар' && SiteLocale::localized(['de' => 'Ware'], 'en') === 'Ware', 'SiteLocale::localized() со службой: язык → основной → первое непустое');
 [$st, $en] = $public('/en/about');
 check($st === 200 && str_contains($en, 'English about text.') && str_contains($en, '<html lang="en">') && !str_contains($en, 'Русский текст'), '/en/about — перевод about.en.md, <html lang="en"> (тема с lang="ru" исправлена ядром)');
 check(str_contains($en, '<title>About us</title>') && !str_contains($en, 'rel="canonical"'), 'заголовок перевода, без canonical');

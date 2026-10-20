@@ -138,25 +138,13 @@ final class PluginContext
     }
 
     /**
-     * Значение для текущего языка из массива ['ru' => …, 'en' => …]: текущий язык,
-     * затем основной, затем первое непустое.
+     * Значение для текущего языка из массива ['ru' => …, 'en' => …] — см. SiteLocale::localized().
      *
      * @param array<string, mixed> $values
      */
     public function localized(array $values, ?string $locale = null): mixed
     {
-        foreach ([$locale ?? $this->locale(), $this->defaultLocale()] as $key) {
-            if (isset($values[$key]) && $values[$key] !== '') {
-                return $values[$key];
-            }
-        }
-        foreach ($values as $value) {
-            if ($value !== null && $value !== '') {
-                return $value;
-            }
-        }
-
-        return null;
+        return SiteLocale::localized($values, $locale);
     }
 
     // ---------- службы и хуки ----------

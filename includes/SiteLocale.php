@@ -96,6 +96,28 @@ final class SiteLocale
         return self::current() === self::default();
     }
 
+    /**
+     * Значение на языке из массива ['ru' => …, 'en' => …]: $locale (по умолчанию текущий),
+     * затем основной, затем первое непустое; null, если непустых нет.
+     *
+     * @param array<string, mixed> $values
+     */
+    public static function localized(array $values, ?string $locale = null): mixed
+    {
+        foreach ([$locale ?? self::current(), self::default()] as $key) {
+            if (isset($values[$key]) && $values[$key] !== '') {
+                return $values[$key];
+            }
+        }
+        foreach ($values as $value) {
+            if ($value !== null && $value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
     /** Установить язык запроса. Только языки из locales(). */
     public static function set(string $locale): bool
     {
