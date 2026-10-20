@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Чистка (0.4.2)
+
+- `SiteLocale::localized($values, $locale = null)` — единственная реализация выбора значения по языку (язык → основной → первое непустое). `PluginContext::localized()` вызывает её; копия в службе плагина i18n убрана (i18n 0.1.3).
+- CSRF в админке: `AdminRouter::requireCsrf()` бросает `CsrfException` вместо `exit`, `dispatchAdmin()` отвечает `403` `CSRF validation failed`. Ответ прежний, но запрос завершается обычным путём — тесты CSRF в `tests/plugins.php` идут в том же процессе, без подпроцессов.
+
 ### Мультиязычность и точки расширения (0.4.0)
 
 - Службы плагинов: `provides` в `plugin.json`, `PluginContext::provide()` / `service()` (владелец загружается при первом обращении, нет службы — `null`).
