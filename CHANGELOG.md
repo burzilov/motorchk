@@ -9,6 +9,7 @@
 - `MenuRenderer` без Tailwind и Alpine.js: `MenuRenderer::render($items, ['class' => 'nav', 'depth' => 2])` и `MenuRenderer::html()` выводят `<ul class="nav">` с `nav__item`, `nav__link`, `nav__sub`, `is-active`, `has-children` и `aria-current="page"`. Второй аргумент теперь массив опций — прежние `'desktop'` / `'mobile'` не поддерживаются; разметку с классами фреймворка тема строит сама из `$menu` / `$menus` (так сделана тема-пример, `partials/menu.php`).
 - Пункт меню: новое поле `current` (ровно страница пункта); `active` и `current` считаются и для внутренних url-пунктов (`/customizer/` активен на `/customizer/ultra`).
 - Публичная папка файлов содержимого `media/` → `/media/…`: `media/.htaccess` (только картинки, видео, аудио, PDF; без PHP и листинга; nosniff и CSP для SVG), `Media::url()`, `Media::path()`, конфиг `media_path`. Создаётся при установке и в `install/migrate.php`; префикс `media` зарезервирован.
+- Переменная шаблона темы `$plugins` (`PluginManager` или `null`): тема берёт службы плагинов — `$plugins?->service('customizer')`.
 - Документация для тем `docs/12-themes.md` (переменные шаблона, меню, `media/`, кеш), тесты `php tests/themes.php`.
 
 ### Чистка (0.4.2)

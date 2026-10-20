@@ -14,6 +14,7 @@ CSS-фреймворк: публичные страницы получают д�
 | `$themeAssetsUrl` | `/themes/{name}/assets` |
 | `$locale`, `$defaultLocale`, `$contentLocale`, `$alternates`, `$i18n` | язык ([11-i18n.md](11-i18n.md)) |
 | `$scripts`, `$canEdit`, `$config` | скрипты страницы, inline-edit, конфиг сайта |
+| `$plugins` | `PluginManager` или `null` (нет папки plugins/): службы плагинов — `$plugins?->service('customizer')`, объект или `null` ([10-plugins.md](10-plugins.md)) |
 
 ## Меню
 

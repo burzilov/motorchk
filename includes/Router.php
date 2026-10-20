@@ -342,6 +342,8 @@ class Router
         $i18n = SiteLocale::provider();
         $manager = $this->pluginManager !== null && $this->pluginManager->hasPluginsDir() ? $this->pluginManager : null;
         $hookContext = ['slug' => $slug, 'locale' => $locale, 'content_locale' => $contentLocale, 'preview' => $isPreview];
+        // службы плагинов для темы: $plugins?->service('customizer') — объект или null
+        $plugins = $manager ?? ($this->manager()->hasPluginsDir() ? $this->manager() : null);
 
         $this->menuBuilder->setLocale(SiteLocale::isActive() && $locale !== $defaultLocale ? $locale : null);
         $menus = $this->menuBuilder->buildAll($slug, true);

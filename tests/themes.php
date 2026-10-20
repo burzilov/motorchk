@@ -248,6 +248,12 @@ Media::ensure($config);
 check(file_get_contents($site . '/media/.htaccess') === "# своё\n", 'существующий .htaccess не перезаписывается');
 check(in_array('media', PluginManager::RESERVED_PREFIXES, true), 'префикс media зарезервирован');
 
+out("\n[службы плагинов в теме]\n");
+ti_plugin($site, 'demo', ['provides' => ['demo']], "<?php\nreturn static function (PluginContext \$plugin): void { \$plugin->provide('demo', new class { public function hello(): string { return 'привет из службы'; } }); };\n");
+file_put_contents($site . '/themes/example/probe.php', "<?php echo 'svc=', \$plugins?->service('demo')?->hello() ?? 'нет', ';none=', \$plugins?->service('nope') === null ? 'null' : 'obj';\n");
+file_put_contents($site . '/content/probe.md', "---\ntitle: Проба\ntemplate: probe\n---\n\n## block: content\n\nx\n");
+[$st, $body] = $public('/probe');
+check($st === 200 && $body === 'svc=привет из службы;none=null', 'шаблон темы: $plugins->service() — объект службы, неизвестная — null', $body);
 restore_error_handler();
 ti_rm($site);
 ob_end_clean();
