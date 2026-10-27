@@ -248,6 +248,30 @@ Media::ensure($config);
 check(file_get_contents($site . '/media/.htaccess') === "# своё\n", 'существующий .htaccess не перезаписывается');
 check(in_array('media', PluginManager::RESERVED_PREFIXES, true), 'префикс media зарезервирован');
 
+out("\n[.htaccess сайта: /core/]\n");
+$rootHt = (string) file_get_contents($corePath . '/skeleton/.htaccess');
+$hasCoreBlock = preg_match('~<If "-z %\{ENV:REDIRECT_STATUS\}">\s*RedirectMatch 404 (\S+)\s*</If>~', $rootHt, $htm) === 1;
+check($hasCoreBlock && $htm[1] === '^/core/(?!assets/)', 'skeleton/.htaccess: /core/ кроме assets/ — 404, только для запроса клиента (REDIRECT_STATUS пуст)');
+check(str_contains($rootHt, 'RewriteRule ^admin-panel(/.*)?$ core/admin-panel/index.php [L,QSA]'), 'админка — внутренний переход /admin-panel → core/admin-panel/index.php');
+$coreRe = '~' . ($htm[1] ?? '^$') . '~';
+$closed = ['/core/VERSION', '/core/README.md', '/core/CHANGELOG.md', '/core/composer.json', '/core/composer.lock', '/core/', '/core/admin-panel/index.php', '/core/includes/bootstrap.php', '/core/vendor/autoload.php'];
+$open = ['/core/assets/css/admin.css', '/core/assets/js/htmx.min.js', '/core/assets/favicon.svg', '/admin-panel/login', '/customizer/', '/plugin-assets/x/a.js', '/themes/example/assets/css/app.css'];
+check(array_filter($closed, static fn(string $u): bool => preg_match($coreRe, $u) !== 1) === [] && array_filter($open, static fn(string $u): bool => preg_match($coreRe, $u) === 1) === [], 'правило: служебные файлы ядра закрыты, /core/assets/ и маршруты сайта открыты');
+$coreUrls = [];
+$it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($corePath, FilesystemIterator::SKIP_DOTS));
+foreach ($it as $file) {
+    $rel = substr($file->getPathname(), strlen($corePath) + 1);
+    if (!preg_match('~^(admin-panel|includes|skeleton|assets/js)/.*\.(php|js|html)$~', $rel) || str_ends_with($rel, '.min.js')) {
+        continue;
+    }
+    preg_match_all('~(?:href|src|action|url|fetch)\s*[=(]\s*["\'](/core/[^"\'?#]*)~', (string) file_get_contents($file->getPathname()), $mm);
+    foreach ($mm[1] as $u) {
+        $coreUrls[$u] = $rel;
+    }
+}
+$blocked = array_filter(array_keys($coreUrls), static fn(string $u): bool => preg_match($coreRe, $u) === 1);
+check($coreUrls !== [] && $blocked === [], 'ссылки ядра (админка, тема-пример, представления) ведут только в /core/assets/ (' . count($coreUrls) . ')', implode(', ', $blocked));
+
 out("\n[службы плагинов в теме]\n");
 ti_plugin($site, 'demo', ['provides' => ['demo']], "<?php\nreturn static function (PluginContext \$plugin): void { \$plugin->provide('demo', new class { public function hello(): string { return 'привет из службы'; } }); };\n");
 file_put_contents($site . '/themes/example/probe.php', "<?php echo 'svc=', \$plugins?->service('demo')?->hello() ?? 'нет', ';none=', \$plugins?->service('nope') === null ? 'null' : 'obj';\n");

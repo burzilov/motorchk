@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.2 — 2026-10-27
+
+### Безопасность: из `/core/` снаружи доступна только `assets/`
+
+- `skeleton/.htaccess`: прямой запрос к `/core/…`, кроме `/core/assets/…`, получает 404 —
+  `<If "-z %{ENV:REDIRECT_STATUS}">` с `RedirectMatch 404 ^/core/(?!assets/)`. Раньше отдавались `VERSION`, `README.md`,
+  `CHANGELOG.md`, `composer.json`, `composer.lock` (версии зависимостей) и открывался `/core/admin-panel/index.php` напрямую.
+- Условие по `REDIRECT_STATUS` обязательно: `/admin-panel/…` внутренне переписывается в `core/admin-panel/index.php`,
+  и голый `RedirectMatch` срабатывал бы и на этом внутреннем переходе — админка отвечала бы 404.
+- **При обновлении:** корневой `.htaccess` сайта не меняют ни обновление из админки, ни `install/migrate.php` —
+  перенесите блок из `core/skeleton/.htaccess` вручную ([docs/08-deploy-and-upgrade.md](docs/08-deploy-and-upgrade.md)).
+- Тесты в `tests/themes.php`: правило в skeleton, какие пути закрыты и открыты, все ссылки ядра на `/core/` ведут в `assets/`.
+
 ## 0.5.0 — 2026-10-27
 
 Выпускается тегом `v0.5.1`: `release.sh` повышает patch от `VERSION` (так же, как 0.4.0 → `v0.4.1`).
