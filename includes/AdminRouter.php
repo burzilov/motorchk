@@ -966,16 +966,24 @@ class AdminRouter
 
     private function htmxToast(string $message, string $type = 'success'): void
     {
-        $payload = json_encode(
+        header('HX-Trigger: ' . self::toastTriggerHeader($message, $type));
+    }
+
+    /**
+     * Значение заголовка HX-Trigger для тоста. Только ASCII: кириллица и эмодзи — как \uXXXX.
+     * Браузеры читают заголовки как latin1, поэтому сырой UTF-8 превращался в «Ð¡Ð¾Ñ…».
+     */
+    public static function toastTriggerHeader(string $message, string $type = 'success'): string
+    {
+        return json_encode(
             [
                 'mc:toast' => [
                     'message' => $message,
                     'type' => $type,
                 ],
             ],
-            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR
         );
-        header('HX-Trigger: ' . $payload);
     }
 
     private function htmxRedirect(string $url): void

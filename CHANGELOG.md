@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.5.6 — 2026-10-27
+
+### Исправлено: кракозябры в уведомлениях админки
+
+- Тосты после сохранения (страница, меню) показывали «Ð¡Ð¾Ñ…Ñ€Ð°Ð½ÐµÐ½Ð¾» вместо «Сохранено»: JSON в заголовке
+  `HX-Trigger` уходил с сырым UTF-8 (`JSON_UNESCAPED_UNICODE`), а браузеры читают заголовки как latin1.
+  Теперь значение собирает `AdminRouter::toastTriggerHeader()` — чистый ASCII, кириллица и эмодзи как `\uXXXX`,
+  битый UTF-8 заменяется, CR/LF в заголовок не попадают. Это единственное место, где ядро выставляет `HX-Trigger`.
+- Новый тест `tests/toast.php`: кириллица, эмодзи, кавычки, переводы строк и битый UTF-8 доходят до «браузера»
+  (декодирование latin1 → `JSON.parse`) без искажений.
+
+### Исходники CSS в репозитории ядра
+
+- Сборка стилей перенесена в ядро: `scripts/build-css.mjs` и `scripts/css/{admin,app,site-chrome}.css`
+  (раньше жили только в workspace). Артефакты (`assets/css/admin.css`, `assets/css/site-chrome.css`, CSS темы example)
+  собираются байт-в-байт как в 0.5.5. Tailwind CLI по-прежнему берётся из `node_modules` workspace
+  (`npm run build:css`, или `MOTORCHK_WORKSPACE=…`).
+- `scripts/` — только для разработки и, как `tests/`, в `motorchk-core-X.Y.Z.zip` не попадает: состав и структура
+  архива (`motorchk-core-X.Y.Z/` = `public_html/core/`) не изменились.
+
 ## 0.5.5 — 2026-10-27
 
 ### Новый дизайн админки
