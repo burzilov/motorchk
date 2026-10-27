@@ -118,6 +118,12 @@ final class PluginContext
         return SiteLocale::url('/' . $prefix . self::joinPath($path), $locale, 'plugin');
     }
 
+    /** Абсолютный адрес по пути сайта (схема и хост текущего запроса), как для canonical и hreflang. */
+    public function absoluteUrl(string $path): string
+    {
+        return SiteLocale::absolute($path);
+    }
+
     // ---------- язык ----------
 
     /** Язык текущего запроса (без службы i18n — всегда основной, «ru»). */
@@ -430,6 +436,60 @@ final class PluginContext
     public function csrfValid(PluginRequest $request): bool
     {
         return Csrf::validate($request->csrfToken());
+    }
+
+    // ---------- формы, почта, заявки, окружение ----------
+
+    /** Имя поля-ловушки (honeypot) форм ядра: непустое значение — бот. */
+    public function honeypotName(): string
+    {
+        return Form::honeypotName();
+    }
+
+    /**
+     * Ограничение частоты: true — попытка учтена, false — лимит исчерпан. Не больше $limit попыток
+     * за $windowSec секунд на ключ. Ключ свой у каждого плагина (ядро добавляет id плагина).
+     */
+    public function rateLimit(string $key, int $limit, int $windowSec): bool
+    {
+        if ($key === '' || $limit < 1 || $windowSec < 1) {
+            throw new InvalidArgumentException('rateLimit(): нужен непустой ключ, limit и windowSec ≥ 1');
+        }
+
+        return (new RateLimiter($this->path('cache_path'), $limit, $windowSec))
+            ->hit('plugin_' . $this->id() . '_' . hash('sha256', $key));
+    }
+
+    /**
+     * Письмо через SMTP из настроек ядра (.env). Получатель обязателен — SMTP_TO не подставляется.
+     * $replyTo — заголовок Reply-To. Ошибка отправки — RuntimeException.
+     */
+    public function mail(string $subject, string $body, string $to, ?string $replyTo = null): void
+    {
+        if (!self::isEmail($to)) {
+            throw new InvalidArgumentException('mail(): некорректный адрес получателя');
+        }
+        if ($replyTo !== null && !self::isEmail($replyTo)) {
+            throw new InvalidArgumentException('mail(): некорректный адрес Reply-To');
+        }
+        (new Mailer($this->config))->send($subject, $body, $to, null, $replyTo);
+    }
+
+    /** Заявки в разделе «Заявки» админки. */
+    public function submissions(): PluginSubmissions
+    {
+        return new PluginSubmissions(new SubmissionStore($this->config));
+    }
+
+    /** Значение из .env сайта (null — нет ключа). */
+    public function env(string $key): ?string
+    {
+        return Env::get($key);
+    }
+
+    private static function isEmail(string $value): bool
+    {
+        return $value !== '' && !preg_match('/[\r\n,;]/', $value) && filter_var($value, FILTER_VALIDATE_EMAIL) !== false;
     }
 
     // ---------- данные плагина (plugin-data/{id}/) ----------

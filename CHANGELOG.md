@@ -1,10 +1,20 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 — 2026-10-27
+
+Выпускается тегом `v0.5.1`: `release.sh` повышает patch от `VERSION` (так же, как 0.4.0 → `v0.4.1`).
+
+### API плагинов: формы, почта, заявки
+
+- `PluginContext` получил тонкие методы, чтобы плагины не обращались к `Mailer`, `RateLimiter`, `SubmissionStore`, `Form`, `SiteLocale` и `Env` напрямую: `absoluteUrl()`, `honeypotName()`, `rateLimit($key, $limit, $windowSec)` (ключ отдельный для каждого плагина), `mail($subject, $body, $to, $replyTo = null)` (получатель обязателен, без подстановки `SMTP_TO`), `submissions()->create()` / `markMail($formId, $id, 'sent' | 'failed', $error)` (новый класс `PluginSubmissions`), `env($key)`. Описание — [docs/10-plugins.md](docs/10-plugins.md), тесты в `tests/plugins.php`.
+- `Mailer::send()` — необязательный пятый аргумент `$replyTo` (заголовок Reply-To).
+- Плагины, которые используют новые методы, указывают `"core": "^0.5"`.
 
 ### Исправления
 
 - «Заявки» → «Открыть» показывала пустую заявку («ID» — id плагина), если установлен плагин с пунктом меню в админке: цикл меню плагинов в `AdminRouter::render()` затирал переменную шаблона `$item`. Тест в `tests/plugins.php`.
+
+## До 0.5.0
 
 ### Поддержка тем
 

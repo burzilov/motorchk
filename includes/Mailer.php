@@ -41,8 +41,9 @@ class Mailer
 
     /**
      * @param array{host?: string, port?: int, encryption?: string, username?: string, password?: string, from?: string, from_name?: string, to?: string}|null $override
+     * @param string|null $replyTo заголовок Reply-To (например, email автора заявки)
      */
-    public function send(string $subject, string $body, ?string $to = null, ?array $override = null): void
+    public function send(string $subject, string $body, ?string $to = null, ?array $override = null, ?string $replyTo = null): void
     {
         $settings = array_merge($this->settingsFromEnv(), $override ?? []);
         $recipient = $to ?? $settings['to'];
@@ -56,6 +57,9 @@ class Mailer
         $mail = $this->createMailer($settings);
         $mail->setFrom($settings['from'], $settings['from_name'] !== '' ? $settings['from_name'] : '');
         $mail->addAddress($recipient);
+        if ($replyTo !== null && $replyTo !== '') {
+            $mail->addReplyTo($replyTo);
+        }
         $mail->Subject = $subject;
         $mail->Body = $body;
         $mail->AltBody = $body;

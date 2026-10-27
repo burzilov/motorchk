@@ -155,6 +155,39 @@ return static function (PluginContext $plugin): void {
 
 **CSRF:** `csrfToken()`, `csrfField()`, `csrfValid($request)`.
 
+**Формы, почта, заявки** (с 0.5.0) — чтобы плагину не обращаться к классам ядра напрямую:
+
+| Метод | Назначение |
+|-------|------------|
+| `absoluteUrl('/path?x=1')` | абсолютный адрес по схеме и хосту текущего запроса (canonical, og:url, ссылки в письмах); не путь от корня — без изменений |
+| `honeypotName()` | имя поля-ловушки форм ядра (`<input name="…">` скрыт, непустое значение — бот) |
+| `rateLimit($key, $limit, $windowSec)` | `true` — попытка учтена, `false` — за последние `$windowSec` секунд уже `$limit` попыток. Ключ (например, хеш IP) хранится отдельно для каждого плагина: ядро добавляет id плагина, одинаковые ключи разных плагинов не пересекаются |
+| `mail($subject, $body, $to, $replyTo = null)` | письмо через SMTP из `.env` ядра. `$to` обязателен — `SMTP_TO` **не** подставляется; `$replyTo` — заголовок Reply-To (например, email клиента). Некорректный адрес — `InvalidArgumentException`, ошибка SMTP — `RuntimeException` |
+| `submissions()->create($formId, $payload, $contract, $ip)` | заявка в разделе «Заявки» админки (`mail_status: pending`); возвращает `['id' => …, 'path' => …, 'data' => …]`. `$contract` — подписи полей: `[['name' => 'email', 'type' => 'email', 'required' => true, 'label' => 'Email']]` |
+| `submissions()->markMail($formId, $id, 'sent' \| 'failed', $error = null)` | итог отправки письма по заявке; текст ошибки сохраняется только для `failed` |
+| `env('KEY')` | значение из `.env` сайта или `null` |
+
+```php
+$plugin->publicRoute('POST', '/order', static function (PluginRequest $request, PluginContext $plugin): void {
+    $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+    if ((string) $request->input($plugin->honeypotName(), '') !== '') {
+        $plugin->json(['ok' => true]);                       // бот: молча «успех»
+        return;
+    }
+    if (!$plugin->rateLimit(hash('sha256', $ip), 5, 3600)) {
+        $plugin->jsonError('Слишком много заявок', 429);
+        return;
+    }
+    $sub = $plugin->submissions()->create('my-order', $payload, $contract, $ip);
+    try {
+        $plugin->mail('Заявка ' . $sub['id'], $body, $officeEmail, $clientEmail);
+        $plugin->submissions()->markMail('my-order', $sub['id'], 'sent');
+    } catch (RuntimeException $e) {
+        $plugin->submissions()->markMail('my-order', $sub['id'], 'failed', $e->getMessage());
+    }
+});
+```
+
 **Данные** (относительные пути внутри `dataDir()`, без `..` и скрытых файлов): `dataPath($rel)`, `writeFile($rel, $content)` (через `FileWriter`, flock, папки создаются), `readFile($rel)`, `writeJson($rel, $data)`, `readJson($rel, $default)`, `readJsonStrict($rel, $default = [])`, `deleteFile($rel)`.
 
 > `readJson()` возвращает `$default` и когда файла нет, и когда файл **повреждён** (не JSON). Если плагин после этого перезапишет файл, данные потеряются. Для важных данных используйте `readJsonStrict()`.

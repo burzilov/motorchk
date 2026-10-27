@@ -295,6 +295,57 @@ try {
     $threw = true;
 }
 check($threw, 'readJsonStrict(): путь проверяется как в dataPath()');
+// формы, почта, заявки, окружение (0.5.0)
+$_SERVER['HTTP_HOST'] = 'example.test';
+$_SERVER['HTTPS'] = 'on';
+check($hello->absoluteUrl('/hello/x?a=1') === 'https://example.test/hello/x?a=1' && $hello->absoluteUrl('relative') === 'relative', 'absoluteUrl()');
+unset($_SERVER['HTTP_HOST'], $_SERVER['HTTPS']);
+check($hello->honeypotName() === Form::honeypotName() && $hello->honeypotName() !== '', 'honeypotName()');
+$other = new PluginContext($config, $all['hooks'], $manager);
+check($hello->rateLimit('ip-1', 2, 60) && $hello->rateLimit('ip-1', 2, 60) && !$hello->rateLimit('ip-1', 2, 60), 'rateLimit(): третья попытка при лимите 2 — false');
+check($hello->rateLimit('ip-2', 2, 60), 'rateLimit(): другой ключ — свой счётчик');
+check($other->rateLimit('ip-1', 2, 60), 'rateLimit(): тот же ключ у другого плагина — свой счётчик');
+$rlFiles = array_map('basename', glob($config['cache_path'] . '/rate-limit/*.json') ?: []);
+check($rlFiles !== [] && array_filter($rlFiles, static fn(string $f): bool => !str_starts_with($f, 'plugin_hello_') && !str_starts_with($f, 'plugin_hooks_')) === [], 'rateLimit(): файлы с id плагина в имени', implode(', ', $rlFiles));
+$threw = false;
+try {
+    $hello->rateLimit('k', 0, 60);
+} catch (InvalidArgumentException) {
+    $threw = true;
+}
+check($threw, 'rateLimit(): limit 0 — исключение');
+$mailErr = static function (callable $fn): ?Throwable {
+    try {
+        $fn();
+    } catch (Throwable $e) {
+        return $e;
+    }
+    return null;
+};
+$e = $mailErr(fn() => $hello->mail('S', 'B', ''));
+check($e instanceof InvalidArgumentException, 'mail(): пустой получатель — исключение, без SMTP_TO');
+Env::set('SMTP_TO', 'fallback@example.test');
+$e = $mailErr(fn() => $hello->mail('S', 'B', ''));
+check($e instanceof InvalidArgumentException, 'mail(): SMTP_TO не подставляется');
+$e = $mailErr(fn() => $hello->mail('S', 'B', "a@example.test\nBcc: x@example.test"));
+check($e instanceof InvalidArgumentException, 'mail(): перевод строки в адресе — исключение');
+$e = $mailErr(fn() => $hello->mail('S', 'B', 'a@example.test', 'not-an-email'));
+check($e instanceof InvalidArgumentException, 'mail(): некорректный Reply-To — исключение');
+$e = $mailErr(fn() => $hello->mail('S', 'B', 'a@example.test', 'client@example.test'));
+check($e instanceof RuntimeException && !$e instanceof InvalidArgumentException, 'mail(): верные адреса доходят до Mailer (без SMTP — RuntimeException)', $e ? get_class($e) . ': ' . $e->getMessage() : 'нет исключения');
+$sub = $hello->submissions()->create('hello-form', ['name' => 'Ivan'], [['name' => 'name', 'type' => 'text', 'required' => true, 'label' => 'Имя']], '127.0.0.1');
+$stored = (new SubmissionStore($config))->get('hello-form', $sub['id']);
+check(($stored['mail_status'] ?? null) === 'pending' && ($stored['payload']['name'] ?? null) === 'Ivan' && ($stored['ip'] ?? null) === '127.0.0.1', 'submissions()->create(): заявка в «Заявках», письмо pending');
+$hello->submissions()->markMail('hello-form', $sub['id'], 'failed', 'smtp down');
+$stored = (new SubmissionStore($config))->get('hello-form', $sub['id']);
+check(($stored['mail_status'] ?? null) === 'failed' && ($stored['mail_error'] ?? null) === 'smtp down', 'markMail(failed) с ошибкой');
+$hello->submissions()->markMail('hello-form', $sub['id'], 'sent', 'ignored');
+$stored = (new SubmissionStore($config))->get('hello-form', $sub['id']);
+check(($stored['mail_status'] ?? null) === 'sent' && array_key_exists('mail_error', $stored) && $stored['mail_error'] === null, 'markMail(sent) очищает ошибку');
+$e = $mailErr(fn() => $hello->submissions()->markMail('hello-form', $sub['id'], 'pending'));
+check($e instanceof InvalidArgumentException, 'markMail(): только sent/failed');
+Env::set('HELLO_PLUGIN_KEY', 'v1');
+check($hello->env('HELLO_PLUGIN_KEY') === 'v1' && $hello->env('HELLO_PLUGIN_MISSING') === null, 'env()');
 $r = $hello->matchRoute('public', 'GET', '/to/Ivan');
 check(($r['params']['name'] ?? null) === 'Ivan', 'маршрут /to/{name}');
 $r = $hello->matchRoute('admin', 'POST', '/api/greeting');
