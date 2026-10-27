@@ -414,7 +414,7 @@ out("\n[админка]\n");
 $_SESSION = ['admin_authenticated' => true, 'csrf_token' => 'tok'];
 [$st, $body] = tp_capture(fn() => (new AdminRouter($config))->dispatchAdmin('/admin-panel/plugins/hello'));
 check($st === 200 && str_contains($body, 'id="hello-admin"') && str_contains($body, '<title>Hello — Админка motorchk</title>'), 'GET /admin-panel/plugins/hello в layout', "status {$st}");
-check(str_contains($body, 'href="/admin-panel/plugins/hello" class="font-medium text-sky-700'), 'пункт меню «Hello» активен');
+check(str_contains($body, 'href="/admin-panel/plugins/hello" class="mc-nav__link mc-nav__link--plugin" aria-current="page"'), 'пункт меню «Hello» активен');
 check(str_contains($body, '/plugin-assets/hello/hello.css?v=1.0.0" rel="stylesheet"') && str_contains($body, 'hello-admin.js?v=1.0.0'), 'styles/scripts плагина в <head>');
 check(strpos($body, '>Система</a>') < strpos($body, '>Hello</a>'), 'пункт плагина после встроенных');
 [$st, $body] = tp_capture(fn() => (new AdminRouter($config))->dispatchAdmin('/admin-panel/plugins/hello/fullscreen'));

@@ -10,29 +10,29 @@ foreach ($contract as $field) {
     }
 }
 ?>
-<div class="space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-        <h1 class="text-2xl font-bold">Заявка</h1>
-        <a href="/admin-panel/submissions" class="text-sm text-sky-700 hover:underline">← К списку</a>
+<div class="mc-page">
+    <div class="mc-head">
+        <h1 class="mc-head__title">Заявка</h1>
+        <a href="/admin-panel/submissions" class="mc-link">← К списку</a>
     </div>
 
-    <section class="rounded-xl bg-white p-6 shadow-sm space-y-2 text-sm">
-        <p><span class="text-slate-500">Форма:</span> <?= htmlspecialchars((string) $formLabel) ?> <code class="text-xs"><?= htmlspecialchars((string) ($item['form_id'] ?? '')) ?></code></p>
-        <p><span class="text-slate-500">ID:</span> <?= htmlspecialchars((string) ($item['id'] ?? '')) ?></p>
-        <p><span class="text-slate-500">Дата:</span> <?= htmlspecialchars((string) ($item['created_at'] ?? '')) ?></p>
-        <p><span class="text-slate-500">IP:</span> <?= htmlspecialchars((string) ($item['ip'] ?? '')) ?></p>
+    <section class="mc-sheet mc-facts">
+        <p><span class="mc-facts__key">Форма:</span> <?= htmlspecialchars((string) $formLabel) ?> <code><?= htmlspecialchars((string) ($item['form_id'] ?? '')) ?></code></p>
+        <p><span class="mc-facts__key">ID:</span> <?= htmlspecialchars((string) ($item['id'] ?? '')) ?></p>
+        <p><span class="mc-facts__key">Дата:</span> <?= htmlspecialchars((string) ($item['created_at'] ?? '')) ?></p>
+        <p><span class="mc-facts__key">IP:</span> <?= htmlspecialchars((string) ($item['ip'] ?? '')) ?></p>
         <p>
-            <span class="text-slate-500">Почта:</span>
+            <span class="mc-facts__key">Почта:</span>
             <?= htmlspecialchars((string) ($item['mail_status'] ?? '')) ?>
             <?php if (!empty($item['mail_error'])): ?>
-                — <span class="text-red-700"><?= htmlspecialchars((string) $item['mail_error']) ?></span>
+                — <span class="mc-error-text"><?= htmlspecialchars((string) $item['mail_error']) ?></span>
             <?php endif; ?>
         </p>
     </section>
 
-    <section class="rounded-xl bg-white p-6 shadow-sm">
-        <h2 class="mb-4 text-lg font-semibold">Данные</h2>
-        <dl class="space-y-3 text-sm">
+    <section class="mc-sheet">
+        <h2 class="mc-sheet__title">Данные</h2>
+        <dl class="mc-dl">
             <?php foreach ($payload as $name => $value): ?>
                 <?php
                 $label = $labels[$name] ?? (string) $name;
@@ -44,13 +44,13 @@ foreach ($contract as $field) {
                     $text = (string) $value;
                 }
                 ?>
-                <div class="grid gap-1 border-b border-slate-100 pb-3 md:grid-cols-[12rem_1fr]">
-                    <dt class="font-medium text-slate-700"><?= htmlspecialchars($label) ?></dt>
-                    <dd class="whitespace-pre-wrap text-slate-900"><?= htmlspecialchars($text) ?></dd>
+                <div class="mc-dl__row">
+                    <dt><?= htmlspecialchars($label) ?></dt>
+                    <dd><?= htmlspecialchars($text) ?></dd>
                 </div>
             <?php endforeach; ?>
             <?php if ($payload === []): ?>
-                <p class="text-slate-500">Пусто</p>
+                <p class="mc-muted">Пусто</p>
             <?php endif; ?>
         </dl>
     </section>

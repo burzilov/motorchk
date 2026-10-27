@@ -4,15 +4,15 @@ $filterMailStatus = $filterMailStatus ?? '';
 $items = $items ?? [];
 $forms = $forms ?? [];
 ?>
-<div class="space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-        <h1 class="text-2xl font-bold">Заявки</h1>
+<div class="mc-page">
+    <div class="mc-head">
+        <h1 class="mc-head__title">Заявки</h1>
     </div>
 
-    <form method="get" action="/admin-panel/submissions" class="flex flex-wrap items-end gap-3 rounded-xl bg-white p-4 shadow-sm">
-        <label class="block text-sm text-slate-700">
+    <form method="get" action="/admin-panel/submissions" class="mc-filter">
+        <label class="mc-field mc-label">
             Форма
-            <select name="form_id" class="mt-1 block rounded border border-slate-300 px-3 py-2 text-sm">
+            <select name="form_id" class="mc-input">
                 <option value="">Все</option>
                 <?php foreach ($forms as $form): ?>
                     <option value="<?= htmlspecialchars($form['id']) ?>"<?= $filterFormId === $form['id'] ? ' selected' : '' ?>>
@@ -21,32 +21,32 @@ $forms = $forms ?? [];
                 <?php endforeach; ?>
             </select>
         </label>
-        <label class="block text-sm text-slate-700">
+        <label class="mc-field mc-label">
             Почта
-            <select name="mail_status" class="mt-1 block rounded border border-slate-300 px-3 py-2 text-sm">
+            <select name="mail_status" class="mc-input">
                 <option value="">Все</option>
                 <option value="sent"<?= $filterMailStatus === 'sent' ? ' selected' : '' ?>>sent</option>
                 <option value="failed"<?= $filterMailStatus === 'failed' ? ' selected' : '' ?>>failed</option>
                 <option value="pending"<?= $filterMailStatus === 'pending' ? ' selected' : '' ?>>pending</option>
             </select>
         </label>
-        <button type="submit" class="rounded bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700">Фильтр</button>
+        <button type="submit" class="mc-btn mc-btn--primary">Фильтр</button>
     </form>
 
-    <div class="overflow-hidden rounded-xl bg-white shadow-sm">
-        <table class="min-w-full text-left text-sm">
-            <thead class="border-b border-slate-200 bg-slate-50 text-slate-600">
+    <div class="mc-table-wrap">
+        <table class="mc-table">
+            <thead>
                 <tr>
-                    <th class="px-4 py-3 font-medium">Дата</th>
-                    <th class="px-4 py-3 font-medium">Форма</th>
-                    <th class="px-4 py-3 font-medium">Почта</th>
-                    <th class="px-4 py-3 font-medium"></th>
+                    <th scope="col">Дата</th>
+                    <th scope="col">Форма</th>
+                    <th scope="col">Почта</th>
+                    <th scope="col"><span class="visually-hidden">Открыть</span></th>
                 </tr>
             </thead>
             <tbody>
                 <?php if ($items === []): ?>
                     <tr>
-                        <td colspan="4" class="px-4 py-8 text-center text-slate-500">Заявок пока нет</td>
+                        <td colspan="4" class="mc-table__empty">Заявок пока нет</td>
                     </tr>
                 <?php else: ?>
                     <?php foreach ($items as $item): ?>
@@ -55,16 +55,16 @@ $forms = $forms ?? [];
                         $sid = (string) ($item['id'] ?? '');
                         $status = (string) ($item['mail_status'] ?? '');
                         ?>
-                        <tr class="border-b border-slate-100">
-                            <td class="px-4 py-3 whitespace-nowrap"><?= htmlspecialchars((string) ($item['created_at'] ?? '')) ?></td>
-                            <td class="px-4 py-3"><?= htmlspecialchars($fid) ?></td>
-                            <td class="px-4 py-3">
-                                <span class="<?= $status === 'sent' ? 'text-emerald-700' : ($status === 'failed' ? 'text-red-700' : 'text-slate-600') ?>">
+                        <tr>
+                            <td class="mc-table__date num"><?= htmlspecialchars((string) ($item['created_at'] ?? '')) ?></td>
+                            <td><?= htmlspecialchars($fid) ?></td>
+                            <td>
+                                <span class="mc-status <?= $status === 'sent' ? 'mc-status--ok' : ($status === 'failed' ? 'mc-status--bad' : 'mc-status--idle') ?>">
                                     <?= htmlspecialchars($status) ?>
                                 </span>
                             </td>
-                            <td class="px-4 py-3 text-right">
-                                <a class="text-sky-700 hover:underline" href="/admin-panel/submissions/<?= rawurlencode($fid) ?>/<?= rawurlencode($sid) ?>">Открыть</a>
+                            <td class="mc-table__end">
+                                <a class="mc-link" href="/admin-panel/submissions/<?= rawurlencode($fid) ?>/<?= rawurlencode($sid) ?>">Открыть</a>
                             </td>
                         </tr>
                     <?php endforeach; ?>

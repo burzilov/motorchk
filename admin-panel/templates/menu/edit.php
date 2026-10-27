@@ -127,7 +127,7 @@ $pagesJson = htmlspecialchars(json_encode($pages, JSON_UNESCAPED_UNICODE), ENT_Q
 
 <div
     id="menu-editor"
-    class="space-y-6"
+    class="mc-page"
     x-data="menuEditor(
         <?= $itemsJson ?>,
         <?= $pagesJson ?>,
@@ -136,56 +136,56 @@ $pagesJson = htmlspecialchars(json_encode($pages, JSON_UNESCAPED_UNICODE), ENT_Q
         <?= htmlspecialchars(json_encode($defaultLocation, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>
     )"
 >
-    <div class="flex flex-wrap items-start justify-between gap-4">
+    <div class="mc-head">
         <div>
-            <h1 class="text-2xl font-bold text-slate-900">Меню</h1>
-            <p class="mt-1 text-sm text-slate-500">Именованные меню в <code class="text-xs">content/_menus.yaml</code></p>
+            <h1 class="mc-head__title">Меню</h1>
+            <p class="mc-head__lead">Именованные меню в <code>content/_menus.yaml</code></p>
         </div>
     </div>
 
-    <div class="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
+    <nav class="mc-tabs" aria-label="Меню сайта">
         <?php foreach ($locations as $loc): ?>
             <a
                 href="/admin-panel/menu?location=<?= rawurlencode($loc['id']) ?>"
-                class="rounded-md px-3 py-1.5 text-sm <?= $loc['id'] === $locationId ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200' ?>"
+                class="mc-tabs__tab"<?= $loc['id'] === $locationId ? ' aria-current="page"' : '' ?>
                 hx-get="/admin-panel/menu?location=<?= rawurlencode($loc['id']) ?>"
                 hx-target="#menu-editor"
                 hx-select="#menu-editor"
                 hx-swap="outerHTML"
             >
                 <?= htmlspecialchars($loc['label']) ?>
-                <span class="opacity-60">(<?= htmlspecialchars($loc['id']) ?>)</span>
+                <span class="mc-tabs__id">(<?= htmlspecialchars($loc['id']) ?>)</span>
             </a>
         <?php endforeach; ?>
-    </div>
+    </nav>
 
-    <div class="grid gap-6 lg:grid-cols-2">
-        <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 class="mb-3 text-sm font-semibold text-slate-800">Текущее меню</h2>
+    <div class="mc-grid-2 mc-grid-2--wide">
+        <section class="mc-sheet">
+            <h2 class="mc-sheet__title">Текущее меню</h2>
             <form
                 method="post"
                 action="/admin-panel/menu"
                 hx-post="/admin-panel/menu"
                 hx-target="#menu-editor"
                 hx-swap="outerHTML"
-                class="space-y-3"
+                class="mc-stack"
             >
                 <?= Csrf::field() ?>
                 <input type="hidden" name="action" value="update_location">
                 <input type="hidden" name="location" value="<?= htmlspecialchars($locationId) ?>">
                 <div>
-                    <label class="mb-1 block text-xs font-medium text-slate-600">Название</label>
-                    <input name="label" x-model="editLabel" type="text" required class="w-full rounded border border-slate-300 px-3 py-2 text-sm">
+                    <label class="mc-label" for="menu-edit-label">Название</label>
+                    <input id="menu-edit-label" name="label" x-model="editLabel" type="text" required class="mc-input">
                 </div>
                 <?php if ($locationId !== $defaultLocation): ?>
                     <div>
-                        <label class="mb-1 block text-xs font-medium text-slate-600">Id</label>
-                        <input name="new_id" x-model="editId" type="text" pattern="[a-z][a-z0-9_-]*" class="w-full rounded border border-slate-300 px-3 py-2 font-mono text-sm">
+                        <label class="mc-label" for="menu-edit-id">Id</label>
+                        <input id="menu-edit-id" name="new_id" x-model="editId" type="text" pattern="[a-z][a-z0-9_-]*" class="mc-input mc-input--code">
                     </div>
                 <?php else: ?>
-                    <p class="text-xs text-slate-500">Id <code>main</code> нельзя изменить или удалить.</p>
+                    <p class="mc-hint">Id <code>main</code> нельзя изменить или удалить.</p>
                 <?php endif; ?>
-                <button type="submit" class="rounded bg-slate-800 px-3 py-1.5 text-sm text-white hover:bg-slate-700">Обновить меню</button>
+                <button type="submit" class="mc-btn">Обновить меню</button>
             </form>
 
             <?php if ($locationId !== $defaultLocation): ?>
@@ -195,60 +195,60 @@ $pagesJson = htmlspecialchars(json_encode($pages, JSON_UNESCAPED_UNICODE), ENT_Q
                     hx-post="/admin-panel/menu"
                     hx-target="#menu-editor"
                     hx-swap="outerHTML"
-                    class="mt-4 border-t border-slate-100 pt-4"
+                    class="mc-sheet__foot"
                     onsubmit="return confirm('Удалить это меню?');"
                 >
                     <?= Csrf::field() ?>
                     <input type="hidden" name="action" value="delete_location">
                     <input type="hidden" name="location" value="<?= htmlspecialchars($locationId) ?>">
-                    <button type="submit" class="text-sm text-red-700 hover:underline">Удалить меню</button>
+                    <button type="submit" class="mc-btn mc-btn--quiet mc-btn--danger-text">Удалить меню</button>
                 </form>
             <?php endif; ?>
         </section>
 
-        <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 class="mb-3 text-sm font-semibold text-slate-800">Новое меню</h2>
+        <section class="mc-sheet">
+            <h2 class="mc-sheet__title">Новое меню</h2>
             <form
                 method="post"
                 action="/admin-panel/menu"
                 hx-post="/admin-panel/menu"
                 hx-target="#menu-editor"
                 hx-swap="outerHTML"
-                class="space-y-3"
+                class="mc-stack"
             >
                 <?= Csrf::field() ?>
                 <input type="hidden" name="action" value="create_location">
                 <input type="hidden" name="location" value="<?= htmlspecialchars($locationId) ?>">
                 <div>
-                    <label class="mb-1 block text-xs font-medium text-slate-600">Id</label>
-                    <input name="new_id" type="text" required pattern="[a-z][a-z0-9_-]*" placeholder="ceo-lead" class="w-full rounded border border-slate-300 px-3 py-2 font-mono text-sm">
+                    <label class="mc-label" for="menu-new-id">Id</label>
+                    <input id="menu-new-id" name="new_id" type="text" required pattern="[a-z][a-z0-9_-]*" placeholder="ceo-lead" class="mc-input mc-input--code">
                 </div>
                 <div>
-                    <label class="mb-1 block text-xs font-medium text-slate-600">Название</label>
-                    <input name="new_label" type="text" required placeholder="CEO Lead" class="w-full rounded border border-slate-300 px-3 py-2 text-sm">
+                    <label class="mc-label" for="menu-new-label">Название</label>
+                    <input id="menu-new-label" name="new_label" type="text" required placeholder="CEO Lead" class="mc-input">
                 </div>
-                <button type="submit" class="rounded bg-sky-700 px-3 py-1.5 text-sm text-white hover:bg-sky-600">Создать</button>
+                <button type="submit" class="mc-btn mc-btn--primary">Создать</button>
             </form>
         </section>
     </div>
 
-    <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h2 class="text-sm font-semibold text-slate-800">Пункты: <?= htmlspecialchars($locationLabel) ?></h2>
-            <span class="text-xs text-slate-400" x-show="dirty">Есть несохранённые изменения</span>
+    <section class="mc-sheet">
+        <div class="mc-sheet__head">
+            <h2 class="mc-sheet__title">Пункты: <?= htmlspecialchars($locationLabel) ?></h2>
+            <span class="mc-dirty" x-show="dirty">Есть несохранённые изменения</span>
         </div>
 
-        <div class="mb-4 flex flex-wrap items-end gap-3 rounded-lg bg-slate-50 p-3">
+        <div class="mc-adder">
             <div>
-                <label class="mb-1 block text-xs font-medium text-slate-600">Тип</label>
-                <select x-model="addMode" class="rounded border border-slate-300 px-2 py-1.5 text-sm">
+                <label class="mc-label" for="menu-add-mode">Тип</label>
+                <select id="menu-add-mode" x-model="addMode" class="mc-input">
                     <option value="page">Страница</option>
                     <option value="link">URL / якорь</option>
                 </select>
             </div>
-            <div x-show="addMode === 'page'" class="min-w-[12rem] flex-1">
-                <label class="mb-1 block text-xs font-medium text-slate-600">Страница</label>
-                <select x-model="pageSlug" class="w-full rounded border border-slate-300 px-2 py-1.5 text-sm">
+            <div x-show="addMode === 'page'" class="mc-adder__grow">
+                <label class="mc-label" for="menu-add-page">Страница</label>
+                <select id="menu-add-page" x-model="pageSlug" class="mc-input">
                     <option value="">Выберите…</option>
                     <template x-for="page in pages" :key="page.slug">
                         <option :value="page.slug" x-text="page.title + ' (' + page.slug + ')' + (page.published ? '' : ' — черновик')"></option>
@@ -256,75 +256,76 @@ $pagesJson = htmlspecialchars(json_encode($pages, JSON_UNESCAPED_UNICODE), ENT_Q
                 </select>
             </div>
             <template x-if="addMode === 'link'">
-                <div class="flex min-w-[12rem] flex-1 flex-wrap gap-3">
-                    <div class="min-w-[8rem] flex-1">
-                        <label class="mb-1 block text-xs font-medium text-slate-600">Подпись</label>
-                        <input x-model="linkLabel" type="text" class="w-full rounded border border-slate-300 px-2 py-1.5 text-sm" placeholder="Квиз">
+                <div class="mc-adder__grow mc-adder__pair">
+                    <div class="mc-adder__grow">
+                        <label class="mc-label" for="menu-add-link-label">Подпись</label>
+                        <input id="menu-add-link-label" x-model="linkLabel" type="text" class="mc-input" placeholder="Квиз">
                     </div>
-                    <div class="min-w-[8rem] flex-1">
-                        <label class="mb-1 block text-xs font-medium text-slate-600">URL</label>
-                        <input x-model="linkUrl" type="text" class="w-full rounded border border-slate-300 px-2 py-1.5 font-mono text-sm" placeholder="#quiz или https://…">
+                    <div class="mc-adder__grow">
+                        <label class="mc-label" for="menu-add-link-url">URL</label>
+                        <input id="menu-add-link-url" x-model="linkUrl" type="text" class="mc-input mc-input--code" placeholder="#quiz или https://…">
                     </div>
                 </div>
             </template>
-            <button type="button" class="rounded bg-slate-800 px-3 py-1.5 text-sm text-white hover:bg-slate-700" @click="addItem()">Добавить</button>
+            <button type="button" class="mc-btn" @click="addItem()">Добавить</button>
         </div>
 
         <template x-if="items.length === 0">
-            <p class="py-6 text-center text-sm text-slate-500">Пока нет пунктов — добавьте страницу или ссылку.</p>
+            <p class="mc-empty">Пока нет пунктов — добавьте страницу или ссылку.</p>
         </template>
 
-        <div class="space-y-1" id="menu-items-tree">
+        <div class="mc-menu-tree" id="menu-items-tree">
             <template x-for="(item, index) in items" :key="'root-'+index+'-'+(item.slug||item.url||'')">
                 <div>
-                    <div class="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-slate-50" :style="'padding-left: 0.5rem'">
-                        <div class="min-w-0 flex-1">
+                    <div class="mc-menu-row">
+                        <div class="mc-menu-row__main">
                             <input
                                 type="text"
-                                class="w-full rounded border border-transparent bg-transparent px-1 py-0.5 text-sm font-medium text-slate-800 hover:border-slate-200 focus:border-slate-300 focus:bg-white"
+                                class="mc-menu-row__label"
+                                aria-label="Подпись пункта"
                                 x-model="item.label"
                                 @input="markDirty()"
                             >
-                            <div class="truncate px-1 font-mono text-[11px] text-slate-400" x-text="itemMeta(item)"></div>
+                            <div class="mc-menu-row__meta" x-text="itemMeta(item)"></div>
                         </div>
-                        <div class="flex shrink-0 gap-1">
-                            <button type="button" class="rounded px-1.5 py-1 text-xs text-slate-500 hover:bg-slate-200" @click="move([index], -1)" title="Вверх">↑</button>
-                            <button type="button" class="rounded px-1.5 py-1 text-xs text-slate-500 hover:bg-slate-200" @click="move([index], 1)" title="Вниз">↓</button>
-                            <button type="button" class="rounded px-1.5 py-1 text-xs text-slate-500 hover:bg-slate-200" @click="nestUnderPrev([index])" title="Сделать дочерним">↳</button>
-                            <button type="button" class="rounded px-1.5 py-1 text-xs text-red-600 hover:bg-red-50" @click="removeAt([index])" title="Удалить">×</button>
+                        <div class="mc-menu-row__tools">
+                            <button aria-label="Вверх" type="button" class="mc-icon-btn" @click="move([index], -1)" title="Вверх">↑</button>
+                            <button aria-label="Вниз" type="button" class="mc-icon-btn" @click="move([index], 1)" title="Вниз">↓</button>
+                            <button aria-label="Сделать дочерним" type="button" class="mc-icon-btn" @click="nestUnderPrev([index])" title="Сделать дочерним">↳</button>
+                            <button aria-label="Удалить" type="button" class="mc-icon-btn mc-icon-btn--danger" @click="removeAt([index])" title="Удалить">×</button>
                         </div>
                     </div>
                     <template x-if="item.children && item.children.length">
-                        <ul class="ml-4 space-y-1 border-l border-slate-200 pl-2">
+                        <ul class="mc-menu-tree__sub">
                             <template x-for="(child, cIndex) in item.children" :key="'c-'+index+'-'+cIndex">
                                 <li>
-                                    <div class="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-slate-50">
-                                        <div class="min-w-0 flex-1">
-                                            <input type="text" class="w-full rounded border border-transparent bg-transparent px-1 py-0.5 text-sm font-medium text-slate-800 hover:border-slate-200 focus:border-slate-300 focus:bg-white" x-model="child.label" @input="markDirty()">
-                                            <div class="truncate px-1 font-mono text-[11px] text-slate-400" x-text="itemMeta(child)"></div>
+                                    <div class="mc-menu-row">
+                                        <div class="mc-menu-row__main">
+                                            <input type="text" class="mc-menu-row__label" aria-label="Подпись пункта" x-model="child.label" @input="markDirty()">
+                                            <div class="mc-menu-row__meta" x-text="itemMeta(child)"></div>
                                         </div>
-                                        <div class="flex shrink-0 gap-1">
-                                            <button type="button" class="rounded px-1.5 py-1 text-xs text-slate-500 hover:bg-slate-200" @click="move([index, cIndex], -1)">↑</button>
-                                            <button type="button" class="rounded px-1.5 py-1 text-xs text-slate-500 hover:bg-slate-200" @click="move([index, cIndex], 1)">↓</button>
-                                            <button type="button" class="rounded px-1.5 py-1 text-xs text-slate-500 hover:bg-slate-200" @click="unnest([index, cIndex])" title="На уровень выше">↰</button>
-                                            <button type="button" class="rounded px-1.5 py-1 text-xs text-slate-500 hover:bg-slate-200" @click="nestUnderPrev([index, cIndex])" title="Сделать дочерним">↳</button>
-                                            <button type="button" class="rounded px-1.5 py-1 text-xs text-red-600 hover:bg-red-50" @click="removeAt([index, cIndex])">×</button>
+                                        <div class="mc-menu-row__tools">
+                                            <button aria-label="Вверх" type="button" class="mc-icon-btn" @click="move([index, cIndex], -1)">↑</button>
+                                            <button aria-label="Вниз" type="button" class="mc-icon-btn" @click="move([index, cIndex], 1)">↓</button>
+                                            <button aria-label="На уровень выше" type="button" class="mc-icon-btn" @click="unnest([index, cIndex])" title="На уровень выше">↰</button>
+                                            <button aria-label="Сделать дочерним" type="button" class="mc-icon-btn" @click="nestUnderPrev([index, cIndex])" title="Сделать дочерним">↳</button>
+                                            <button aria-label="Удалить" type="button" class="mc-icon-btn mc-icon-btn--danger" @click="removeAt([index, cIndex])">×</button>
                                         </div>
                                     </div>
                                     <template x-if="child.children && child.children.length">
-                                        <ul class="ml-4 space-y-1 border-l border-slate-200 pl-2">
+                                        <ul class="mc-menu-tree__sub">
                                             <template x-for="(grand, gIndex) in child.children" :key="'g-'+index+'-'+cIndex+'-'+gIndex">
                                                 <li>
-                                                    <div class="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-slate-50">
-                                                        <div class="min-w-0 flex-1">
-                                                            <input type="text" class="w-full rounded border border-transparent bg-transparent px-1 py-0.5 text-sm font-medium text-slate-800 hover:border-slate-200 focus:border-slate-300 focus:bg-white" x-model="grand.label" @input="markDirty()">
-                                                            <div class="truncate px-1 font-mono text-[11px] text-slate-400" x-text="itemMeta(grand)"></div>
+                                                    <div class="mc-menu-row">
+                                                        <div class="mc-menu-row__main">
+                                                            <input type="text" class="mc-menu-row__label" aria-label="Подпись пункта" x-model="grand.label" @input="markDirty()">
+                                                            <div class="mc-menu-row__meta" x-text="itemMeta(grand)"></div>
                                                         </div>
-                                                        <div class="flex shrink-0 gap-1">
-                                                            <button type="button" class="rounded px-1.5 py-1 text-xs text-slate-500 hover:bg-slate-200" @click="move([index, cIndex, gIndex], -1)">↑</button>
-                                                            <button type="button" class="rounded px-1.5 py-1 text-xs text-slate-500 hover:bg-slate-200" @click="move([index, cIndex, gIndex], 1)">↓</button>
-                                                            <button type="button" class="rounded px-1.5 py-1 text-xs text-slate-500 hover:bg-slate-200" @click="unnest([index, cIndex, gIndex])" title="На уровень выше">↰</button>
-                                                            <button type="button" class="rounded px-1.5 py-1 text-xs text-red-600 hover:bg-red-50" @click="removeAt([index, cIndex, gIndex])">×</button>
+                                                        <div class="mc-menu-row__tools">
+                                                            <button aria-label="Вверх" type="button" class="mc-icon-btn" @click="move([index, cIndex, gIndex], -1)">↑</button>
+                                                            <button aria-label="Вниз" type="button" class="mc-icon-btn" @click="move([index, cIndex, gIndex], 1)">↓</button>
+                                                            <button aria-label="На уровень выше" type="button" class="mc-icon-btn" @click="unnest([index, cIndex, gIndex])" title="На уровень выше">↰</button>
+                                                            <button aria-label="Удалить" type="button" class="mc-icon-btn mc-icon-btn--danger" @click="removeAt([index, cIndex, gIndex])">×</button>
                                                         </div>
                                                     </div>
                                                 </li>
@@ -345,14 +346,14 @@ $pagesJson = htmlspecialchars(json_encode($pages, JSON_UNESCAPED_UNICODE), ENT_Q
             hx-post="/admin-panel/menu"
             hx-target="#menu-editor"
             hx-swap="outerHTML"
-            class="mt-6 flex justify-end border-t border-slate-100 pt-4"
+            class="mc-sheet__foot mc-sheet__foot--end"
             @submit="$refs.itemsJson.value = serializeItems()"
         >
             <?= Csrf::field() ?>
             <input type="hidden" name="action" value="save_items">
             <input type="hidden" name="location" value="<?= htmlspecialchars($locationId) ?>">
             <input type="hidden" name="items_json" x-ref="itemsJson" value="">
-            <button type="submit" class="rounded bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600">Сохранить пункты</button>
+            <button type="submit" class="mc-btn mc-btn--primary">Сохранить пункты</button>
         </form>
     </section>
 </div>

@@ -31,16 +31,16 @@ $formScripts = $form['scripts'] ?? '';
 </script>
 
 <div
-    class="rounded-xl bg-white p-6 pb-0 shadow-sm"
+    class="mc-sheet mc-sheet--editor"
     x-data="createPageForm()"
 >
-    <div class="mb-6 flex items-center justify-between gap-4">
-        <h1 class="text-2xl font-bold">Создать страницу</h1>
+    <div class="mc-head mc-head--sheet">
+        <h1 class="mc-head__title">Создать страницу</h1>
     </div>
 
     <div id="form-errors">
         <?php if (!empty($errors)): ?>
-            <div class="mb-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div class="mc-alert mc-alert--error" role="alert">
                 <?php foreach ($errors as $error): ?>
                     <div><?= htmlspecialchars($error) ?></div>
                 <?php endforeach; ?>
@@ -59,10 +59,10 @@ $formScripts = $form['scripts'] ?? '';
     >
         <?= Csrf::field() ?>
 
-        <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
-            <div class="min-w-0 space-y-4">
+        <div class="mc-editor">
+            <div class="mc-editor__main mc-stack">
                 <div>
-                    <label class="mb-1 block text-sm font-medium" for="title">Заголовок</label>
+                    <label class="mc-label" for="title">Заголовок</label>
                     <input
                         id="title"
                         name="title"
@@ -70,18 +70,18 @@ $formScripts = $form['scripts'] ?? '';
                         @input="if (!slugTouched) pageSlug = slugify(pageTitle)"
                         type="text"
                         required
-                        class="w-full rounded border border-slate-300 px-3 py-2"
+                        class="mc-input"
                     >
                 </div>
 
-                <div class="grid gap-4 md:grid-cols-2">
+                <div class="mc-grid-2">
                     <div>
-                        <label class="mb-1 block text-sm font-medium" for="slug">Часть адреса</label>
-                        <input id="slug" name="slug" x-model="pageSlug" @input="slugTouched = true" type="text" class="w-full rounded border border-slate-300 px-3 py-2">
+                        <label class="mc-label" for="slug">Часть адреса</label>
+                        <input id="slug" name="slug" x-model="pageSlug" @input="slugTouched = true" type="text" class="mc-input">
                     </div>
                     <div>
-                        <label class="mb-1 block text-sm font-medium" for="parent">Родитель</label>
-                        <select id="parent" name="parent" class="w-full rounded border border-slate-300 px-3 py-2">
+                        <label class="mc-label" for="parent">Родитель</label>
+                        <select id="parent" name="parent" class="mc-input">
                             <option value="">— корень —</option>
                             <?php foreach ($parents as $parentNode): ?>
                                 <?php if ($parentNode['slug'] === 'index') continue; ?>
@@ -93,58 +93,58 @@ $formScripts = $form['scripts'] ?? '';
                     </div>
                 </div>
 
-                <p class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                <p class="mc-note">
                     После создания откройте страницу на сайте и отредактируйте текст двойным кликом по блоку.
                 </p>
             </div>
 
-            <aside class="space-y-4 lg:sticky lg:top-4 lg:self-start">
+            <aside class="mc-editor__aside mc-stack">
                 <div>
-                    <label class="mb-1 block text-sm font-medium" for="description">Описание для сниппета</label>
-                    <textarea id="description" name="description" rows="3" class="w-full rounded border border-slate-300 px-3 py-2"><?= htmlspecialchars($formDescription) ?></textarea>
+                    <label class="mc-label" for="description">Описание для сниппета</label>
+                    <textarea id="description" name="description" rows="3" class="mc-input"><?= htmlspecialchars($formDescription) ?></textarea>
                 </div>
 
-                <div class="rounded-lg border border-slate-200">
+                <div class="mc-disclosure">
                     <button
                         type="button"
-                        class="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium"
+                        class="mc-disclosure__toggle"
                         @click="openSeo = !openSeo"
                         :aria-expanded="openSeo.toString()"
                     >
                         <span>SEO и соцсети</span>
-                        <span class="text-slate-400" x-text="openSeo ? '▾' : '▸'"></span>
+                        <span class="mc-disclosure__sign" aria-hidden="true" x-text="openSeo ? '▾' : '▸'"></span>
                     </button>
-                    <div x-show="openSeo" x-cloak class="space-y-3 border-t border-slate-200 px-3 py-3">
+                    <div x-show="openSeo" x-cloak class="mc-disclosure__body mc-stack">
                         <div>
-                            <label class="mb-1 block text-sm font-medium" for="og_title">Заголовок для соцсетей</label>
-                            <input id="og_title" name="og_title" type="text" value="<?= htmlspecialchars($formOgTitle) ?>" class="w-full rounded border border-slate-300 px-3 py-2 text-sm">
+                            <label class="mc-label" for="og_title">Заголовок для соцсетей</label>
+                            <input id="og_title" name="og_title" type="text" value="<?= htmlspecialchars($formOgTitle) ?>" class="mc-input">
                         </div>
                         <div>
-                            <label class="mb-1 block text-sm font-medium" for="og_description">Описание для соцсетей</label>
-                            <textarea id="og_description" name="og_description" rows="2" class="w-full rounded border border-slate-300 px-3 py-2 text-sm"><?= htmlspecialchars($formOgDescription) ?></textarea>
+                            <label class="mc-label" for="og_description">Описание для соцсетей</label>
+                            <textarea id="og_description" name="og_description" rows="2" class="mc-input"><?= htmlspecialchars($formOgDescription) ?></textarea>
                         </div>
                         <div>
-                            <label class="mb-1 block text-sm font-medium" for="og_image">Картинка для соцсетей</label>
-                            <input id="og_image" name="og_image" type="text" value="<?= htmlspecialchars($formOgImage) ?>" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" placeholder="/themes/example/assets/images/og.jpg">
-                            <p class="mt-1 text-xs text-slate-500">Путь на сайте или полный URL</p>
+                            <label class="mc-label" for="og_image">Картинка для соцсетей</label>
+                            <input id="og_image" name="og_image" type="text" value="<?= htmlspecialchars($formOgImage) ?>" class="mc-input" placeholder="/themes/example/assets/images/og.jpg">
+                            <p class="mc-hint">Путь на сайте или полный URL</p>
                         </div>
                     </div>
                 </div>
 
-                <div class="rounded-lg border border-slate-200">
+                <div class="mc-disclosure">
                     <button
                         type="button"
-                        class="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium"
+                        class="mc-disclosure__toggle"
                         @click="openAdvanced = !openAdvanced"
                         :aria-expanded="openAdvanced.toString()"
                     >
                         <span>Дополнительно</span>
-                        <span class="text-slate-400" x-text="openAdvanced ? '▾' : '▸'"></span>
+                        <span class="mc-disclosure__sign" aria-hidden="true" x-text="openAdvanced ? '▾' : '▸'"></span>
                     </button>
-                    <div x-show="openAdvanced" x-cloak class="space-y-3 border-t border-slate-200 px-3 py-3">
+                    <div x-show="openAdvanced" x-cloak class="mc-disclosure__body mc-stack">
                         <div>
-                            <label class="mb-1 block text-sm font-medium" for="template">Шаблон</label>
-                            <select id="template" name="template" class="w-full rounded border border-slate-300 px-3 py-2 text-sm">
+                            <label class="mc-label" for="template">Шаблон</label>
+                            <select id="template" name="template" class="mc-input">
                                 <?php foreach ($templates as $template): ?>
                                     <option value="<?= htmlspecialchars($template) ?>" <?= $formTemplate === $template ? 'selected' : '' ?>>
                                         <?= htmlspecialchars($template) ?>
@@ -153,26 +153,26 @@ $formScripts = $form['scripts'] ?? '';
                             </select>
                         </div>
                         <div>
-                            <label class="mb-1 block text-sm font-medium" for="scripts">JS-скрипты</label>
-                            <textarea id="scripts" name="scripts" rows="4" class="w-full rounded border border-slate-300 px-3 py-2 font-mono text-sm" placeholder="/themes/example/assets/js/pages/demo.js"><?= htmlspecialchars(is_array($formScripts) ? PageScripts::toTextarea($formScripts) : $formScripts) ?></textarea>
-                            <p class="mt-1 text-xs text-slate-500">По одному пути на строку. Только файлы из <code>/themes/{theme}/assets/js/</code></p>
+                            <label class="mc-label" for="scripts">JS-скрипты</label>
+                            <textarea id="scripts" name="scripts" rows="4" class="mc-input mc-input--code" placeholder="/themes/example/assets/js/pages/demo.js"><?= htmlspecialchars(is_array($formScripts) ? PageScripts::toTextarea($formScripts) : $formScripts) ?></textarea>
+                            <p class="mc-hint">По одному пути на строку. Только файлы из <code>/themes/{theme}/assets/js/</code></p>
                         </div>
                     </div>
                 </div>
             </aside>
         </div>
 
-        <div class="sticky bottom-0 z-10 -mx-6 mt-6 rounded-b-xl border-t border-slate-200 bg-white/95 px-6 py-3 backdrop-blur">
-            <div class="flex flex-wrap items-center gap-3">
+        <div class="mc-savebar">
+            <div class="mc-savebar__inner">
                 <button
                     id="create-button"
                     type="submit"
-                    class="rounded bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    class="mc-btn mc-btn--primary"
                 >
                     Создать
                 </button>
-                <span id="create-indicator" class="htmx-indicator text-sm text-slate-500">Создание…</span>
-                <label class="ml-auto flex items-center gap-2 text-sm">
+                <span id="create-indicator" class="htmx-indicator mc-muted">Создание…</span>
+                <label class="mc-check mc-savebar__publish">
                     <input type="checkbox" name="published" value="1" <?= $formPublished ? 'checked' : '' ?>>
                     Опубликовано
                 </label>

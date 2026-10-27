@@ -6,8 +6,16 @@
     <?php
     $layoutTitle = trim((string) ($pageTitle ?? ''));
     $layoutFullscreen = !empty($layoutFullscreen);
+    $layoutPath = (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?? '');
+    $layoutNav = [
+        '/admin-panel/pages' => 'Страницы',
+        '/admin-panel/menu' => 'Меню',
+        '/admin-panel/submissions' => 'Заявки',
+        '/admin-panel/system' => 'Система',
+    ];
     ?>
     <title><?= htmlspecialchars($layoutTitle !== '' ? $layoutTitle . ' — Админка motorchk' : 'Админка — motorchk') ?></title>
+    <meta name="description" content="Админка сайта на motorchk">
     <link rel="icon" href="/core/assets/favicon.svg" type="image/svg+xml">
     <link href="/core/assets/css/admin.css" rel="stylesheet">
     <script src="/core/assets/js/htmx.min.js" defer></script>
@@ -28,36 +36,35 @@
         <script src="<?= htmlspecialchars($layoutScript, ENT_QUOTES, 'UTF-8') ?>" defer></script>
     <?php endforeach; ?>
 </head>
-<body class="min-h-screen bg-slate-100 text-slate-900<?= $layoutFullscreen ? ' mc-admin--fullscreen' : '' ?>">
-    <header class="border-b border-slate-200 bg-white">
-        <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-            <div class="flex items-center gap-6">
-                <nav class="flex gap-4 text-sm">
-                    <a href="/admin-panel/pages" class="text-slate-600 hover:text-sky-700">Страницы</a>
-                    <a href="/admin-panel/menu" class="text-slate-600 hover:text-sky-700">Меню</a>
-                    <a href="/admin-panel/submissions" class="text-slate-600 hover:text-sky-700">Заявки</a>
-                    <a href="/admin-panel/system" class="text-slate-600 hover:text-sky-700">Система</a>
-                    <?php foreach ($pluginMenu ?? [] as $pluginItem): ?>
-                        <a href="<?= htmlspecialchars($pluginItem['url'], ENT_QUOTES, 'UTF-8') ?>" class="<?= !empty($pluginItem['active']) ? 'font-medium text-sky-700' : 'text-slate-600' ?> hover:text-sky-700"><?= htmlspecialchars($pluginItem['label']) ?></a>
-                    <?php endforeach; ?>
-                </nav>
-            </div>
-            <div class="flex items-center gap-4">
-                <a href="/" target="_blank" rel="noopener noreferrer" class="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50">
+<body class="mc-admin<?= $layoutFullscreen ? ' mc-admin--fullscreen' : '' ?>">
+    <header class="mc-bar">
+        <div class="mc-bar__inner">
+            <a href="/admin-panel/pages" class="mc-brand"><span class="mc-brand__square" aria-hidden="true"></span>motorchk</a>
+            <nav class="mc-nav" aria-label="Разделы админки">
+                <?php foreach ($layoutNav as $layoutNavUrl => $layoutNavLabel): ?>
+                    <?php $layoutNavCurrent = $layoutPath === $layoutNavUrl || str_starts_with($layoutPath, $layoutNavUrl . '/'); ?>
+                    <a href="<?= $layoutNavUrl ?>" class="mc-nav__link"<?= $layoutNavCurrent ? ' aria-current="page"' : '' ?>><?= $layoutNavLabel ?></a>
+                <?php endforeach; ?>
+                <?php foreach ($pluginMenu ?? [] as $pluginItem): ?>
+                    <a href="<?= htmlspecialchars($pluginItem['url'], ENT_QUOTES, 'UTF-8') ?>" class="mc-nav__link mc-nav__link--plugin"<?= !empty($pluginItem['active']) ? ' aria-current="page"' : '' ?>><?= htmlspecialchars($pluginItem['label']) ?></a>
+                <?php endforeach; ?>
+            </nav>
+            <div class="mc-bar__aside">
+                <a href="/" target="_blank" rel="noopener noreferrer" class="mc-bar__link">
                     На сайт
                 </a>
-                <span class="inline-flex items-center gap-1 text-xs text-slate-400">
+                <span class="mc-bar__version">
                     v<?= htmlspecialchars(Version::current()) ?>
                     <?php if (!empty($coreUpdate) && !empty($coreUpdate['version'])): ?>
                         <?php
                         $updateHint = 'Доступна новая версия ядра: v' . $coreUpdate['version'];
                         ?>
                         <span
-                            class="inline-flex text-amber-500"
+                            class="mc-bar__update"
                             title="<?= htmlspecialchars($updateHint, ENT_QUOTES, 'UTF-8') ?>"
                             aria-label="<?= htmlspecialchars($updateHint, ENT_QUOTES, 'UTF-8') ?>"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-3.5 w-3.5" aria-hidden="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="14" height="14" aria-hidden="true">
                                 <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.168 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
                             </svg>
                         </span>
@@ -65,7 +72,7 @@
                 </span>
                 <form method="post" action="/admin-panel/logout" hx-post="/admin-panel/logout" hx-target="body">
                     <?= Csrf::field() ?>
-                    <button type="submit" class="text-sm text-slate-600 hover:text-red-600">Выйти</button>
+                    <button type="submit" class="mc-bar__link mc-bar__logout">Выйти</button>
                 </form>
             </div>
         </div>
@@ -75,7 +82,7 @@
             <?= $content ?? '' ?>
         </main>
     <?php else: ?>
-        <main class="mx-auto max-w-6xl px-4 py-8">
+        <main class="mc-main">
             <?= $content ?? '' ?>
         </main>
     <?php endif; ?>

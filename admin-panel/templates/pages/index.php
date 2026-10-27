@@ -24,7 +24,7 @@ function adminTreeFlatNodes(array $nodes, int $depth = 0, ?string $parent = null
 }
 
 /**
- * Flat tree rows (one card, indent by depth — no nested bordered lists).
+ * Flat tree rows (one index, indent by depth, no nested bordered lists).
  */
 function renderAdminTreeRows(array $nodes, int $depth = 0): void
 {
@@ -38,47 +38,43 @@ function renderAdminTreeRows(array $nodes, int $depth = 0): void
             : '/admin-panel/pages/create?parent=' . rawurlencode($slug);
         $publicUrl = AdminUrl::viewPage($slug, !empty($node['published']));
         $editUrl = AdminUrl::page($slug);
-        $pad = 12 + ($depth * 20);
-
         echo '<li';
-        echo ' class="group border-b border-slate-100 last:border-b-0"';
+        echo ' class="mc-tree__item"';
         echo ' x-show="isVisible(' . $slugJs . ')"';
         echo ' x-cloak';
         echo '>';
 
-        echo '<div class="flex items-center gap-2 py-2.5 pr-3 transition-colors hover:bg-slate-50" style="padding-left:' . (int) $pad . 'px">';
+        echo '<div class="mc-tree__row" style="--depth:' . (int) $depth . '">';
 
         if ($hasChildren) {
             echo '<button type="button"';
-            echo ' class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-slate-200/70 hover:text-slate-700"';
+            echo ' class="mc-tree__toggle"';
             echo ' @click="toggle(' . $slugJs . ')"';
             echo ' :aria-expanded="isOpen(' . $slugJs . ').toString()"';
             echo ' :aria-label="isOpen(' . $slugJs . ') ? \'Свернуть\' : \'Развернуть\'">';
-            echo '<svg class="h-3.5 w-3.5 transition-transform" :class="isOpen(' . $slugJs . ') && \'rotate-90\'" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">';
+            echo '<svg class="mc-tree__chevron" :class="isOpen(' . $slugJs . ') && \'is-open\'" viewBox="0 0 20 20" fill="currentColor" width="14" height="14" aria-hidden="true">';
             echo '<path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd"/>';
             echo '</svg>';
             echo '</button>';
         } else {
-            echo '<span class="inline-flex h-7 w-7 shrink-0 items-center justify-center" aria-hidden="true">';
-            echo '<span class="h-1 w-1 rounded-full bg-slate-300"></span>';
-            echo '</span>';
+            echo '<span class="mc-tree__leaf" aria-hidden="true"></span>';
         }
 
-        echo '<div class="min-w-0 flex-1">';
-        echo '<div class="flex flex-wrap items-center gap-2">';
-        echo '<a class="truncate text-sm font-medium text-slate-800 hover:text-sky-700" href="' . htmlspecialchars($editUrl) . '">';
+        echo '<div class="mc-tree__main">';
+        echo '<div class="mc-tree__titleline">';
+        echo '<a class="mc-tree__title" href="' . htmlspecialchars($editUrl) . '">';
         echo htmlspecialchars($node['title']);
         echo '</a>';
         if (empty($node['published'])) {
-            echo '<span class="rounded-md bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium leading-none text-amber-800 ring-1 ring-inset ring-amber-200/80">Черновик</span>';
+            echo '<span class="mc-tag mc-tag--draft">Черновик</span>';
         }
         echo '</div>';
-        echo '<div class="mt-0.5 truncate font-mono text-[11px] text-slate-400">' . htmlspecialchars($pathLabel) . '</div>';
+        echo '<div class="mc-tree__path">' . htmlspecialchars($pathLabel) . '</div>';
         echo '</div>';
 
-        echo '<div class="flex shrink-0 items-center gap-1 opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:focus-within:opacity-100">';
-        echo '<a class="rounded-md px-2 py-1 text-xs text-slate-500 hover:bg-white hover:text-sky-700 hover:shadow-sm" href="' . htmlspecialchars($createChildUrl) . '">Дочерняя</a>';
-        echo '<a class="rounded-md px-2 py-1 text-xs text-slate-500 hover:bg-white hover:text-sky-700 hover:shadow-sm" href="' . htmlspecialchars($publicUrl) . '" target="_blank" rel="noopener noreferrer">На сайте</a>';
+        echo '<div class="mc-tree__actions">';
+        echo '<a class="mc-tree__action" href="' . htmlspecialchars($createChildUrl) . '">Дочерняя</a>';
+        echo '<a class="mc-tree__action" href="' . htmlspecialchars($publicUrl) . '" target="_blank" rel="noopener noreferrer">На сайте</a>';
         echo '</div>';
 
         echo '</div>';
@@ -167,9 +163,9 @@ function renderAdminTreeRows(array $nodes, int $depth = 0): void
     });
 </script>
 
-<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-    <h1 class="text-2xl font-bold">Страницы</h1>
-    <a href="/admin-panel/pages/create" class="rounded bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700">
+<div class="mc-head">
+    <h1 class="mc-head__title">Страницы</h1>
+    <a href="/admin-panel/pages/create" class="mc-btn mc-btn--primary">
         Создать страницу
     </a>
 </div>
@@ -185,21 +181,21 @@ foreach ($flatNodes as $node) {
 ?>
 
 <div
-    class="space-y-4"
+    class="mc-stack"
     x-data="pagesTree(<?= htmlspecialchars(json_encode($flatNodes, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode((object) $defaultOpen, JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>)"
 >
-    <div class="flex flex-wrap items-center gap-2">
-        <label class="sr-only" for="pages-search">Поиск страниц</label>
+    <div class="mc-search">
+        <label class="visually-hidden" for="pages-search">Поиск страниц</label>
         <input
             id="pages-search"
             type="search"
             x-model="query"
             placeholder="Поиск по названию или адресу…"
-            class="w-full max-w-md rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+            class="mc-input mc-search__input"
         >
         <button
             type="button"
-            class="text-sm text-slate-600 hover:text-sky-700"
+            class="mc-btn mc-btn--quiet"
             x-show="query.trim()"
             x-cloak
             @click="clearSearch()"
@@ -209,16 +205,16 @@ foreach ($flatNodes as $node) {
     </div>
 
     <?php if ($tree === []): ?>
-        <p class="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500">
+        <p class="mc-empty">
             Страниц пока нет.
         </p>
     <?php else: ?>
-        <div class="admin-page-tree overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <ul class="m-0 list-none p-0">
+        <div class="admin-page-tree mc-tree">
+            <ul>
                 <?php renderAdminTreeRows($tree); ?>
             </ul>
         </div>
-        <p class="text-sm text-slate-500" x-show="q && !nodes.some((n) => matches(n.slug))" x-cloak>
+        <p class="mc-muted" x-show="q && !nodes.some((n) => matches(n.slug))" x-cloak>
             Ничего не найдено.
         </p>
     <?php endif; ?>
