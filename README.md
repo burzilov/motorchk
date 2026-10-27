@@ -57,3 +57,7 @@ public_html/
 Служебный UI (баннер сессии админа, inline-edit) подключается из ядра: `site-chrome.css` и `core/includes/views/`. См. `themes/example/README.md`.
 
 Breaking в 0.2.0: сайт должен использовать `themes/{name}/`; плоские `templates/*.php` и корневой `assets/` больше не поддерживаются.
+
+## Лицензия
+
+[MIT](LICENSE) © 2026 Ivan Burzilov.
