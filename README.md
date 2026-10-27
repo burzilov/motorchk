@@ -10,10 +10,15 @@ File-based PHP CMS без базы данных. Этот репозиторий
 
 ## Установка на LAMP
 
-1. Скачайте release zip `motorchk-core-X.Y.Z.zip` из [Releases](https://github.com/burzilov/motorchk/releases).
-2. Распакуйте содержимое в `public_html/core/`.
-3. Откройте `/admin-panel/` — мастер установки скопирует skeleton (контент, тему, `.htaccess`, `index.php`) и создаст `.env`.
+1. Скачайте `motorchk-install-X.Y.Z.zip` из [Releases](https://github.com/burzilov/motorchk/releases).
+2. Распакуйте его в корень сайта `public_html/` — появятся `core/`, `.htaccess` и `index.php`.
+3. Откройте сайт (или `/admin-panel/`) — откроется мастер установки: задайте логин и пароль админа.
+   Мастер скопирует недостающее из `core/skeleton/` (контент, тему-пример, `media/`) и создаст `.env`.
 4. Войдите в админку.
+
+`motorchk-core-X.Y.Z.zip` из того же релиза — только ядро (папка = `public_html/core/`) для обновления;
+его скачивает обновление из админки. Установочный zip не распаковывайте поверх работающего сайта —
+он заменит корневые `.htaccess` и `index.php`.
 
 Composer на сервере не нужен: `vendor/` уже внутри release zip.
 
@@ -21,7 +26,7 @@ Composer на сервере не нужен: `vendor/` уже внутри rele
 
 В админке: **Система** — проверка GitHub Releases (`burzilov/motorchk`) и кнопка обновления. Контент, пользовательские темы, плагины (`plugins/`, `plugin-data/`) и `.env` не затрагиваются; `themes/example/` заменяется версией из release.
 
-Вручную: замените папку `core/` на новую версию и откройте сайт (миграции применятся при апдейте через админку; при ручной замене выполните логику из `install/migrate.php` при необходимости).
+Вручную: замените папку `core/` содержимым `motorchk-core-X.Y.Z.zip` и откройте сайт (миграции применятся при апдейте через админку; при ручной замене выполните логику из `install/migrate.php` при необходимости).
 
 ## Структура на сайте
 

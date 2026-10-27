@@ -36,18 +36,18 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --no-dev --optimize-autoloader --no-interaction
 
-      - name: Build release zip
+      - name: Build release zips
+        # motorchk-core-X.zip — ядро (self-update), motorchk-install-X.zip — новая установка в public_html/
         run: |
-          STAGE="motorchk-core-${VERSION}"
-          mkdir -p "/tmp/${STAGE}"
-          # tests/ — только для разработки; plugins/ и plugin-data/ принадлежат сайту и в ядро не входят
-          rsync -a --exclude '.git' --exclude '/tests' --exclude '/plugins' --exclude '/plugin-data' ./ "/tmp/${STAGE}/"
-          (cd /tmp && zip -r "${GITHUB_WORKSPACE}/${STAGE}.zip" "${STAGE}")
+          mkdir -p /tmp/release-out
+          bash .github/build-release.sh "$VERSION" /tmp/release-out
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: motorchk-core-${{ env.VERSION }}.zip
+          files: |
+            /tmp/release-out/motorchk-core-${{ env.VERSION }}.zip
+            /tmp/release-out/motorchk-install-${{ env.VERSION }}.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -2,10 +2,18 @@
 
 ## Установка
 
-1. Положите release zip в `public_html/core/`.
-2. Откройте `/admin-panel/install` (или `/admin-panel/` — редирект).
+1. Распакуйте `motorchk-install-X.Y.Z.zip` из релиза в `public_html/`: в архиве `core/`, `.htaccess` и `index.php`
+   (оба — копии `core/skeleton/.htaccess` и `core/skeleton/index.php`, кладутся сборкой `.github/build-release.sh`).
+   Ничего вручную копировать или править не нужно: корневой `.htaccess` сразу направляет `/admin-panel` в ядро,
+   а `index.php` до установки перенаправляет на мастер.
+2. Откройте сайт, `/admin-panel/` или `/admin-panel/install` — откроется мастер.
 3. Задайте логин/пароль админа.
-4. Installer копирует отсутствующие файлы из `core/skeleton/`, пишет `.env` и `content/_meta.yaml`.
+4. Installer копирует отсутствующие файлы из `core/skeleton/` (уже существующие, в том числе `.htaccess` и `index.php`
+   из установочного zip, не перезаписывает), пишет `.env` и `content/_meta.yaml`.
+
+Артефакты релиза: `motorchk-install-X.Y.Z.zip` — для новой установки; `motorchk-core-X.Y.Z.zip` — только ядро
+(папка `motorchk-core-X.Y.Z/` = `public_html/core/`), его скачивает обновление из админки. Установочный zip
+не распаковывайте поверх работающего сайта: он заменит корневые `.htaccess` и `index.php`.
 
 Fresh install получает поставляемую тему-пример `themes/example/`; шаблоны страниц лежат в корне темы, а её CSS/JS — в `themes/example/assets/`.
 

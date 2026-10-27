@@ -274,6 +274,25 @@ foreach ($it as $file) {
 $blocked = array_filter(array_keys($coreUrls), static fn(string $u): bool => preg_match($coreRe, $u) === 1);
 check($coreUrls !== [] && $blocked === [], 'ссылки ядра (админка, тема-пример, представления) ведут только в /core/assets/ (' . count($coreUrls) . ')', implode(', ', $blocked));
 
+out("\n[релиз: установочный zip и zip ядра]\n");
+$wf = (string) @file_get_contents($corePath . '/.github/workflows/release.yml');
+$build = (string) @file_get_contents($corePath . '/.github/build-release.sh');
+check(str_contains($wf, 'bash .github/build-release.sh') && str_contains($wf, '/motorchk-core-${{ env.VERSION }}.zip') && str_contains($wf, '/motorchk-install-${{ env.VERSION }}.zip'), 'release.yml: оба zip собирает build-release.sh и публикует в релизе');
+check(str_contains($build, 'CORE_STAGE="motorchk-core-${VERSION}"') && str_contains($build, 'zip -qr "$OUT/${CORE_STAGE}.zip" "$CORE_STAGE"'), 'motorchk-core-X.zip: прежний формат (папка motorchk-core-X/) — для self-update');
+check(str_contains($build, 'cp "$INST/core/skeleton/.htaccess" "$INST/.htaccess"') && str_contains($build, 'cp "$INST/core/skeleton/index.php" "$INST/index.php"') && str_contains($build, 'zip -qr "$OUT/motorchk-install-${VERSION}.zip" .htaccess index.php core'), 'motorchk-install-X.zip: core/ и корневые .htaccess, index.php из skeleton');
+$findZip = Closure::bind(fn(array $r, string $v): ?string => $this->findZipAssetUrl($r, $v), new Updater([]), Updater::class);
+$assets = ['assets' => [['name' => 'motorchk-install-9.9.9.zip', 'browser_download_url' => 'https://x/install.zip'], ['name' => 'motorchk-core-9.9.9.zip', 'browser_download_url' => 'https://x/core.zip']]];
+check($findZip($assets, '9.9.9') === 'https://x/core.zip', 'обновление берёт motorchk-core-X.zip, установочный zip не трогает');
+$inst = sys_get_temp_dir() . '/mk-inst-' . bin2hex(random_bytes(4));
+mkdir($inst, 0755, true);
+copy($corePath . '/skeleton/.htaccess', $inst . '/.htaccess');
+file_put_contents($inst . '/index.php', "<?php // свой\n");
+$copySkeleton = Closure::bind(fn(string $from, string $to) => $this->copySkeleton($from, $to), new Installer(['site_path' => $inst]), Installer::class);
+$copySkeleton($corePath . '/skeleton', $inst);
+check(file_get_contents($inst . '/index.php') === "<?php // свой\n" && file_get_contents($inst . '/.htaccess') === file_get_contents($corePath . '/skeleton/.htaccess'), 'установщик: существующие файлы (.htaccess, index.php) не перезаписывает');
+check(is_file($inst . '/.env.example') && is_file($inst . '/media/.htaccess') && is_dir($inst . '/themes/example'), 'установщик: копирует недостающее, включая скрытые файлы skeleton');
+ti_rm($inst);
+
 out("\n[службы плагинов в теме]\n");
 ti_plugin($site, 'demo', ['provides' => ['demo']], "<?php\nreturn static function (PluginContext \$plugin): void { \$plugin->provide('demo', new class { public function hello(): string { return 'привет из службы'; } }); };\n");
 file_put_contents($site . '/themes/example/probe.php', "<?php echo 'svc=', \$plugins?->service('demo')?->hello() ?? 'нет', ';none=', \$plugins?->service('nope') === null ? 'null' : 'obj';\n");
