@@ -9,6 +9,7 @@
 - `PluginContext` получил тонкие методы, чтобы плагины не обращались к `Mailer`, `RateLimiter`, `SubmissionStore`, `Form`, `SiteLocale` и `Env` напрямую: `absoluteUrl()`, `honeypotName()`, `rateLimit($key, $limit, $windowSec)` (ключ отдельный для каждого плагина), `mail($subject, $body, $to, $replyTo = null)` (получатель обязателен, без подстановки `SMTP_TO`), `submissions()->create()` / `markMail($formId, $id, 'sent' | 'failed', $error)` (новый класс `PluginSubmissions`), `env($key)`. Описание — [docs/10-plugins.md](docs/10-plugins.md), тесты в `tests/plugins.php`.
 - `Mailer::send()` — необязательный пятый аргумент `$replyTo` (заголовок Reply-To).
 - Плагины, которые используют новые методы, указывают `"core": "^0.5"`.
+- **Важно при обновлении:** для `0.x` ограничение `^0.4` означает `>=0.4.0 <0.5.0`, поэтому плагины с `"core": "^0.4"` на ядре 0.5 не загрузятся. Поднимите ограничение до `"^0.5"` (или `">=0.4.0 <0.6.0"`, если новые методы не нужны). Пример `docs/examples/plugins/hello` и тестовые плагины — `^0.5`.
 
 ### Исправления
 
