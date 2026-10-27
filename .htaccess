@@ -1,0 +1,7 @@
+# motorchk: из core/ снаружи доступна только статика assets/, всё остальное — 404.
+# Файл приходит вместе с ядром (release zip, self-update), корневой .htaccess сайта для этого не правится.
+# Только для прямого запроса клиента: внутренний переход /admin-panel → core/admin-panel/index.php
+# (REDIRECT_STATUS задан) не затрагивается — иначе админка отвечала бы 404.
+<If "-z %{ENV:REDIRECT_STATUS}">
+    RedirectMatch 404 ^/core/(?!assets/)
+</If>

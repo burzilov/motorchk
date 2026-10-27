@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.3 — 2026-10-27
+
+### `/core/` закрывает само ядро: `core/.htaccess`
+
+- Правило «из `/core/` снаружи только `assets/`, остальное — 404» (`<If "-z %{ENV:REDIRECT_STATUS}">` +
+  `RedirectMatch 404 ^/core/(?!assets/)`) перенесено из корневого `.htaccess` в `core/.htaccess`. Файл входит в release zip
+  и заменяется при любом обновлении ядра (self-update, ручная замена `core/`) — корневой `.htaccess` править не нужно.
+- `skeleton/.htaccess`: убраны блок 0.5.2 и семь строк `RedirectMatch 403 ^/core/…` (их перекрывает 404 из `core/.htaccess`).
+- Существующим сайтам ничего делать не нужно: правила для `/core/` в старом корневом `.htaccess` (0.5.2 и раньше)
+  с `core/.htaccess` не конфликтуют, их можно оставить или удалить.
+- Тест в `tests/themes.php` проверяет `core/.htaccess` и отсутствие правил `/core/` в skeleton.
+
 ## 0.5.2 — 2026-10-27
 
 ### Безопасность: из `/core/` снаружи доступна только `assets/`

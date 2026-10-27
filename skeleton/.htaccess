@@ -12,18 +12,7 @@ RedirectMatch 403 ^/content/
 RedirectMatch 403 ^/config/
 RedirectMatch 403 ^/cache/
 RedirectMatch 403 ^/submissions/
-RedirectMatch 403 ^/core/includes/
-RedirectMatch 403 ^/core/vendor/
-RedirectMatch 403 ^/core/skeleton/
-RedirectMatch 403 ^/core/install/
-RedirectMatch 403 ^/core/docs/
-RedirectMatch 403 ^/core/\.git/
-RedirectMatch 403 ^/core/tests/
-# Ядро: снаружи доступна только статика /core/assets/, остальное — 404. Только для запроса клиента:
-# внутренний переход /admin-panel → core/admin-panel/index.php (REDIRECT_STATUS задан) не затрагивается.
-<If "-z %{ENV:REDIRECT_STATUS}">
-    RedirectMatch 404 ^/core/(?!assets/)
-</If>
+# /core/: снаружи только /core/assets/ — правила в core/.htaccess, обновляются вместе с ядром
 # Плагины: код и данные закрыты; статика — через /plugin-assets/{id}/... (index.php)
 RedirectMatch 403 ^/plugins/
 RedirectMatch 403 ^/plugin-data/

@@ -248,10 +248,12 @@ Media::ensure($config);
 check(file_get_contents($site . '/media/.htaccess') === "# своё\n", 'существующий .htaccess не перезаписывается');
 check(in_array('media', PluginManager::RESERVED_PREFIXES, true), 'префикс media зарезервирован');
 
-out("\n[.htaccess сайта: /core/]\n");
+out("\n[core/.htaccess: /core/]\n");
+$coreHt = (string) @file_get_contents($corePath . '/.htaccess');
 $rootHt = (string) file_get_contents($corePath . '/skeleton/.htaccess');
-$hasCoreBlock = preg_match('~<If "-z %\{ENV:REDIRECT_STATUS\}">\s*RedirectMatch 404 (\S+)\s*</If>~', $rootHt, $htm) === 1;
-check($hasCoreBlock && $htm[1] === '^/core/(?!assets/)', 'skeleton/.htaccess: /core/ кроме assets/ — 404, только для запроса клиента (REDIRECT_STATUS пуст)');
+$hasCoreBlock = preg_match('~<If "-z %\{ENV:REDIRECT_STATUS\}">\s*RedirectMatch 404 (\S+)\s*</If>~', $coreHt, $htm) === 1;
+check($hasCoreBlock && $htm[1] === '^/core/(?!assets/)', 'core/.htaccess: /core/ кроме assets/ — 404, только для запроса клиента (REDIRECT_STATUS пуст)');
+check(!str_contains($rootHt, '/core/(') && preg_match('~^RedirectMatch \d+ \^/core/~m', $rootHt) === 0, 'skeleton/.htaccess: правил для /core/ нет — они в core/.htaccess и обновляются с ядром');
 check(str_contains($rootHt, 'RewriteRule ^admin-panel(/.*)?$ core/admin-panel/index.php [L,QSA]'), 'админка — внутренний переход /admin-panel → core/admin-panel/index.php');
 $coreRe = '~' . ($htm[1] ?? '^$') . '~';
 $closed = ['/core/VERSION', '/core/README.md', '/core/CHANGELOG.md', '/core/composer.json', '/core/composer.lock', '/core/', '/core/admin-panel/index.php', '/core/includes/bootstrap.php', '/core/vendor/autoload.php'];
