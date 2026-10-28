@@ -48,6 +48,9 @@ class PluginManager
         'menu' => 'filter',
         'head' => 'filter',
         'output' => 'filter',
+        'sitemap' => 'filter',
+        'robots' => 'filter',
+        'llms' => 'filter',
     ];
 
     private const DENY_HTACCESS = "# motorchk: служебная папка — прямой HTTP-доступ запрещён.\n"

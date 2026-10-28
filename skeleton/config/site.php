@@ -17,4 +17,11 @@ return [
     'admin_templates_path' => $corePath . '/admin-panel/templates',
     'menu_file' => $sitePath . '/content/_menus.yaml',
     'skeleton_path' => $corePath . '/skeleton',
+    // sitemap.xml, robots.txt, llms.txt (core/docs/13-seo.md); без ключа — всё включено
+    // 'seo' => [
+    //     'site_url' => 'https://example.ru',
+    //     'robots_disallow' => [],
+    //     'site_name' => '',
+    //     'llms_description' => '',
+    // ],
 ];

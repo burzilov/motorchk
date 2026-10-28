@@ -25,6 +25,13 @@ class Router
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         SiteLocale::reset();
 
+        // /sitemap.xml, /robots.txt, /llms.txt — до хука «request»: без языковых префиксов и редиректов
+        $seoKind = SeoFiles::kind($path);
+        if ($seoKind !== null && SeoFiles::enabled($this->config, $seoKind)) {
+            $this->dispatchSeo($seoKind, $method);
+            return;
+        }
+
         if (!str_starts_with($path, '/plugin-assets/')) {
             $path = $this->beforeRouting($path, $method);
             if ($path === null) {
@@ -89,7 +96,27 @@ class Router
             $page = $this->pageLoader->loadBySlug($slug, true, $translateTo) ?? $page;
         }
 
+        if (SeoFiles::noindex($page['front_matter'])) {
+            header('X-Robots-Tag: noindex');
+        }
         $this->renderPage($page, $slug, false, ['i18n' => $this->pageLocaleMeta($slug, $page)]);
+    }
+
+    /** /sitemap.xml, /robots.txt, /llms.txt из опубликованных страниц (SeoFiles, docs/13-seo.md). */
+    private function dispatchSeo(string $kind, string $method): void
+    {
+        if (!in_array($method, ['GET', 'HEAD'], true)) {
+            http_response_code(405);
+            header('Allow: GET, HEAD');
+            return;
+        }
+        $manager = $this->manager();
+        $plugins = null;
+        if ($manager->hasPluginsDir()) {
+            SiteLocale::init($manager, true);
+            $plugins = $manager;
+        }
+        (new SeoFiles($this->config, $this->pageLoader, $this->pageTree, $plugins))->respond($kind);
     }
 
     /**

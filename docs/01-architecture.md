@@ -17,6 +17,8 @@
 
 Плагины: `core/includes/PluginManager.php` читает `plugins/*/plugin.json`; `AdminRouter` передаёт `/admin-panel/plugins/{id}/…` плагину после проверки входа и CSRF, `Router` до Markdown-страниц обслуживает `/plugin-assets/{id}/…` и публичные префиксы плагинов. API — `PluginContext`, `PluginRequest`. Подробнее — [10-plugins.md](10-plugins.md).
 
+Служебные файлы `/sitemap.xml`, `/robots.txt`, `/llms.txt` строит ядро из опубликованных страниц (`core/includes/SeoFiles.php`, настройки — `seo` в `config/site.php`). Подробнее — [13-seo.md](13-seo.md).
+
 Формы заявок: meta в `content/forms/*.yaml`, разметка в теме через `Form::begin`/`end`, приём `POST /api/forms/submit`, хранение в `submissions/`. Подробнее — [09-forms.md](09-forms.md).
 
 ## Темы и шаблоны страниц
