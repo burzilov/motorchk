@@ -91,7 +91,7 @@ function ti_plugin(string $site, string $id, array $manifest, string $entry, arr
 {
     $dir = $site . '/plugins/' . $id;
     @mkdir($dir, 0775, true);
-    file_put_contents($dir . '/plugin.json', json_encode($manifest + ['id' => $id, 'name' => $id, 'version' => '1.0.0', 'core' => '^0.5'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    file_put_contents($dir . '/plugin.json', json_encode($manifest + ['id' => $id, 'name' => $id, 'version' => '1.0.0', 'core' => '>=0.5.0'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     file_put_contents($dir . '/plugin.php', $entry);
     foreach ($files as $name => $content) {
         @mkdir(dirname($dir . '/' . $name), 0775, true);

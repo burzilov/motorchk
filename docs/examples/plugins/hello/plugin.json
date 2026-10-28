@@ -2,7 +2,7 @@
     "id": "hello",
     "name": "Hello — пример плагина",
     "version": "1.0.0",
-    "core": "^0.5",
+    "core": ">=0.5.0",
     "entry": "plugin.php",
     "description": "Пример: страница в админке, JSON API с CSRF, полноэкранный режим и публичная страница /hello/.",
     "admin": {

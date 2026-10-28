@@ -37,7 +37,7 @@ public_html/
     "id": "hello",
     "name": "Hello — пример плагина",
     "version": "1.0.0",
-    "core": "^0.5",
+    "core": ">=0.5.0",
     "entry": "plugin.php",
     "description": "Необязательное описание",
     "admin": { "menu": "Hello" },
