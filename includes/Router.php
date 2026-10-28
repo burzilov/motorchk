@@ -2,6 +2,9 @@
 
 class Router
 {
+    /** Шаблон темы для 404 публичных страниц: themes/{тема}/404.php. */
+    private const NOT_FOUND_TEMPLATE = '404';
+
     private Cache $cache;
     private MarkdownRenderer $renderer;
     private PageLoader $pageLoader;
@@ -55,7 +58,7 @@ class Router
         $slug = $this->normalizeSlug($path);
         if (PageLoader::translationLocale($slug, SiteLocale::translationLocales()) !== null) {
             // about.en.md — перевод, а не отдельная страница /about.en
-            $this->render404();
+            $this->renderNotFound($path, $method);
             return;
         }
         $filePath = $this->pageLoader->slugToPath($slug);
@@ -63,7 +66,7 @@ class Router
         $translateTo = SiteLocale::isActive() && !SiteLocale::isDefault() ? SiteLocale::current() : null;
 
         if (!is_file($filePath)) {
-            $this->render404();
+            $this->renderNotFound($path, $method);
             return;
         }
 
@@ -89,7 +92,7 @@ class Router
 
         $page = $this->pageLoader->loadBySlug($slug, true);
         if ($page === null) {
-            $this->render404();
+            $this->renderNotFound($path, $method);
             return;
         }
         if ($translateTo !== null) {
@@ -494,6 +497,47 @@ class Router
     private static function isSiteUrl(string $url): bool
     {
         return str_starts_with($url, '/') && !str_starts_with($url, '//') && !preg_match('/[\s"\'<>\\\\]/', $url);
+    }
+
+    /**
+     * 404 публичной страницы: шаблон 404.php активной темы, если он есть (docs/12-themes.md), иначе заглушка ядра.
+     * Только GET/HEAD и не /api/…; предпросмотр и маршруты плагинов отвечают заглушкой, как раньше.
+     */
+    private function renderNotFound(string $path, string $method): void
+    {
+        if (!in_array($method, ['GET', 'HEAD'], true) || str_starts_with($path, '/api/') || ($_GET['preview'] ?? '') === '1'
+            || !$this->themeHasTemplate(self::NOT_FOUND_TEMPLATE)) {
+            $this->render404();
+            return;
+        }
+
+        header('X-Robots-Tag: noindex');
+        header('Cache-Control: no-store');
+        $page = [
+            'front_matter' => [
+                'title' => 'Страница не найдена',
+                'description' => '',
+                'template' => self::NOT_FOUND_TEMPLATE,
+                'published' => true,
+            ],
+            'blocks' => ['hero' => '', 'content' => ''],
+        ];
+        $this->renderPage($page, self::NOT_FOUND_TEMPLATE, false, [
+            'editable' => false,
+            'status' => 404,
+            'vars' => ['notFound' => true, 'requestPath' => $path],
+        ]);
+    }
+
+    private function themeHasTemplate(string $template): bool
+    {
+        $themesPath = (string) ($this->config['themes_path'] ?? '');
+        $theme = SiteMeta::getTheme($this->config);
+        if (!is_dir($themesPath . '/' . $theme)) {
+            $theme = 'example';
+        }
+
+        return is_file($themesPath . '/' . $theme . '/' . $template . '.php');
     }
 
     private function render404(): void

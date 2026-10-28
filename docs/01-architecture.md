@@ -29,6 +29,7 @@
 themes/example/
 ├── default.php
 ├── landing.php
+├── 404.php
 ├── partials/
 └── assets/
     ├── css/
@@ -37,7 +38,7 @@ themes/example/
     └── images/
 ```
 
-Front matter `template` выбирает PHP-файл в активной теме: `themes/{theme}/{template}.php`. Отсутствующий шаблон — ошибка 500. Публична только статика по `/themes/{theme}/assets/...`; все остальные пути внутри `/themes/` возвращают 403.
+Front matter `template` выбирает PHP-файл в активной теме: `themes/{theme}/{template}.php`. Отсутствующий шаблон — ошибка 500. Необязательный `404.php` темы — страница «не найдено» в оформлении сайта ([12-themes.md](12-themes.md#страница-404-404php)). Публична только статика по `/themes/{theme}/assets/...`; все остальные пути внутри `/themes/` возвращают 403.
 
 Данные для шаблонов (меню, переменные, кеш страниц, картинки содержимого) — [12-themes.md](12-themes.md).
 
