@@ -120,11 +120,27 @@ $enc = (string) ($smtp['encryption'] ?? 'tls');
     </section>
 
     <section class="mc-sheet" id="system-plugins">
-        <h2 class="mc-sheet__title">Плагины</h2>
+        <div class="mc-sheet__head">
+            <h2 class="mc-sheet__title">Плагины</h2>
+            <form method="post" action="/admin-panel/system/plugins/check-updates">
+                <?= Csrf::field() ?>
+                <button type="submit" class="mc-btn">
+                    Проверить обновления плагинов
+                </button>
+            </form>
+        </div>
         <p class="mc-sheet__lead">
             Плагин устанавливается распаковкой архива в <code><?= htmlspecialchars((string) ($pluginsPath ?? '')) ?>/{id}/</code>;
             плагин в папке включён. Данные плагинов — <code><?= htmlspecialchars((string) ($pluginDataPath ?? '')) ?>/{id}/</code>.
         </p>
+        <p class="mc-sheet__lead">
+            Обновления — из GitHub Releases репозитория, указанного в <code>plugin.json</code> (<code>repository</code>).
+            Подписей нет: обновление — это чужой код, который выполнится на сервере, поэтому указывайте только репозитории, которым доверяете.
+        </p>
+        <?php
+        $pluginUpdates ??= [];
+        $pluginUpdatesReady = !in_array(false, $pluginUpdateCapabilities ?? [], true);
+        ?>
         <?php $pluginList = $plugins ?? []; ?>
         <?php if ($pluginList === []): ?>
             <p class="mc-muted">Плагины не установлены.</p>
@@ -167,6 +183,51 @@ $enc = (string) ($smtp['encryption'] ?? 'tls');
                             <?php foreach ($pluginInfo['warnings'] ?? [] as $pluginWarning): ?>
                                 <li class="mc-status--warn">⚠ <?= htmlspecialchars((string) $pluginWarning) ?></li>
                             <?php endforeach; ?>
+                            <?php $pluginUpdate = $pluginUpdates[$pluginId] ?? null; ?>
+                            <?php if ($pluginUpdate !== null && ($pluginUpdate['repository'] ?? null) !== null): ?>
+                                <li>
+                                    Обновления: <a class="mc-link" href="https://github.com/<?= htmlspecialchars((string) $pluginUpdate['repository']) ?>/releases" target="_blank" rel="noopener"><code><?= htmlspecialchars((string) $pluginUpdate['repository']) ?></code></a>
+                                    <?php if (!empty($pluginUpdate['checked_at'])): ?>
+                                        <span class="mc-muted">(проверено <?= htmlspecialchars(date('d.m.Y H:i', (int) $pluginUpdate['checked_at'])) ?>)</span>
+                                    <?php endif; ?>
+                                </li>
+                                <?php if (($pluginUpdate['error'] ?? null) !== null): ?>
+                                    <li class="mc-status--warn">⚠ Не удалось проверить обновления: <?= htmlspecialchars((string) $pluginUpdate['error']) ?></li>
+                                <?php elseif (!empty($pluginUpdate['update'])): ?>
+                                    <?php $pu = $pluginUpdate['update']; ?>
+                                    <li>
+                                        <span class="mc-tag mc-tag--draft">Доступна v<?= htmlspecialchars((string) $pu['version']) ?></span>
+                                        <a class="mc-link" href="<?= htmlspecialchars((string) $pu['url']) ?>" target="_blank" rel="noopener">релиз на GitHub</a>
+                                        <?php if (!empty($pu['core'])): ?>
+                                            — требует ядро <code><?= htmlspecialchars((string) $pu['core']) ?></code>
+                                        <?php endif; ?>
+                                    </li>
+                                    <?php if (($pu['problem'] ?? null) !== null): ?>
+                                        <li class="mc-status--bad">✗ <?= htmlspecialchars((string) $pu['problem']) ?></li>
+                                    <?php elseif (($pu['compatible'] ?? null) === false): ?>
+                                        <li class="mc-status--bad">✗ Новая версия несовместима с ядром v<?= htmlspecialchars($currentVersion ?? '') ?> — сначала обновите ядро.</li>
+                                    <?php elseif (!$pluginUpdatesReady): ?>
+                                        <li class="mc-status--warn">⚠ Обновление из админки недоступно: нужны ZipArchive, HTTP и запись в plugins/ и cache/.</li>
+                                    <?php elseif (!empty($pu['installable'])): ?>
+                                        <li>
+                                            <form method="post" action="/admin-panel/system/plugins/update" class="mc-inline-form" onsubmit="return confirm('Обновить плагин «<?= htmlspecialchars((string) $pluginId, ENT_QUOTES) ?>» до v<?= htmlspecialchars((string) $pu['version'], ENT_QUOTES) ?>? Будет выполнен код из релиза <?= htmlspecialchars((string) $pluginUpdate['repository'], ENT_QUOTES) ?>. Резервная копия текущей версии сохранится в cache/.');">
+                                                <?= Csrf::field() ?>
+                                                <input type="hidden" name="plugin" value="<?= htmlspecialchars((string) $pluginId) ?>">
+                                                <input type="hidden" name="version" value="<?= htmlspecialchars((string) $pu['version']) ?>">
+                                                <button type="submit" class="mc-btn mc-btn--primary">
+                                                    Обновить до v<?= htmlspecialchars((string) $pu['version']) ?>
+                                                </button>
+                                            </form>
+                                        </li>
+                                    <?php endif; ?>
+                                <?php elseif (!empty($pluginUpdate['checked_at'])): ?>
+                                    <li class="mc-status--ok">✓ Установлена последняя версия</li>
+                                <?php endif; ?>
+                            <?php elseif ($pluginUpdate !== null && ($pluginUpdate['error'] ?? null) !== null): ?>
+                                <li class="mc-status--warn">⚠ <?= htmlspecialchars((string) $pluginUpdate['error']) ?></li>
+                            <?php else: ?>
+                                <li class="mc-muted">Автообновление недоступно: в plugin.json нет <code>repository</code></li>
+                            <?php endif; ?>
                         </ul>
                     </li>
                 <?php endforeach; ?>

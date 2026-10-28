@@ -88,6 +88,20 @@ class AdminRouter
             return;
         }
 
+        // Обновление плагинов — до загрузки любых плагинов (SiteLocale::init ниже), чтобы новая версия
+        // загрузилась (onInstall) в чистом процессе, без классов старой версии.
+        if ($path === '/system/plugins/check-updates' && $method === 'POST') {
+            $this->requireCsrf();
+            $this->handleCheckPluginUpdates();
+            return;
+        }
+
+        if ($path === '/system/plugins/update' && $method === 'POST') {
+            $this->requireCsrf();
+            $this->handlePluginUpdate();
+            return;
+        }
+
         // служба i18n (если есть): файлы переводов about.en.md не показываются как отдельные страницы.
         // Хуки сайта (request, url, …) в админке не работают.
         SiteLocale::init($this->plugins(), false);
@@ -313,6 +327,32 @@ class AdminRouter
             ];
             $toastCleanParams[] = 'checked';
         }
+        if (isset($_GET['plugin_updated'])) {
+            $toasts[] = [
+                'message' => 'Плагин «' . (string) $_GET['plugin_updated'] . '» обновлён'
+                    . (isset($_GET['plugin_version']) ? ' до v' . (string) $_GET['plugin_version'] : '') . '.',
+                'type' => 'success',
+            ];
+            $toastCleanParams[] = 'plugin_updated';
+            $toastCleanParams[] = 'plugin_version';
+        }
+        if (isset($_GET['plugins_checked'])) {
+            $available = (int) $_GET['plugins_checked'];
+            $toasts[] = [
+                'message' => $available > 0
+                    ? 'Проверка обновлений плагинов выполнена: доступно обновлений — ' . $available . '.'
+                    : 'Проверка обновлений плагинов выполнена: обновлений нет.',
+                'type' => 'info',
+            ];
+            $toastCleanParams[] = 'plugins_checked';
+        }
+        if (isset($_GET['plugins_check_errors']) && (int) $_GET['plugins_check_errors'] > 0) {
+            $toasts[] = [
+                'message' => 'Не удалось проверить плагинов: ' . (int) $_GET['plugins_check_errors'] . '. Подробности — в списке плагинов.',
+                'type' => 'error',
+            ];
+            $toastCleanParams[] = 'plugins_check_errors';
+        }
         if (isset($_GET['smtp'])) {
             $toasts[] = [
                 'message' => 'Настройки SMTP сохранены.',
@@ -363,6 +403,14 @@ class AdminRouter
             $toastCleanParams[] = 'theme';
         }
 
+        $pluginUpdater = new PluginUpdater($this->config, $this->plugins());
+        $pluginUpdates = [];
+        try {
+            $pluginUpdates = $pluginUpdater->checkAll();
+        } catch (Throwable $e) {
+            error_log('motorchk plugin updates: ' . $e->getMessage());
+        }
+
         $this->render('system.php', [
             'currentVersion' => Version::current(),
             'update' => $update,
@@ -377,6 +425,8 @@ class AdminRouter
             'pluginProtection' => $this->plugins()->protectionStatus(),
             'pluginsPath' => $this->plugins()->pluginsPath(),
             'pluginDataPath' => $this->plugins()->dataRoot(),
+            'pluginUpdates' => $pluginUpdates,
+            'pluginUpdateCapabilities' => $pluginUpdater->capabilities(),
         ]);
     }
 
@@ -622,6 +672,44 @@ class AdminRouter
             $this->redirect('/admin-panel/system?updated=' . rawurlencode($version));
         } catch (Throwable $e) {
             $this->redirect('/admin-panel/system?error=' . rawurlencode($e->getMessage()));
+        }
+    }
+
+    private function handleCheckPluginUpdates(): void
+    {
+        $updater = new PluginUpdater($this->config);
+        try {
+            $statuses = $updater->checkAll(true);
+        } catch (Throwable $e) {
+            $this->redirect('/admin-panel/system?error=' . rawurlencode($e->getMessage()) . '#system-plugins');
+            return;
+        }
+        $available = 0;
+        $errors = 0;
+        foreach ($statuses as $status) {
+            if ($status['update'] !== null) {
+                $available++;
+            }
+            if ($status['error'] !== null) {
+                $errors++;
+            }
+        }
+        $this->redirect('/admin-panel/system?plugins_checked=' . $available . ($errors > 0 ? '&plugins_check_errors=' . $errors : '') . '#system-plugins');
+    }
+
+    private function handlePluginUpdate(): void
+    {
+        $id = (string) ($_POST['plugin'] ?? '');
+        $version = Version::normalizeTag((string) ($_POST['version'] ?? ''));
+        try {
+            if (!preg_match(PluginManager::ID_PATTERN, $id)) {
+                throw new RuntimeException('Некорректный id плагина');
+            }
+            $result = (new PluginUpdater($this->config))->apply($id, $version);
+            $this->redirect('/admin-panel/system?plugin_updated=' . rawurlencode($id) . '&plugin_version=' . rawurlencode($result['to']) . '#system-plugins');
+        } catch (Throwable $e) {
+            error_log('motorchk plugin update ' . $id . ': ' . $e->getMessage());
+            $this->redirect('/admin-panel/system?error=' . rawurlencode('Обновление плагина: ' . $e->getMessage()) . '#system-plugins');
         }
     }
 
