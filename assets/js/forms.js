@@ -22,13 +22,19 @@
     form.querySelectorAll('input[type="checkbox"]').forEach((el) => {
       const name = fieldName(el);
       if (!name || name.startsWith('_')) return;
+      const has = Object.prototype.hasOwnProperty.call(data, name);
       const group = form.querySelectorAll(`input[type="checkbox"][name="${CSS.escape(el.name)}"]`);
-      if (group.length > 1) {
-        if (!Object.prototype.hasOwnProperty.call(data, name)) {
+      if (group.length > 1 || el.name.endsWith('[]')) {
+        // группа флажков — всегда список отмеченных значений (в том числе из одного или пустой)
+        if (!has) {
           data[name] = [];
+        } else if (!Array.isArray(data[name])) {
+          data[name] = [data[name]];
         }
-      } else if (!el.checked && !Object.prototype.hasOwnProperty.call(data, name)) {
-        data[name] = '';
+      } else if (!has) {
+        data[name] = false; // одиночный снятый флажок
+      } else if (el.checked && data[name] === el.value) {
+        data[name] = true; // одиночный отмеченный флажок
       }
     });
 

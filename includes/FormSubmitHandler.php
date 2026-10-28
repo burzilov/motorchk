@@ -126,6 +126,12 @@ class FormSubmitHandler
         ];
     }
 
+    /** Значения одиночного флажка, которые считаются «не отмечен» (старый forms.js шлёт '' для снятого флажка). */
+    private const CHECKBOX_OFF = ['', '0', 'false', 'off', 'no', 'нет'];
+
+    /** Значения одиночного флажка, которые считаются «отмечен» (value по умолчанию — «on»). */
+    private const CHECKBOX_ON = ['1', 'true', 'on', 'yes', 'да'];
+
     private function normalizeValue(mixed $raw, string $type): mixed
     {
         if ($raw === null) {
@@ -144,12 +150,39 @@ class FormSubmitHandler
         }
 
         if ($type === 'checkbox') {
-            $str = trim((string) $raw);
-
-            return $str !== '' ? $str : true;
+            return self::normalizeCheckbox($raw);
         }
 
         return trim((string) $raw);
+    }
+
+    /**
+     * Одиночный флажок: true/false. Снятый ('', '0', 'false', 'off', 'no', 'нет', JSON false) — false,
+     * отмеченный (JSON true, 'on', '1', 'true', 'yes', 'да') — true. Другое непустое значение
+     * (value="…" у флажка из группы, отправленной без JS) сохраняется строкой, как раньше.
+     */
+    public static function normalizeCheckbox(mixed $raw): bool|string
+    {
+        if (is_bool($raw)) {
+            return $raw;
+        }
+        if (is_int($raw) || is_float($raw)) {
+            return $raw != 0;
+        }
+        if (!is_scalar($raw)) {
+            return false;
+        }
+
+        $str = trim((string) $raw);
+        $lower = mb_strtolower($str, 'UTF-8');
+        if (in_array($lower, self::CHECKBOX_OFF, true)) {
+            return false;
+        }
+        if (in_array($lower, self::CHECKBOX_ON, true)) {
+            return true;
+        }
+
+        return $str;
     }
 
     private function isEmpty(mixed $value): bool
