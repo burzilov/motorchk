@@ -71,7 +71,7 @@ class FormSubmitHandler
         foreach ($contract['fields'] as $field) {
             $name = $field['name'];
             $raw = $input[$name] ?? ($input[$name . '[]'] ?? null);
-            $value = $this->normalizeValue($raw, $field['type']);
+            $value = $this->normalizeValue($raw, $field['type'], $field['type'] === 'checkbox' && $field['multiple']);
 
             if ($field['required'] && $this->isEmpty($value)) {
                 $errors[$name] = 'Обязательное поле';
@@ -126,16 +126,31 @@ class FormSubmitHandler
         ];
     }
 
-    /** Значения одиночного флажка, которые считаются «не отмечен» (старый forms.js шлёт '' для снятого флажка). */
+    /** Значения одиночного флажка, которые считаются «не отмечен». */
     private const CHECKBOX_OFF = ['', '0', 'false', 'off', 'no', 'нет'];
 
     /** Значения одиночного флажка, которые считаются «отмечен» (value по умолчанию — «on»). */
     private const CHECKBOX_ON = ['1', 'true', 'on', 'yes', 'да'];
 
-    private function normalizeValue(mixed $raw, string $type): mixed
+    private function normalizeValue(mixed $raw, string $type, bool $multiple): mixed
     {
+        if ($type === 'checkbox' && $multiple) {
+            $items = is_array($raw) ? $raw : ($raw === null ? [] : [$raw]);
+            $values = [];
+            foreach ($items as $item) {
+                if (is_scalar($item) && trim((string) $item) !== '') {
+                    $values[] = trim((string) $item);
+                }
+            }
+            return $values;
+        }
+
+        if ($type === 'checkbox') {
+            return (bool) self::normalizeCheckbox($raw);
+        }
+
         if ($raw === null) {
-            return $type === 'checkbox' ? false : '';
+            return '';
         }
 
         if (is_array($raw)) {
@@ -149,17 +164,13 @@ class FormSubmitHandler
             return array_values(array_filter($values, static fn (string $v): bool => $v !== ''));
         }
 
-        if ($type === 'checkbox') {
-            return self::normalizeCheckbox($raw);
-        }
-
         return trim((string) $raw);
     }
 
     /**
      * Одиночный флажок: true/false. Снятый ('', '0', 'false', 'off', 'no', 'нет', JSON false) — false,
      * отмеченный (JSON true, 'on', '1', 'true', 'yes', 'да') — true. Другое непустое значение
-     * (value="…" у флажка из группы, отправленной без JS) сохраняется строкой, как раньше.
+     * возвращается строкой; обработчик одиночного флажка преобразует её в true.
      */
     public static function normalizeCheckbox(mixed $raw): bool|string
     {

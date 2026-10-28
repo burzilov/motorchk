@@ -150,12 +150,19 @@ class Form
             if (!in_array($type, self::ALLOWED_TYPES, true)) {
                 continue;
             }
-            $fields[] = [
+            if ($type === 'checkbox' && (!array_key_exists('multiple', $field) || !is_bool($field['multiple']))) {
+                throw new InvalidArgumentException('Некорректный контракт формы');
+            }
+            $verified = [
                 'name' => (string) $field['name'],
                 'type' => $type,
                 'required' => !empty($field['required']),
                 'label' => (string) ($field['label'] ?? $field['name']),
             ];
+            if ($type === 'checkbox') {
+                $verified['multiple'] = $field['multiple'];
+            }
+            $fields[] = $verified;
         }
 
         return [
@@ -223,7 +230,7 @@ class Form
             }
 
             $map[$name]['required'] = $map[$name]['required'] || $required;
-            $map[$name]['multi'] = $map[$name]['multi'] || $multi;
+            $map[$name]['multi'] = $map[$name]['multi'] || $multi || ($map[$name]['type'] === 'checkbox' && $type === 'checkbox');
             if ($map[$name]['label'] === $map[$name]['name'] && $label !== '') {
                 $map[$name]['label'] = $label;
             }
@@ -259,7 +266,7 @@ class Form
                 $label = self::nearestLabelText($node);
             }
 
-            $register($name, $type, $node->hasAttribute('required'), $label, $multi || $type === 'checkbox');
+            $register($name, $type, $node->hasAttribute('required'), $label, $multi);
         }
 
         foreach ($xpath->query('//textarea') ?: [] as $node) {
@@ -299,12 +306,16 @@ class Form
 
         $fields = [];
         foreach ($map as $field) {
-            $fields[] = [
+            $result = [
                 'name' => $field['name'],
                 'type' => $field['type'],
                 'required' => $field['required'],
                 'label' => $field['label'],
             ];
+            if ($field['type'] === 'checkbox') {
+                $result['multiple'] = $field['multi'];
+            }
+            $fields[] = $result;
         }
 
         return $fields;
