@@ -154,19 +154,9 @@ class Updater
 
     private function fetchLatestRelease(): ?array
     {
-        $url = 'https://api.github.com/repos/' . self::GITHUB_REPO . '/releases/latest';
-        $json = $this->httpGet($url, $this->githubHeaders());
-        if ($json !== null) {
-            $data = json_decode($json, true);
-            if (is_array($data) && isset($data['tag_name'])) {
-                return $data;
-            }
-        }
-
-        // Fallback: неаутентифицированный GitHub API лимитирует 60 запросов в час,
-        // и при исчерпании возвращает 403. Atom-лента releases.atom не ограничена и содержит
-        // последний релиз: тег, дату и ссылку. По ней можно проверить наличие обновления,
-        // а архив download по прямой ссылке — без участия API.
+        // Atom-лента releases.atom не ограничена лимитом неаутентифицированного GitHub API
+        // (60 запросов в час, после чего возвращается 403). Она содержит тег, дату и ссылку
+        // на последний релиз, а архив download по прямой ссылке — без участия API.
         return $this->fetchLatestReleaseFromAtom();
     }
 
@@ -258,16 +248,6 @@ class Updater
             return (int) $m[1];
         }
         return 0;
-    }
-
-    private function githubHeaders(): array
-    {
-        $headers = ['Accept: application/vnd.github+json', 'User-Agent: motorchk-cms'];
-        $token = (string) (Env::get('GITHUB_TOKEN', '') ?? '');
-        if ($token !== '') {
-            $headers[] = 'Authorization: Bearer ' . $token;
-        }
-        return $headers;
     }
 
     private function findZipAssetUrl(array $release, string $version): ?string
