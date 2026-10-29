@@ -164,8 +164,16 @@ return static function (PluginContext $plugin): void {
     });
 };
 PHP, ['templates/page.php' => '<p id="plain">svc=<?= $svc ?> url=<?= $url ?> locale=<?= $locale ?></p>', 'assets/p.css' => 'p{}', 'assets/early.js' => '']);
+$outNormalize = static function (string $body): string {
+    return preg_replace('#name="form_ts" value="[0-9]+"#', 'name="form_ts" value="0"', $body);
+};
+$baselineNorm = [];
+foreach ($baseline as $k => $v) {
+    $baselineNorm[$k] = [$v[0], $outNormalize($v[1])];
+}
 foreach (['/about', '/team', '/about.en', '/en/about', '/'] as $uri) {
-    check($public($uri) === $baseline[$uri], "{$uri}: ответ байт в байт как без плагинов");
+    $got = $public($uri);
+    check($got[0] === $baselineNorm[$uri][0] && $outNormalize($got[1]) === $baselineNorm[$uri][1], "{$uri}: ответ байт в байт как без плагинов");
 }
 [$st, $body] = $public('/plain/');
 check($st === 200 && str_contains($body, 'svc=нет url=/plain/x locale=ru'), 'service(i18n) → null, publicUrl без префикса, locale ru', $body);
