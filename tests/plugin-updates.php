@@ -517,6 +517,8 @@ $_SESSION = ['admin_authenticated' => true, 'csrf_token' => 'tok'];
 check($st === 200 && str_contains($body, 'Доступна v1.3.0'), '«Система»: бейдж «Доступна v1.3.0» (из кеша, без сети)', "status {$st}");
 check(str_contains($body, 'action="/admin-panel/system/plugins/update"') && str_contains($body, 'name="plugin" value="demo"') && str_contains($body, 'name="version" value="1.3.0"'), '«Система»: кнопка «Обновить до v1.3.0» (POST)');
 check(str_contains($body, 'action="/admin-panel/system/plugins/check-updates"') && str_contains($body, 'Проверить обновления плагинов'), '«Система»: кнопка «Проверить обновления плагинов»');
+check(str_contains($body, 'data-update-check="system-plugins"') && str_contains($body, 'data-update-check="system-update"') && str_contains($body, 'Проверить обновления ядра'), '«Система»: асинхронные проверки ядра и плагинов');
+check(str_contains($body, 'data-confirm-update=') && str_contains($body, 'id="update-confirm"') && !str_contains($body, 'return confirm('), '«Система»: подтверждение обновления в диалоге');
 check(substr_count($body, 'name="_csrf"') >= 3, '«Система»: формы с CSRF-токеном');
 check(str_contains($body, 'нет <code>repository</code>'), '«Система»: плагин без repository — «Автообновление недоступно»');
 check(str_contains($body, 'Подписей нет'), '«Система»: предупреждение о доверии к репозиториям');

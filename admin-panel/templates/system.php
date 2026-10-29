@@ -122,7 +122,7 @@ $enc = (string) ($smtp['encryption'] ?? 'tls');
     <section class="mc-sheet" id="system-plugins">
         <div class="mc-sheet__head">
             <h2 class="mc-sheet__title">Плагины</h2>
-            <form method="post" action="/admin-panel/system/plugins/check-updates">
+            <form method="post" action="/admin-panel/system/plugins/check-updates" data-update-check="system-plugins">
                 <?= Csrf::field() ?>
                 <button type="submit" class="mc-btn">
                     Проверить обновления плагинов
@@ -210,7 +210,7 @@ $enc = (string) ($smtp['encryption'] ?? 'tls');
                                         <li class="mc-status--warn">⚠ Обновление из админки недоступно: нужны ZipArchive, HTTP и запись в plugins/ и cache/.</li>
                                     <?php elseif (!empty($pu['installable'])): ?>
                                         <li>
-                                            <form method="post" action="/admin-panel/system/plugins/update" class="mc-inline-form" onsubmit="return confirm('Обновить плагин «<?= htmlspecialchars((string) $pluginId, ENT_QUOTES) ?>» до v<?= htmlspecialchars((string) $pu['version'], ENT_QUOTES) ?>? Будет выполнен код из релиза <?= htmlspecialchars((string) $pluginUpdate['repository'], ENT_QUOTES) ?>. Резервная копия текущей версии сохранится в cache/.');">
+                                            <form method="post" action="/admin-panel/system/plugins/update" class="mc-inline-form" data-confirm-update="<?= htmlspecialchars('Обновить плагин «' . $pluginId . '» до v' . $pu['version'] . '? Будет выполнен код из релиза ' . $pluginUpdate['repository'] . '. Резервная копия текущей версии сохранится в cache/.', ENT_QUOTES, 'UTF-8') ?>">
                                                 <?= Csrf::field() ?>
                                                 <input type="hidden" name="plugin" value="<?= htmlspecialchars((string) $pluginId) ?>">
                                                 <input type="hidden" name="version" value="<?= htmlspecialchars((string) $pu['version']) ?>">
@@ -243,10 +243,10 @@ $enc = (string) ($smtp['encryption'] ?? 'tls');
     <section class="mc-sheet" id="system-update">
         <div class="mc-sheet__head">
             <h2 class="mc-sheet__title">Обновление ядра</h2>
-            <form method="post" action="/admin-panel/system/check-update">
+            <form method="post" action="/admin-panel/system/check-update" data-update-check="system-update">
                 <?= Csrf::field() ?>
                 <button type="submit" class="mc-btn">
-                    Проверить обновления
+                    Проверить обновления ядра
                 </button>
             </form>
         </div>
@@ -262,7 +262,7 @@ $enc = (string) ($smtp['encryption'] ?? 'tls');
                 <?php endif; ?>
             </div>
             <?php if ($allReady && !empty($update['zip_url'])): ?>
-                <form method="post" action="/admin-panel/system/update" onsubmit="return confirm('Обновить ядро до v<?= htmlspecialchars($update['version'], ENT_QUOTES) ?>? Контент и тема не изменятся.');">
+                <form method="post" action="/admin-panel/system/update" data-confirm-update="<?= htmlspecialchars('Обновить ядро до v' . $update['version'] . '? Тема example будет заменена; пользовательские темы и контент сохранятся.', ENT_QUOTES, 'UTF-8') ?>">
                     <?= Csrf::field() ?>
                     <input type="hidden" name="version" value="<?= htmlspecialchars($update['version']) ?>">
                     <button type="submit" class="mc-btn mc-btn--primary">
@@ -302,3 +302,12 @@ $enc = (string) ($smtp['encryption'] ?? 'tls');
     </div>
     </div>
 </div>
+<dialog id="update-confirm" class="mc-confirm" aria-labelledby="update-confirm-title" aria-describedby="update-confirm-text">
+    <h2 class="mc-modal__title" id="update-confirm-title">Подтвердите обновление</h2>
+    <p class="mc-modal__text" id="update-confirm-text"></p>
+    <div class="mc-modal__actions">
+        <button type="button" class="mc-btn" data-confirm-cancel>Отмена</button>
+        <button type="button" class="mc-btn mc-btn--primary" data-confirm-accept>Обновить</button>
+    </div>
+</dialog>
+<noscript><style>form[data-confirm-update] { display: none; }</style><p class="mc-status--warn">Для подтверждения обновления требуется JavaScript.</p></noscript>

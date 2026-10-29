@@ -364,6 +364,8 @@ button, input, select, textarea { font: inherit; }
   .mc-modal__title { font-size: var(--text-lg); margin-bottom: var(--space-xs); }
   .mc-modal__text { margin-bottom: var(--space-lg); font-size: var(--text-sm); color: var(--color-ink-3); }
   .mc-modal__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-sm); }
+  .mc-confirm { width: calc(100% - 2rem); max-width: 28rem; margin: auto; padding: var(--space-lg); background: var(--color-sheet); border: 0; border-top: 4px solid var(--color-ink); }
+  .mc-confirm::backdrop { background: color-mix(in oklab, var(--color-ink) 55%, transparent); }
 
   /* submissions */
   .mc-filter { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-sm) var(--space-md); padding: var(--space-md); background: var(--color-sheet); }

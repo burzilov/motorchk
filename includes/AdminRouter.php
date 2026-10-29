@@ -412,6 +412,7 @@ class AdminRouter
         }
 
         $this->render('system.php', [
+            'layoutScripts' => ['/core/assets/js/system.js'],
             'currentVersion' => Version::current(),
             'update' => $update,
             'capabilities' => $updater->capabilities(),
