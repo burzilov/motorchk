@@ -184,7 +184,6 @@ class Updater
         if (!$dom) {
             return null;
         }
-        $dom->registerNamespace('atom', 'http://www.w3.org/2005/Atom');
 
         $entry = $dom->entry ?? null;
         if (!$entry) {
