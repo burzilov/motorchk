@@ -4,7 +4,7 @@ File-based PHP CMS без базы данных. Этот репозиторий
 
 ## Требования
 
-- PHP 8.4+
+- PHP 8.3+ (рекомендуется актуальная исправленная версия PHP)
 - Apache с `mod_rewrite` (или аналог)
 - Расширения: `json`, `mbstring`, `xml`; для self-update — `zip` и curl/`allow_url_fopen`
 

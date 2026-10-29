@@ -11,8 +11,8 @@ class Installer
         $sitePath = $this->config['site_path'];
         $issues = [];
 
-        if (PHP_VERSION_ID < 80400) {
-            $issues[] = 'Требуется PHP 8.4+, сейчас ' . PHP_VERSION;
+        if (PHP_VERSION_ID < 80300) {
+            $issues[] = 'Требуется PHP 8.3+, сейчас ' . PHP_VERSION;
         }
 
         foreach (['json', 'mbstring', 'xml'] as $ext) {

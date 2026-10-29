@@ -1,7 +1,7 @@
 {
   "name": "motorchk/cms",
   "require": {
-    "php": ">=8.4",
+    "php": ">=8.3",
     "league/commonmark": "^2.4",
     "symfony/yaml": "^7.0",
     "phpmailer/phpmailer": "^6.9"
