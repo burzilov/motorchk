@@ -155,13 +155,120 @@ class Updater
     private function fetchLatestRelease(): ?array
     {
         $url = 'https://api.github.com/repos/' . self::GITHUB_REPO . '/releases/latest';
-        $json = $this->httpGet($url, ['Accept: application/vnd.github+json', 'User-Agent: motorchk-cms']);
-        if ($json === null) {
+        $json = $this->httpGet($url, $this->githubHeaders());
+        if ($json !== null) {
+            $data = json_decode($json, true);
+            if (is_array($data) && isset($data['tag_name'])) {
+                return $data;
+            }
+        }
+
+        // Fallback: неаутентифицированный GitHub API лимитирует 60 запросов в час,
+        // и при исчерпании возвращает 403. Atom-лента releases.atom не ограничена и содержит
+        // последний релиз: тег, дату и ссылку. По ней можно проверить наличие обновления,
+        // а архив download по прямой ссылке — без участия API.
+        return $this->fetchLatestReleaseFromAtom();
+    }
+
+    private function fetchLatestReleaseFromAtom(): ?array
+    {
+        $xml = $this->httpGet(
+            'https://github.com/' . self::GITHUB_REPO . '/releases.atom',
+            ['User-Agent: motorchk-cms', 'Accept: application/atom+xml, application/xml']
+        );
+        if ($xml === null || $xml === '') {
             return null;
         }
 
-        $data = json_decode($json, true);
-        return is_array($data) && isset($data['tag_name']) ? $data : null;
+        $dom = @simplexml_load_string($xml);
+        if (!$dom) {
+            return null;
+        }
+        $dom->registerNamespace('atom', 'http://www.w3.org/2005/Atom');
+
+        $entry = $dom->entry ?? null;
+        if (!$entry) {
+            return null;
+        }
+
+        $tag = trim((string) ($entry->title ?? ''));
+        if ($tag === '') {
+            return null;
+        }
+        $tag = preg_replace('/^v/', '', $tag);
+        $tag = Version::normalizeTag($tag);
+        if ($tag === '') {
+            return null;
+        }
+
+        $htmlUrl = '';
+        foreach ($entry->link as $link) {
+            $rel = (string) ($link['rel'] ?? '');
+            $type = (string) ($link['type'] ?? '');
+            $href = (string) ($link['href'] ?? '');
+            if ($href !== '' && ($rel === 'alternate' || $rel === '' || strpos($type, 'html') !== false)) {
+                $htmlUrl = $href;
+                break;
+            }
+        }
+
+        $version = $tag;
+        return [
+            'tag_name' => $tag,
+            'name' => $tag,
+            'html_url' => $htmlUrl !== '' ? $htmlUrl : ('https://github.com/' . self::GITHUB_REPO . '/releases/tag/v' . $version),
+            'body' => trim((string) ($entry->content ?? '')),
+            'assets' => [],
+            'zip_url' => $this->constructedZipUrl($version),
+        ];
+    }
+
+    private function constructedZipUrl(string $version): ?string
+    {
+        $expected = 'motorchk-core-' . $version . '.zip';
+        $url = 'https://github.com/' . self::GITHUB_REPO . '/releases/download/v' . $version . '/' . $expected;
+        $code = $this->httpCode($url);
+        if ($code >= 200 && $code < 400) {
+            return $url;
+        }
+        return null;
+    }
+
+    private function httpCode(string $url): int
+    {
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_HEADER => true,
+                CURLOPT_NOBODY => true,
+            ]);
+            curl_exec($ch);
+            $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            return $code;
+        }
+        $ctx = stream_context_create(['http' => ['method' => 'GET', 'timeout' => 30]]);
+        $h = @get_headers($url, false, $ctx);
+        if ($h === false || $h === []) {
+            return 0;
+        }
+        if (preg_match('#\s(\d{3})\s#', (string) $h[0], $m)) {
+            return (int) $m[1];
+        }
+        return 0;
+    }
+
+    private function githubHeaders(): array
+    {
+        $headers = ['Accept: application/vnd.github+json', 'User-Agent: motorchk-cms'];
+        $token = (string) (Env::get('GITHUB_TOKEN', '') ?? '');
+        if ($token !== '') {
+            $headers[] = 'Authorization: Bearer ' . $token;
+        }
+        return $headers;
     }
 
     private function findZipAssetUrl(array $release, string $version): ?string
@@ -171,6 +278,10 @@ class Updater
             if (($asset['name'] ?? '') === $expected && !empty($asset['browser_download_url'])) {
                 return $asset['browser_download_url'];
             }
+        }
+
+        if (!empty($release['zip_url'])) {
+            return $release['zip_url'];
         }
 
         return null;
