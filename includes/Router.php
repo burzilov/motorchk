@@ -28,6 +28,11 @@ class Router
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         SiteLocale::reset();
 
+        // Режим обслуживания: до SEO-файлов, хуков плагинов, API форм и плагин-роутов (docs/14-maintenance.md)
+        if (Maintenance::gate($this->config, $path, $method)) {
+            return;
+        }
+
         // /sitemap.xml, /robots.txt, /llms.txt — до хука «request»: без языковых префиксов и редиректов
         $seoKind = SeoFiles::kind($path);
         if ($seoKind !== null && SeoFiles::enabled($this->config, $seoKind)) {

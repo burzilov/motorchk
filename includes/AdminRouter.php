@@ -155,6 +155,13 @@ class AdminRouter
             return;
         }
 
+        // Техническое обслуживание (docs/14-maintenance.md)
+        if ($path === '/system/maintenance' && $method === 'POST') {
+            $this->requireCsrf();
+            $this->handleMaintenance();
+            return;
+        }
+
         if ($path === '/submissions' && $method === 'GET') {
             $this->renderSubmissionsList();
             return;
@@ -327,6 +334,28 @@ class AdminRouter
             ];
             $toastCleanParams[] = 'checked';
         }
+        // Техническое обслуживание (docs/14-maintenance.md)
+        if (isset($_GET['maintenance_on'])) {
+            $toasts[] = ['message' => 'Режим техобслуживания включён.', 'type' => 'success'];
+            $toastCleanParams[] = 'maintenance_on';
+        }
+        if (isset($_GET['maintenance_off'])) {
+            $toasts[] = ['message' => 'Режим техобслуживания выключен.', 'type' => 'success'];
+            $toastCleanParams[] = 'maintenance_off';
+        }
+        if (isset($_GET['maintenance_secret'])) {
+            unset($_GET['maintenance_secret']);
+            $toasts[] = ['message' => 'Случайный секрет создан. Скопируйте ссылку для входа сейчас.', 'type' => 'success'];
+            $toastCleanParams[] = 'maintenance_secret';
+        }
+        if (isset($_GET['maintenance_secret_cleared'])) {
+            $toasts[] = ['message' => 'Секрет удалён: вход по паролю и ссылке невозможен до установки нового.', 'type' => 'info'];
+            $toastCleanParams[] = 'maintenance_secret_cleared';
+        }
+        if (isset($_GET['maintenance_error'])) {
+            $toasts[] = ['message' => (string) $_GET['maintenance_error'], 'type' => 'error'];
+            $toastCleanParams[] = 'maintenance_error';
+        }
         if (isset($_GET['plugin_updated'])) {
             $toasts[] = [
                 'message' => 'Плагин «' . (string) $_GET['plugin_updated'] . '» обновлён'
@@ -420,6 +449,18 @@ class AdminRouter
             'themes' => $this->listThemes(),
             'toasts' => $toasts,
             'toastCleanParams' => $toastCleanParams,
+            'maintenance' => [
+                'enabled' => SiteMeta::isMaintenanceEnabled($this->config),
+                'secretSet' => SiteMeta::maintenanceHash($this->config) !== '',
+                // Одноразовый показ: считывается и стирается прямо здесь — повторной
+                // или восстановленной ссылки не будет (docs/14-maintenance.md)
+                'viewSecret' => (static function () {
+                    $secret = $_SESSION['maintenance_view_secret'] ?? null;
+                    unset($_SESSION['maintenance_view_secret']);
+                    return is_string($secret) ? $secret : null;
+                })(),
+                'flagWritten' => is_file(Maintenance::flagPath($this->config)),
+            ],
             'smtp' => (new Mailer($this->config))->settingsFromEnv(),
             'smtpPasswordSet' => Env::get('SMTP_PASSWORD', '') !== '',
             'plugins' => $this->systemPlugins(),
@@ -662,6 +703,98 @@ class AdminRouter
         } catch (Throwable $e) {
             $this->redirect('/admin-panel/system?error=' . rawurlencode($e->getMessage()));
         }
+    }
+
+    private function handleMaintenance(): void
+    {
+        $action = (string) ($_POST['action'] ?? '');
+
+        if ($action === 'save') {
+            $this->maintenanceSave();
+            return;
+        }
+        if ($action === 'generate') {
+            $this->maintenanceGenerate();
+            return;
+        }
+        if ($action === 'clear_secret') {
+            $this->maintenanceClearSecret();
+            return;
+        }
+
+        $this->redirect('/admin-panel/system?maintenance_error=' . rawurlencode('Неизвестное действие'));
+    }
+
+    /** Включение/выключение и опционально смена секрета одним сохранением. */
+    private function maintenanceSave(): void
+    {
+        $enabled = !empty($_POST['maintenance_enabled']);
+        $secret = trim((string) ($_POST['maintenance_secret'] ?? ''));
+
+        // Включение без секрета заранее отклоняем: сайт закрылся бы без способа войти
+        if ($enabled && $secret === '' && SiteMeta::maintenanceHash($this->config) === '') {
+            $this->redirect('/admin-panel/system?maintenance_error=' . rawurlencode(
+                'Сначала задайте секрет: введите его в поле «Новый секрет» или нажмите «Сгенерировать случайный секрет».'
+            ));
+            return;
+        }
+
+        $wasEnabled = SiteMeta::isMaintenanceEnabled($this->config);
+
+        try {
+            // Повторное включение (wasEnabled=false → true) ротирует эпоху: старые
+            // разрешения сессий не возобновляются автоматически (docs/14-maintenance.md)
+            SiteMeta::setMaintenance($this->config, $enabled, $secret !== '' ? $secret : null, !$wasEnabled && $enabled);
+            if ($enabled) {
+                Maintenance::writeFlag($this->config);
+            } else {
+                Maintenance::removeFlag($this->config);
+            }
+        } catch (Throwable $e) {
+            $this->redirect('/admin-panel/system?maintenance_error=' . rawurlencode($e->getMessage()));
+            return;
+        }
+
+        $toast = $enabled ? 'maintenance_on' : 'maintenance_off';
+        $this->redirect('/admin-panel/system?' . $toast . '=1');
+    }
+
+    /** Новый случайный секрет: ссылка доступна для копирования до следующей смены секрета. */
+    private function maintenanceGenerate(): void
+    {
+        $secret = bin2hex(random_bytes(16));
+        try {
+            SiteMeta::setMaintenance(
+                $this->config,
+                SiteMeta::isMaintenanceEnabled($this->config),
+                $secret,
+                false
+            );
+            // Флаг нужен только при включённом режиме (docs/14-maintenance.md)
+            if (SiteMeta::isMaintenanceEnabled($this->config)) {
+                Maintenance::writeFlag($this->config);
+            }
+        } catch (Throwable $e) {
+            $this->redirect('/admin-panel/system?maintenance_error=' . rawurlencode($e->getMessage()));
+            return;
+        }
+
+        $_SESSION['maintenance_view_secret'] = $secret;
+        $this->redirect('/admin-panel/system?maintenance_secret=1');
+    }
+
+    /** Удаление секрета: вход по паролю/ссылке нельзя восстановить. */
+    private function maintenanceClearSecret(): void
+    {
+        try {
+            SiteMeta::clearMaintenanceSecret($this->config);
+        } catch (Throwable $e) {
+            $this->redirect('/admin-panel/system?maintenance_error=' . rawurlencode($e->getMessage()));
+            return;
+        }
+
+        unset($_SESSION['maintenance_view_secret']);
+        $this->redirect('/admin-panel/system?maintenance_secret_cleared=1');
     }
 
     private function handleCoreUpdate(): void

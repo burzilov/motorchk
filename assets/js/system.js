@@ -2,6 +2,29 @@
   const dialog = document.getElementById('update-confirm');
   let pending = null;
 
+  const secretBox = document.getElementById('maintenance-secret-box');
+  if (secretBox) {
+    const link = document.getElementById('maintenance-secret-link');
+    const secret = secretBox.dataset.maintenanceSecret || '';
+    const url = `${window.location.origin}/?maintenance_key=${encodeURIComponent(secret)}`;
+    if (link) link.textContent = url;
+    const copyButton = secretBox.querySelector('[data-maintenance-copy]');
+    if (copyButton) {
+      copyButton.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(url);
+          copyButton.textContent = 'Скопировано';
+        } catch {
+          copyButton.textContent = 'Не удалось скопировать — выделите из строки ниже';
+        }
+      });
+    }
+    const hideButton = secretBox.querySelector('[data-maintenance-hide]');
+    if (hideButton) {
+      hideButton.addEventListener('click', () => secretBox.remove());
+    }
+  }
+
   document.addEventListener('submit', async (event) => {
     const form = event.target;
     if (!(form instanceof HTMLFormElement)) return;

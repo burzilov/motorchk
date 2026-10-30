@@ -66,4 +66,60 @@ class SiteMeta
         $data['theme'] = $theme;
         self::save($config, $data);
     }
+
+    /** Включён ли режим технического обслуживания (content/_meta.yaml). */
+    public static function isMaintenanceEnabled(array $config): bool
+    {
+        return (bool) (self::load($config)['maintenance_enabled'] ?? false);
+    }
+
+    /**
+     * Хэш секрета обслуживания (password_hash) или '' — если не задан.
+     * Открытый секрет нигде не хранится.
+     */
+    public static function maintenanceHash(array $config): string
+    {
+        $hash = self::load($config)['maintenance_hash'] ?? '';
+        return is_string($hash) ? $hash : '';
+    }
+
+    public static function setMaintenance(
+        array $config,
+        bool $enabled,
+        ?string $plainSecret = null,
+        bool $rotateEpoch = false,
+    ): void {
+        $data = self::load($config);
+        $data['maintenance_enabled'] = $enabled;
+        if ($plainSecret !== null && $plainSecret !== '') {
+            $hash = password_hash($plainSecret, PASSWORD_BCRYPT, ['cost' => 12]);
+            if ($hash === false) {
+                throw new RuntimeException('Не удалось создать хэш секрета обслуживания');
+            }
+            $data['maintenance_hash'] = $hash;
+            // Установка/смена секрета инвалидирует ранее выданные разрешения
+            $rotateEpoch = true;
+        }
+        if ($rotateEpoch) {
+            // Повторное включение после выключения тоже ротирует эпоху: старый
+            // доступ не возобновляется автоматически (docs/14-maintenance.md)
+            $data['maintenance_epoch'] = bin2hex(random_bytes(8));
+        }
+        self::save($config, $data);
+    }
+
+    /** Удалить секрет (хэш): вход по паролю/ссылке становится невозможным. */
+    public static function clearMaintenanceSecret(array $config): void
+    {
+        $data = self::load($config);
+        unset($data['maintenance_hash']);
+        $data['maintenance_epoch'] = bin2hex(random_bytes(8));
+        self::save($config, $data);
+    }
+
+    /** Эпоха секрета: меняется при каждой установке нового секрета. */
+    public static function maintenanceEpoch(array $config): string
+    {
+        return (string) (self::load($config)['maintenance_epoch'] ?? '');
+    }
 }

@@ -28,6 +28,15 @@ RedirectMatch 403 ^/plugin-data/
     RewriteEngine On
     RewriteBase /
 
+    # motorchk:maintenance — блокировка статики при включённом режиме обслуживания.
+    # Флаг-файл content/.maintenance создаёт и удаляет ядро (Maintenance::writeFlag).
+    # /core/assets/ не блокируется: эти же файлы нужны панели администратора,
+    # которая остаётся доступной в полном оформлении (docs/14-maintenance.md).
+    # В существующих установках сниппет добавляется в корневой .htaccess вручную.
+    RewriteCond %{DOCUMENT_ROOT}/content/.maintenance -f
+    RewriteCond %{REQUEST_URI} ^/(themes/[^/]+/assets/|media/) [NC]
+    RewriteRule ^ - [R=503,L]
+
     # Админка — front controller ядра
     RewriteRule ^admin-panel(/.*)?$ core/admin-panel/index.php [L,QSA]
 
