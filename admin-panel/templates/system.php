@@ -242,72 +242,31 @@ $enc = (string) ($smtp['encryption'] ?? 'tls');
 
     <section class="mc-sheet" id="system-maintenance">
         <h2 class="mc-sheet__title">Техническое обслуживание</h2>
-        <?php
-        $maintenance = (array) ($maintenance ?? []);
-        $maintenanceEnabled = !empty($maintenance['enabled']);
-        $maintenanceSecretSet = !empty($maintenance['secretSet']);
-        $maintenanceViewSecret = $maintenance['viewSecret'] ?? null;
-        ?>
+        <?php $maintenance = (array) ($maintenance ?? []); $maintenanceEnabled = !empty($maintenance['enabled']); ?>
         <p class="mc-sheet__lead">
             <?php if ($maintenanceEnabled): ?>
                 <span class="mc-status--bad">Сайт закрыт: посетители видят страницу «Закрыто на техобслуживание» (HTTP 503).</span>
             <?php else: ?>
                 <span class="mc-status--ok">Сайт открыт для всех.</span>
             <?php endif; ?>
-            <?php if ($maintenanceSecretSet): ?>
-                Секрет установлен и хранится только как хэш — повторно показать или восстановить его нельзя.
-            <?php else: ?>
-                Секрет не задан: на закрытый сайт можно попасть только из админки.
+            <?php if ($maintenanceEnabled && empty($maintenance['flagWritten'])): ?>
+                <span class="mc-status--warn">Флаг для блокировки статики создать не удалось — PHP-страницы закрыты, как и раньше.</span>
             <?php endif; ?>
         </p>
         <p class="mc-sheet__lead">
-            При включённом режиме посетители видят страницу обслуживания, а доступ можно получить
-            по паролю или секретной ссылке <code>/?maintenance_key=…</code>. Разрешение сохраняется
-            в сессии; при смене секрета или повторном включении режима ранее выданные ссылки и
-            сессии перестают действовать. Эту ссылку передавайте как пароль: её обладатель получает доступ,
-            а сам URL может попасть в историю браузера и логи сервера.
+            При включённом режиме сайт доступен <strong>только вам из админки</strong>: откройте
+            любую страницу в этой же сессии. Посетители и поисковики видят страницу 503.
+            Секретных ссылок и паролей нет — доступ есть только у залогиненного администратора.
         </p>
 
         <form method="post" action="/admin-panel/system/maintenance" class="mc-inline-form">
             <?= Csrf::field() ?>
-            <input type="hidden" name="action" value="save">
             <label class="mc-inline-form__check">
                 <input type="checkbox" name="maintenance_enabled" value="1"<?= $maintenanceEnabled ? ' checked' : '' ?>>
                 Закрыть сайт на техобслуживание
             </label>
-            <input type="password" name="maintenance_secret" class="mc-input" autocomplete="new-password"
-                   placeholder="Новый секрет (оставьте пустым, чтобы не менять)">
             <button type="submit" class="mc-btn mc-btn--primary">Сохранить</button>
         </form>
-
-        <form method="post" action="/admin-panel/system/maintenance" class="mc-inline-form">
-            <?= Csrf::field() ?>
-            <input type="hidden" name="action" value="generate">
-            <button type="submit" class="mc-btn">Сгенерировать случайный секрет</button>
-        </form>
-
-        <?php if ($maintenanceSecretSet): ?>
-            <form method="post" action="/admin-panel/system/maintenance" class="mc-inline-form"
-                  data-confirm-update="Удалить секрет? Вход по паролю и секретной ссылке станет невозможен до установки нового, восстановить нельзя.">
-                <?= Csrf::field() ?>
-                <input type="hidden" name="action" value="clear_secret">
-                <button type="submit" class="mc-btn mc-btn--danger">Удалить секрет…</button>
-            </form>
-        <?php endif; ?>
-
-        <?php if (is_string($maintenanceViewSecret) && $maintenanceViewSecret !== ''): ?>
-            <?php // Секрет в HTML — только один раз после установки, до копирования (docs/14-maintenance.md) ?>
-            <div class="mc-after mc-alert mc-alert--info" id="maintenance-secret-box"
-                 data-maintenance-secret="<?= htmlspecialchars($maintenanceViewSecret, ENT_QUOTES, 'UTF-8') ?>">
-                <p>Ссылка для входа (одноразовый показ, после копирования его снова не видно):</p>
-                <p><code id="maintenance-secret-link"></code></p>
-                <div class="mc-actions">
-                    <button type="button" class="mc-btn mc-btn--primary" data-maintenance-copy>Скопировать ссылку</button>
-                    <button type="button" class="mc-btn" data-maintenance-hide>Скрыть</button>
-                </div>
-                <p>Храните её как пароль: доступ получит любой, кто знает секрет.</p>
-            </div>
-        <?php endif; ?>
     </section>
 
     <section class="mc-sheet" id="system-update">
