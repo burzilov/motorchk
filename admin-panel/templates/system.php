@@ -233,7 +233,9 @@ $enc = (string) ($smtp['encryption'] ?? 'tls');
                 <?php endforeach; ?>
             </ul>
         <?php endif; ?>
-        <?php foreach (['plugins' => 'plugins/', 'data' => 'plugin-data/'] as $protKey => $protLabel): ?>
+        <?php
+        $dataLabel = basename((string) ($pluginDataPath ?? 'plugins-data')) . '/';
+        foreach (['plugins' => 'plugins/', 'data' => $dataLabel] as $protKey => $protLabel): ?>
             <?php if (($pluginProtection[$protKey] ?? null) === false): ?>
                 <p class="mc-after mc-status--bad">✗ В <code><?= $protLabel ?></code> нет защитного <code>.htaccess</code> (не удалось создать) — закройте папку от HTTP вручную.</p>
             <?php endif; ?>

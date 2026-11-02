@@ -4,7 +4,7 @@ namespace Hello;
 
 use PluginContext;
 
-/** Хранение приветствия в plugin-data/hello/greeting.json. */
+/** Хранение приветствия в plugins-data/hello/greeting.json. */
 final class GreetingStore
 {
     private const FILE = 'greeting.json';

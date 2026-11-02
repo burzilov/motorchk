@@ -60,7 +60,7 @@ function tp_config(string $corePath, string $site): array
         'menu_file' => $site . '/content/_menus.yaml',
         'skeleton_path' => $corePath . '/skeleton',
         'plugins_path' => $site . '/plugins',
-        'plugin_data_path' => $site . '/plugin-data',
+        'plugin_data_path' => $site . '/plugins-data',
         'installed' => true,
     ];
 }
@@ -422,11 +422,11 @@ $serveRelease = static function (string $v, array $entries) use (&$routes, $setR
 };
 $demoVersion = static fn(): ?string => json_decode((string) @file_get_contents($site . '/plugins/demo/plugin.json'), true)['version'] ?? null;
 $leftovers = static fn(): array => array_values(array_filter(scandir($site . '/plugins') ?: [], static fn(string $f): bool => str_starts_with($f, '.demo')));
-$stateVersion = static fn(): ?string => json_decode((string) @file_get_contents($site . '/plugin-data/demo/.plugin-state.json'), true)['version'] ?? null;
+$stateVersion = static fn(): ?string => json_decode((string) @file_get_contents($site . '/plugins-data/demo/.plugin-state.json'), true)['version'] ?? null;
 
 // данные старой версии: install-state 1.0.0 и пользовательский файл
 (new PluginManager($config))->boot('demo');
-file_put_contents($site . '/plugin-data/demo/user.json', '{"keep":true}');
+file_put_contents($site . '/plugins-data/demo/user.json', '{"keep":true}');
 check($stateVersion() === '1.0.0', 'исходно: данные плагина на 1.0.0');
 
 $serveRelease('1.1.0', tp_release_entries('1.1.0', $coreOk, $repo));
@@ -436,8 +436,8 @@ $result = $updater()->apply('demo', 'v1.1.0');
 check($result['from'] === '1.0.0' && $result['to'] === '1.1.0', 'apply: 1.0.0 → 1.1.0', json_encode($result));
 check($demoVersion() === '1.1.0' && trim((string) file_get_contents($site . '/plugins/demo/lib/Version.txt')) === '1.1.0', 'файлы плагина заменены');
 check(in_array('https://release-assets.githubusercontent.com/github-production-release-asset/demo-1.1.0.zip?sig=x', $calls, true), 'архив скачан через редирект на release-assets.githubusercontent.com');
-check($stateVersion() === '1.1.0' && trim((string) @file_get_contents($site . '/plugin-data/demo/migrations.log')) === '1.0.0>1.1.0', 'onInstall выполнен (1.0.0 → 1.1.0)');
-check(file_get_contents($site . '/plugin-data/demo/user.json') === '{"keep":true}', 'plugin-data не тронут');
+check($stateVersion() === '1.1.0' && trim((string) @file_get_contents($site . '/plugins-data/demo/migrations.log')) === '1.0.0>1.1.0', 'onInstall выполнен (1.0.0 → 1.1.0)');
+check(file_get_contents($site . '/plugins-data/demo/user.json') === '{"keep":true}', 'plugins-data не тронут');
 check(is_file($site . '/plugins/local/plugin.json'), 'другие плагины не тронуты');
 $backup = $site . '/cache/plugin-backup-demo-1.0.0.zip';
 $bz = new ZipArchive();
@@ -501,7 +501,7 @@ if (function_exists('symlink')) {
 }
 $result = $updater()->apply('demo', '1.2.0');
 check($result['to'] === '1.2.0' && $demoVersion() === '1.2.0' && $stateVersion() === '1.2.0', 'повторное обновление до 1.2.0 после отказов');
-check(trim((string) file_get_contents($site . '/plugin-data/demo/migrations.log')) === "1.0.0>1.1.0\n1.1.0>1.2.0", 'миграции выполнены по порядку');
+check(trim((string) file_get_contents($site . '/plugins-data/demo/migrations.log')) === "1.0.0>1.1.0\n1.1.0>1.2.0", 'миграции выполнены по порядку');
 
 // ---------------------------------------------------------------- админка
 out("\n[страница «Система»]\n");

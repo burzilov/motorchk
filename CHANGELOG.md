@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.10 — 2026-11-02
+
+### Данные плагинов: каталог по умолчанию `plugins-data/`
+
+- Дефолт `plugin_data_path` и fallback без ключа — `site_path/plugins-data` (раньше `plugin-data`).
+  Ключ PHP `plugin_data_path` и API (`dataDir()` и т.п.) не переименованы: явный путь в `site.php` используется как есть.
+- В `skeleton/.htaccess` и reserved-префиксах — `plugins-data`; старый `plugin-data` оставлен для совместимости URL.
+- Подписи в ошибках и на «Системе» берутся из реального `basename(plugin_data_path)`.
+- В docs — раскладка `plugins-data/` и краткая миграция `mv` + обновление `site.php` / `.htaccess`.
+
 ## 0.6.9 — 2026-10-30
 
 ### Режим технического обслуживания — без секрета

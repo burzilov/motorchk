@@ -8,7 +8,7 @@
 | `core/assets/` | CSS/JS админки, библиотек и chrome публичных страниц (`site-chrome.css`) |
 | `core/skeleton/` | шаблон первичной установки |
 | `content/`, `themes/`, `plugins/`, `media/` | сайт (`media/` — публичные файлы содержимого, [12-themes.md](12-themes.md)) |
-| `.env`, `config/site.php`, `cache/`, `submissions/`, `plugin-data/` | сайт / runtime |
+| `.env`, `config/site.php`, `cache/`, `submissions/`, `plugins-data/` | сайт / runtime |
 
 Публичный front controller: `public_html/index.php` → `core/includes/bootstrap.php`.  
 Админка: rewrite `/admin-panel` → `core/admin-panel/index.php`.

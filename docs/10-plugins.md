@@ -2,7 +2,7 @@
 
 Плагин — папка `public_html/plugins/{id}/` рядом с `core/`. Она принадлежит сайту, как `themes/` и `content/`: self-update заменяет только `core/` и не трогает ни `plugins/`, ни данные плагинов.
 
-**Установка** — распаковать архив плагина в `plugins/` (в архиве — папка `{id}/` с `plugin.json`). **Плагин в папке = включён.** Удаление — удалить папку `plugins/{id}/`; данные в `plugin-data/{id}/` остаются.
+**Установка** — распаковать архив плагина в `plugins/` (в архиве — папка `{id}/` с `plugin.json`). **Плагин в папке = включён.** Удаление — удалить папку `plugins/{id}/`; данные в `plugins-data/{id}/` остаются.
 
 Невалидные и несовместимые плагины не загружаются. Список всех плагинов с причинами (версия, совместимость с ядром, запись в папку данных, конфликты префиксов) — на странице **Система**. Там же — проверка и установка обновлений плагинов из GitHub Releases (см. «Обновление плагинов»); новые плагины по-прежнему ставятся вручную.
 
@@ -21,14 +21,23 @@ public_html/
 │       ├── lib/Hello/…      ← классы (autoload)
 │       ├── templates/…      ← PHP-шаблоны плагина
 │       └── assets/…         ← статика → /plugin-assets/hello/…
-└── plugin-data/             ← данные плагинов (закрыто от HTTP)
+└── plugins-data/            ← данные плагинов (закрыто от HTTP)
     ├── .htaccess            ← создаёт ядро
     └── hello/
         ├── .plugin-state.json   ← установленная версия
         └── …
 ```
 
-Пути задаются в `config/site.php`: `plugins_path`, `plugin_data_path` (по умолчанию `public_html/plugins` и `public_html/plugin-data`; в старых `site.php` ключей нет — действуют значения по умолчанию из bootstrap).
+Пути задаются в `config/site.php`: `plugins_path`, `plugin_data_path` (по умолчанию `public_html/plugins` и `public_html/plugins-data`; в старых `site.php` ключей нет — действуют значения по умолчанию из bootstrap).
+
+**Миграция с `plugin-data/`.** Если на сайте уже есть старый каталог, переименуйте его и обновите конфиг (ключ `plugin_data_path` не меняется — только значение):
+
+```bash
+mv public_html/plugin-data public_html/plugins-data
+```
+
+В `config/site.php` укажите `'plugin_data_path' => $sitePath . '/plugins-data'`. В корневом `.htaccess` добавьте `RedirectMatch 403 ^/plugins-data/` (старое правило для `/plugin-data/` можно оставить). Self-update ядра каталог и `site.php` сам не переименовывает.
+
 
 ## plugin.json
 
@@ -64,7 +73,7 @@ public_html/
 
 `^0.3` означает `>=0.3.0 <0.4.0` (для `0.x` минорная версия считается несовместимой), `^1.2` — `>=1.2.0 <2.0.0`. Поэтому плагины с `"core": "^0.3"` на ядре 0.4 не загружаются: API 0.3 в 0.4 сохранён, поднимите ограничение до `">=0.3.0 <0.5.0"` или `"^0.4"`. Так же и с 0.5: плагин с `"^0.4"` на ядре 0.5 не загрузится — API 0.4 сохранён, укажите `"^0.5"` (или `">=0.4.0 <0.6.0"`, если плагин не использует новые методы 0.5).
 
-Зарезервированные префиксы: `admin-panel`, `api`, `core`, `themes`, `content`, `config`, `cache`, `submissions`, `plugins`, `plugin-data`, `plugin-assets`, `media`.
+Зарезервированные префиксы: `admin-panel`, `api`, `core`, `themes`, `content`, `config`, `cache`, `submissions`, `plugins`, `plugins-data`, `plugin-data`, `plugin-assets`, `media`.
 
 Конфликты:
 
@@ -130,7 +139,7 @@ return static function (PluginContext $plugin): void {
 
 ## PluginContext
 
-**Сведения:** `id()`, `name()`, `version()`, `manifest()`, `dir()` (код плагина), `dataDir()` (`plugin-data/{id}`, создаётся ядром), `prefix()`, `coreVersion()`, `config($key)`, `path('content_path' | 'themes_path' | 'site_path' | …)`, `isAdmin()`.
+**Сведения:** `id()`, `name()`, `version()`, `manifest()`, `dir()` (код плагина), `dataDir()` (`plugins-data/{id}`, создаётся ядром; путь из `plugin_data_path`), `prefix()`, `coreVersion()`, `config($key)`, `path('content_path' | 'themes_path' | 'site_path' | …)`, `isAdmin()`.
 
 **URL:** `adminUrl('/api/x')`, `publicUrl('/x', $locale = null)`, `assetUrl('app.js')` → `/plugin-assets/{id}/app.js?v={version}`. На публичных страницах `publicUrl()` проходит через фильтр `url` (плагин i18n добавляет `/en/`); в админке — без изменений.
 
@@ -150,7 +159,7 @@ return static function (PluginContext $plugin): void {
 | `json($data, $status)`, `jsonError($message, $status)` | JSON-ответ (`Cache-Control: no-store`) |
 | `raw($body, $contentType, $status)` | ответ как есть, без layout |
 | `redirect('/path')`, `notFound()` | редирект только внутри сайта; 404 |
-| `sendFile($absolutePath, $options)` | файл из папки плагина или его `plugin-data` (nosniff, ETag/304, CSP для SVG; `download`, `cache`, `type`) |
+| `sendFile($absolutePath, $options)` | файл из папки плагина или его `plugins-data` (nosniff, ETag/304, CSP для SVG; `download`, `cache`, `type`) |
 
 В шаблонах плагина доступны переданные `$data` и `$plugin`; экранирование — `PluginContext::e($value)`. Tailwind-классы админки собраны только из шаблонов ядра — свои стили плагин подключает из `assets/` (`styles`).
 
@@ -196,7 +205,7 @@ $plugin->publicRoute('POST', '/order', static function (PluginRequest $request, 
 `readJsonStrict($rel, ?array $default = [])` (с 0.4.0):
 
 - файла нет — `$default`;
-- файл не читается, не JSON или на верхнем уровне не объект/массив (`"text"`, `42`, `null`, пустой файл) — исключение `PluginDataException` (наследник `RuntimeException`) с сообщением вида «Файл plugin-data/{id}/items.json повреждён (не JSON: Syntax error). Файл не изменён — восстановите его из резервной копии.»; `relativePath()` — путь, переданный в метод;
+- файл не читается, не JSON или на верхнем уровне не объект/массив (`"text"`, `42`, `null`, пустой файл) — исключение `PluginDataException` (наследник `RuntimeException`) с сообщением вида «Файл plugins-data/{id}/items.json повреждён (не JSON: Syntax error). Файл не изменён — восстановите его из резервной копии.»; `relativePath()` — путь, переданный в метод;
 - ничего не записывает. Если исключение не перехвачено, маршрут получит 500, а файл останется как есть.
 
 ```php
@@ -208,7 +217,7 @@ try {
 }
 ```
 
-**Установка/обновление:** `onInstall(fn (?string $from, string $to, PluginContext $plugin))`. Хук вызывается при первой загрузке новой версии плагина (под блокировкой файла), затем версия записывается в `plugin-data/{id}/.plugin-state.json`. Хук должен быть идемпотентным; если он бросил исключение, версия не записывается, плагин не загружается, ошибка видна на «Системе», при следующем запросе хук повторится.
+**Установка/обновление:** `onInstall(fn (?string $from, string $to, PluginContext $plugin))`. Хук вызывается при первой загрузке новой версии плагина (под блокировкой файла), затем версия записывается в `plugins-data/{id}/.plugin-state.json`. Хук должен быть идемпотентным; если он бросил исключение, версия не записывается, плагин не загружается, ошибка видна на «Системе», при следующем запросе хук повторится.
 
 ## Alpine.js в плагинах
 
@@ -225,15 +234,16 @@ document.addEventListener('alpine:init', () => {
 ## Статика и безопасность
 
 - Статика отдаётся ядром (`index.php`) по `/plugin-assets/{id}/{путь}` **только** из `plugins/{id}/assets/` и только типов `js, mjs, css, png, jpg, jpeg, gif, webp, avif, svg, ico, woff, woff2, ttf, wasm, txt`. PHP, JSON, скрытые файлы, `..` и файлы невалидных плагинов — 404. Заголовки: `X-Content-Type-Options: nosniff`, ETag/304, для SVG — запрещающий CSP; с `?v={версия плагина}` — `immutable` на год, иначе час.
-- Прямой HTTP к `plugins/` и `plugin-data/` закрыт файлами `.htaccess` (`Require all denied`), которые ядро создаёт при первом обращении к папкам, и правилами `RedirectMatch 403` в корневом `.htaccess` новых установок (`core/skeleton/.htaccess`). Корневой `.htaccess` существующих сайтов self-update не меняет — защиту обеспечивают `.htaccess` внутри папок; при желании добавьте правила вручную:
+- Прямой HTTP к `plugins/` и `plugins-data/` закрыт файлами `.htaccess` (`Require all denied`), которые ядро создаёт при первом обращении к папкам, и правилами `RedirectMatch 403` в корневом `.htaccess` новых установок (`core/skeleton/.htaccess`). Корневой `.htaccess` существующих сайтов self-update не меняет — защиту обеспечивают `.htaccess` внутри папок; при желании добавьте правила вручную:
 
   ```apache
   RedirectMatch 403 ^/plugins/
+  RedirectMatch 403 ^/plugins-data/
   RedirectMatch 403 ^/plugin-data/
   ```
 
 - Если ядро не смогло создать `.htaccess` (нет прав), «Система» показывает предупреждение.
-- **Nginx** `.htaccess` не читает — закройте `/plugins/` и `/plugin-data/` в конфиге сервера.
+- **Nginx** `.htaccess` не читает — закройте `/plugins/` и `/plugins-data/` (и при необходимости старый `/plugin-data/`) в конфиге сервера.
 - Плагин — доверенный PHP-код с полными правами процесса; ставьте только свои или проверенные плагины.
 
 ## Обновление плагинов
@@ -254,7 +264,7 @@ document.addEventListener('alpine:init', () => {
 6. Замена: `plugins/{id}/` → `plugins/.{id}.old/`, `.{id}.next/` → `plugins/{id}/`.
 7. Загрузка новой версии ядром: проверка `plugin.json` и точка входа, `onInstall`-миграции (`$from` — прежняя версия данных). Если плагин не загрузился или `onInstall` бросил исключение — папка возвращается из `.{id}.old/`, `.plugin-state.json` остаётся на старой версии. Затем сбрасывается кеш страниц.
 
-`plugin-data/{id}/` обновление не трогает. Откат кода не откатывает данные: если `onInstall` успел частично изменить файлы в `plugin-data/` и упал, старая версия получит их как есть — пишите миграции идемпотентными. Папку-симлинк и рабочую копию git (`plugins/{id}/.git`) обновление не трогает — обновляйте их вручную. Параллельные обновления блокируются (`cache/plugin-update.lock`). Вручную откатиться можно, распаковав резервную копию из `cache/` вместо `plugins/{id}/`.
+`plugins-data/{id}/` обновление не трогает. Откат кода не откатывает данные: если `onInstall` успел частично изменить файлы в `plugins-data/` и упал, старая версия получит их как есть — пишите миграции идемпотентными. Папку-симлинк и рабочую копию git (`plugins/{id}/.git`) обновление не трогает — обновляйте их вручную. Параллельные обновления блокируются (`cache/plugin-update.lock`). Вручную откатиться можно, распаковав резервную копию из `cache/` вместо `plugins/{id}/`.
 
 **Безопасность.** Подписей у релизов нет: обновление — это чужой PHP-код, который сразу выполнится на сервере с правами сайта. Ядро проверяет только происхождение (репозиторий из `plugin.json`, хосты GitHub, https) и структуру архива, но не содержимое. Указывайте в `repository` только свои или проверенные репозитории; если репозиторий или GitHub-аккаунт владельца скомпрометирован, обновление установит вредоносный код. Установка **новых** плагинов из админки не поддерживается — только распаковкой архива в `plugins/`.
 

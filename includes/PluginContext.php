@@ -59,7 +59,7 @@ final class PluginContext
         return (string) $this->info['dir'];
     }
 
-    /** Абсолютный путь к данным плагина: plugin-data/{id}/ (создаётся ядром). */
+    /** Абсолютный путь к данным плагина: plugins-data/{id}/ (создаётся ядром; путь из plugin_data_path). */
     public function dataDir(): string
     {
         return (string) $this->info['data_dir'];
@@ -240,7 +240,7 @@ final class PluginContext
     /**
      * Хук установки/обновления: function (?string $from, string $to, PluginContext $plugin): void.
      * Вызывается один раз при первой загрузке новой версии (from = null — первая установка).
-     * Должен быть идемпотентным. Установленная версия хранится в plugin-data/{id}/.plugin-state.json.
+     * Должен быть идемпотентным. Установленная версия хранится в plugins-data/{id}/.plugin-state.json.
      */
     public function onInstall(callable $hook): void
     {
@@ -395,7 +395,7 @@ final class PluginContext
     }
 
     /**
-     * Отдать файл из папки плагина или из его plugin-data (nosniff, ETag, CSP для SVG).
+     * Отдать файл из папки плагина или из его plugins-data (nosniff, ETag, CSP для SVG).
      *
      * @param array{cache?: string, download?: string, type?: string} $options
      */
@@ -492,7 +492,7 @@ final class PluginContext
         return $value !== '' && !preg_match('/[\r\n,;]/', $value) && filter_var($value, FILTER_VALIDATE_EMAIL) !== false;
     }
 
-    // ---------- данные плагина (plugin-data/{id}/) ----------
+    // ---------- данные плагина (plugins-data/{id}/) ----------
 
     /** Абсолютный путь внутри dataDir(); относительный путь без "..", без скрытых сегментов. */
     public function dataPath(string $relative): string
@@ -540,7 +540,7 @@ final class PluginContext
 
     /**
      * Строгое чтение JSON: нет файла — $default; файл не читается, не JSON или верхний уровень
-     * не объект/массив — PluginDataException с именем файла (plugin-data/{id}/{путь}).
+     * не объект/массив — PluginDataException с именем файла (plugins-data/{id}/{путь}).
      * Ничего не записывает: повреждённый файл остаётся как есть, решать — администратору.
      * В отличие от readJson(), не подменяет повреждённые данные значением по умолчанию.
      *
@@ -550,7 +550,8 @@ final class PluginContext
     public function readJsonStrict(string $relative, ?array $default = []): ?array
     {
         $path = $this->dataPath($relative);
-        $name = 'plugin-data/' . $this->id() . '/' . ltrim($relative, '/');
+        // Подпись из реального каталога (plugins-data или старый plugin-data в site.php)
+        $name = basename(dirname($this->dataDir())) . '/' . $this->id() . '/' . ltrim($relative, '/');
         if (!file_exists($path)) {
             return $default;
         }

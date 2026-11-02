@@ -16,7 +16,7 @@ class PluginManager
     /** Первые сегменты URL, которые плагин не может занять. */
     public const RESERVED_PREFIXES = [
         'admin-panel', 'api', 'core', 'themes', 'content', 'config', 'cache',
-        'submissions', 'plugins', 'plugin-data', 'plugin-assets', 'media', 'index.php',
+        'submissions', 'plugins', 'plugins-data', 'plugin-data', 'plugin-assets', 'media', 'index.php',
     ];
 
     /** Разрешённые типы статики плагина (только из папки assets/ плагина). */
@@ -99,7 +99,7 @@ class PluginManager
     {
         $path = (string) ($this->config['plugin_data_path'] ?? '');
         if ($path === '') {
-            $path = rtrim((string) ($this->config['site_path'] ?? ''), '/') . '/plugin-data';
+            $path = rtrim((string) ($this->config['site_path'] ?? ''), '/') . '/plugins-data';
         }
 
         return rtrim($path, '/');
@@ -189,7 +189,7 @@ class PluginManager
     }
 
     /**
-     * Состояние защитных .htaccess в plugins/ и plugin-data/.
+     * Состояние защитных .htaccess в plugins/ и plugins-data/ (или plugin_data_path).
      *
      * @return array{plugins: ?bool, data: ?bool}
      */

@@ -2,7 +2,8 @@
 
 /**
  * Файл данных плагина повреждён или не читается (PluginContext::readJsonStrict()).
- * Сообщение называет файл относительно сайта: plugin-data/{id}/{путь}. Файл при этом не меняется.
+ * Сообщение называет файл относительно сайта: plugins-data/{id}/{путь}
+ * (или basename(plugin_data_path)/{id}/{путь}). Файл при этом не меняется.
  */
 class PluginDataException extends RuntimeException
 {

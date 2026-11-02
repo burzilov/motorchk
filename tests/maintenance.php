@@ -103,7 +103,7 @@ $config = [
     'forms_path' => $site . '/content/forms', 'submissions_path' => $site . '/submissions',
     'admin_templates_path' => $corePath . '/admin-panel/templates', 'menu_file' => $site . '/content/_menus.yaml',
     'skeleton_path' => $corePath . '/skeleton', 'plugins_path' => $site . '/plugins',
-    'plugin_data_path' => $site . '/plugin-data', 'installed' => true,
+    'plugin_data_path' => $site . '/plugins-data', 'installed' => true,
 ];
 
 $_SERVER['HTTP_HOST'] = 'example.test';

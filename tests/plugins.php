@@ -59,7 +59,7 @@ function tp_config(string $corePath, string $site): array
         'menu_file' => $site . '/content/_menus.yaml',
         'skeleton_path' => $corePath . '/skeleton',
         'plugins_path' => $site . '/plugins',
-        'plugin_data_path' => $site . '/plugin-data',
+        'plugin_data_path' => $site . '/plugins-data',
         'installed' => true,
     ];
 }
@@ -157,7 +157,7 @@ foreach ($cases as [$v, $c, $expected]) {
 out("\n[без папки plugins/]\n");
 $manager = new PluginManager($config);
 check(!$manager->hasPluginsDir() && $manager->discover() === [], 'discover() пуст, папка не создаётся');
-check(!is_dir($site . '/plugins') && !is_dir($site . '/plugin-data'), 'plugins/ и plugin-data/ не созданы');
+check(!is_dir($site . '/plugins') && !is_dir($site . '/plugins-data'), 'plugins/ и plugins-data/ не созданы');
 [$st, $body] = tp_capture(fn() => (new Router($config))->dispatchPublic('/about'));
 check($st === 200 && str_contains($body, 'Страница about.'), 'Markdown-страница /about рендерится', "status {$st}");
 $aboutBefore = $body;
@@ -224,22 +224,22 @@ check($manager->boot('throws') === null && str_contains(implode(' ', $manager->d
 check($manager->boot('bad-return') === null && str_contains(implode(' ', $manager->discover()['bad-return']['errors']), 'должна вернуть'), 'точка входа без функции → ошибка');
 $hello = $manager->boot('hello');
 check($hello instanceof PluginContext, 'hello загружен');
-check(is_file($site . '/plugin-data/.htaccess'), 'plugin-data/.htaccess создан (deny)');
-check(is_file($site . '/plugin-data/hello/greeting.json'), 'install-хук hello создал greeting.json');
-$state = json_decode((string) file_get_contents($site . '/plugin-data/hello/.plugin-state.json'), true);
+check(is_file($site . '/plugins-data/.htaccess'), 'plugins-data/.htaccess создан (deny)');
+check(is_file($site . '/plugins-data/hello/greeting.json'), 'install-хук hello создал greeting.json');
+$state = json_decode((string) file_get_contents($site . '/plugins-data/hello/.plugin-state.json'), true);
 check(($state['version'] ?? null) === '1.0.0' && array_key_exists('previous_version', $state) && $state['previous_version'] === null, '.plugin-state.json: version 1.0.0, previous null');
 check(class_exists('Hello\\GreetingStore'), 'autoload плагина: Hello\\GreetingStore');
 
 $manager->boot('hooks');
 (new PluginManager($config))->boot('hooks');
-check(file_get_contents($site . '/plugin-data/hooks/calls.log') === "null->1.0.0\n", 'install-хук вызван один раз при повторной загрузке');
+check(file_get_contents($site . '/plugins-data/hooks/calls.log') === "null->1.0.0\n", 'install-хук вызван один раз при повторной загрузке');
 $m = json_decode((string) file_get_contents($site . '/plugins/hooks/plugin.json'), true);
 $m['version'] = '1.1.0';
 file_put_contents($site . '/plugins/hooks/plugin.json', json_encode($m));
 (new PluginManager($config))->boot('hooks');
 (new PluginManager($config))->boot('hooks');
-check(file_get_contents($site . '/plugin-data/hooks/calls.log') === "null->1.0.0\n1.0.0->1.1.0\n", 'upgrade-хук: 1.0.0 → 1.1.0 ровно один раз');
-check((new PluginManager($config))->discover()['hooks']['installed_version'] === '1.1.0', 'installed_version из plugin-data');
+check(file_get_contents($site . '/plugins-data/hooks/calls.log') === "null->1.0.0\n1.0.0->1.1.0\n", 'upgrade-хук: 1.0.0 → 1.1.0 ровно один раз');
+check((new PluginManager($config))->discover()['hooks']['installed_version'] === '1.1.0', 'installed_version из plugins-data');
 
 // ---------------------------------------------------------------- context
 out("\n[PluginContext]\n");
@@ -278,12 +278,12 @@ $hello->writeFile('strict/list.json', '[1, 2]');
 check($hello->readJsonStrict('strict/ok.json') === ['a' => [1, 2]] && $hello->readJsonStrict('strict/list.json') === [1, 2], 'readJsonStrict(): объект и массив');
 $hello->writeFile('strict/bad.json', '{"a": [ broken');
 $e = $strictErr(fn() => $hello->readJsonStrict('strict/bad.json', ['fallback']));
-check($e !== null && str_contains($e->getMessage(), 'plugin-data/hello/strict/bad.json') && str_contains($e->getMessage(), 'не JSON') && $e->relativePath() === 'strict/bad.json' && $e instanceof RuntimeException, 'readJsonStrict(): не JSON — PluginDataException с именем файла');
+check($e !== null && str_contains($e->getMessage(), 'plugins-data/hello/strict/bad.json') && str_contains($e->getMessage(), 'не JSON') && $e->relativePath() === 'strict/bad.json' && $e instanceof RuntimeException, 'readJsonStrict(): не JSON — PluginDataException с именем файла');
 check($hello->readFile('strict/bad.json') === '{"a": [ broken' && $hello->readJson('strict/bad.json', 'def') === 'def', 'повреждённый файл не перезаписан; readJson() по-прежнему возвращает default');
 foreach (['"text"', '42', 'null', 'true', ''] as $scalar) {
     $hello->writeFile('strict/scalar.json', $scalar);
     $e = $strictErr(fn() => $hello->readJsonStrict('strict/scalar.json'));
-    check($e !== null && str_contains($e->getMessage(), 'plugin-data/hello/strict/scalar.json'), 'readJsonStrict(): верхний уровень ' . ($scalar === '' ? 'пустой файл' : $scalar) . ' — исключение');
+    check($e !== null && str_contains($e->getMessage(), 'plugins-data/hello/strict/scalar.json'), 'readJsonStrict(): верхний уровень ' . ($scalar === '' ? 'пустой файл' : $scalar) . ' — исключение');
 }
 mkdir($hello->dataPath('strict/dir.json'), 0775, true);
 $e = $strictErr(fn() => $hello->readJsonStrict('strict/dir.json'));
@@ -473,7 +473,7 @@ check($st === 403 && !empty($_SESSION['admin_authenticated']), 'POST /logout б�
 [$st, $body] = tp_capture(fn() => (new AdminRouter($config))->dispatchAdmin('/admin-panel/system'));
 check($st === 200 && str_contains($body, 'Hello — пример плагина') && str_contains($body, '✗ Не загружен: Несовместим'), '«Система»: список плагинов с причинами');
 check(str_contains($body, 'Ошибка загрузки: boom'), '«Система»: ошибка загрузки видна');
-check(str_contains($body, 'Запись в <code>' . $site . '/plugin-data/hello'), '«Система»: запись в data dir');
+check(str_contains($body, 'Запись в <code>' . $site . '/plugins-data/hello'), '«Система»: запись в data dir');
 
 $_SESSION = [];
 

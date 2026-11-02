@@ -8,9 +8,9 @@
 - публичные страницы `/hello/` и `/hello/to/{name}` в шаблоне активной темы, сырой JSON `/hello/api/greeting`;
 - публичный `POST /hello/api/echo` с CSRF;
 - статику из `assets/` по `/plugin-assets/hello/...`;
-- данные в `plugin-data/hello/greeting.json`, install-хук и autoload `Hello\` → `lib/Hello/`.
+- данные в `plugins-data/hello/greeting.json`, install-хук и autoload `Hello\` → `lib/Hello/`.
 
 ## Установка
 
 Скопируйте папку `hello/` в `public_html/plugins/` (или распакуйте архив с ней) — плагин включится сразу.
-Удаление: удалите `plugins/hello/` (данные остаются в `plugin-data/hello/`).
+Удаление: удалите `plugins/hello/` (данные остаются в `plugins-data/hello/`).
