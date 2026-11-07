@@ -262,6 +262,7 @@ sa_plugin($site, 'nofile', [], "<?php\nreturn static function (PluginContext \$p
 sa_plugin($site, 'badflag', ['submission_forms' => 'yes'], "<?php\nreturn static function (PluginContext \$plugin): void {};\n");
 sa_plugin($site, 'a-first', ['submission_forms' => true], "<?php\nreturn static function (PluginContext \$plugin): void {\n    \$plugin->submissions()->registerForm('shared-form', 'Первый', ['item' => 'Изделие']);\n};\n");
 sa_plugin($site, 'b-second', ['submission_forms' => true], "<?php\nreturn static function (PluginContext \$plugin): void {\n    \$plugin->submissions()->registerForm('shared-form', 'Второй', ['item' => 'Другое']);\n};\n");
+sa_plugin($site, 'install-once', ['submission_forms' => true], "<?php\nreturn static function (PluginContext \$plugin): void {\n    \$plugin->onInstall(static function (?string \$from, string \$to, PluginContext \$plugin): void {\n        \$plugin->submissions()->registerForm('install-only', 'Из установки', ['item' => 'Изделие']);\n    });\n};\n");
 
 sa_submission($site, 'customizer-order', '2024-06-01_000000_ord1', [
     'item' => 'Стол',
@@ -340,6 +341,7 @@ check($badList, 'список вместо ключ => подпись откло
 check(SubmissionColumns::format(false) === 'нет' && SubmissionColumns::format(true) === 'да', 'флажок в ячейке: нет / да');
 check(SubmissionColumns::format(['a', 'b']) === 'a, b', 'список в ячейке через запятую');
 check(SubmissionColumns::format(null) === '—', 'null в ячейке — тире');
+check(SubmissionColumns::label("A\0B\nC") === 'AB C', 'NUL вырезается, перевод строки схлопывается в пробел');
 
 out("Список и страницы\n");
 $submissions = new SubmissionStore($config);
@@ -359,6 +361,28 @@ check(($dates['items'][0]['id'] ?? '') === '2024-05-01_000000_new1' && ($dates['
 $labels = $submissions->fieldLabels('contact');
 check(($labels['name'] ?? '') === 'Новое имя' && ($labels['email'] ?? '') === 'Email' && ($labels['topics'] ?? '') === 'topics', 'кандидаты: подпись из новой заявки, ключ без контракта остаётся ключом');
 check($submissions->formIds() !== [] && in_array('legacy-order', $submissions->formIds(), true) && in_array('emptyform', $submissions->formIds(), true) === false, 'каталоги заявок видны, пустая YAML-форма каталога не создаёт');
+mkdir($site . '/submissions/real-orphan', 0775, true);
+symlink($site . '/submissions/real-orphan', $site . '/submissions/linked-form');
+symlink('/tmp', $site . '/submissions/outside-link');
+$ids = $submissions->formIds();
+check(in_array('real-orphan', $ids, true) && !in_array('linked-form', $ids, true) && !in_array('outside-link', $ids, true), 'симлинк не становится вкладкой и не выводит каталог наружу');
+sa_submission($site, 'paged', '2020-01-01_000000_aa', [
+    'name' => 'row-0',
+    'page_tail' => 'хвост',
+], [
+    ['name' => 'name', 'type' => 'text', 'required' => true, 'label' => 'Имя'],
+    ['name' => 'page_tail', 'type' => 'text', 'required' => false, 'label' => 'Хвост страницы'],
+], 'sent');
+sa_submission($site, 'shadow', '2024-08-01_000000_new', ['phone' => '100'], [
+    ['name' => 'name', 'type' => 'text', 'required' => true, 'label' => 'Имя'],
+], 'pending');
+sa_submission($site, 'shadow', '2020-08-01_000000_old', ['phone' => '200'], [
+    ['name' => 'phone', 'type' => 'tel', 'required' => false, 'label' => 'Телефон'],
+], 'pending');
+$shadowLabels = $submissions->fieldLabels('shadow');
+$tailLabels = $submissions->fieldLabels('paged');
+check(($shadowLabels['phone'] ?? '') === 'Телефон', 'подпись из контракта старой заявки не затирается новым payload без контракта');
+check(($tailLabels['page_tail'] ?? '') === 'Хвост страницы', 'ключ только за первой страницей попадает в каталог');
 
 out("Вкладки и регистрация плагина\n");
 $plugins = new PluginManager($config);
@@ -383,6 +407,11 @@ check(
 );
 check(!isset($plugins->submissionForms()['shared-form']) || ($plugins->submissionForms()['shared-form']['plugin'] ?? '') === 'a-first', 'повторный id формы остаётся у первого плагина');
 check(($plugins->discover()['b-second']['status'] ?? '') === 'error', 'второй плагин с тем же id формы не загружается');
+check(isset($plugins->submissionForms()['install-only']), 'registerForm внутри onInstall виден при первой установке');
+$again = new PluginManager($config);
+$again->bootSubmissionForms();
+check(isset($again->submissionForms()['customizer-order']), 'регистрация из точки входа повторяется на следующем запуске');
+check(!isset($again->submissionForms()['install-only']), 'регистрация только из onInstall не сохраняется после установки');
 @unlink($site . '/orders-booted.txt');
 
 $views = new SubmissionViews($config, $plugins);
@@ -537,6 +566,52 @@ $res = sa_http($corePath, $site, $config, 'GET', '/admin-panel/submissions/conta
 check($res['code'] === 200 && str_contains($res['body'], 'Новое имя') && str_contains($res['body'], 'Новая заявка') && str_contains($res['body'], 'form_id=contact'), 'карточка заявки сохраняет подпись контракта и возвращает на вкладку', (string) $res['code'] . ' ' . substr($res['body'], 0, 240));
 check(!str_contains($res['body'], 'Почта клиента'), 'переименование столбца списка не переписывает карточку');
 
+$res = sa_http($corePath, $site, $config, 'GET', '/admin-panel/submissions?form_id=paged&page=1', $admin, ['form_id' => 'paged', 'page' => '1'], []);
+check(str_contains($res['body'], 'value="page_tail"') && str_contains($res['body'], 'value="Хвост страницы"'), 'каталог на первой странице включает поле только из старых заявок');
+$res = sa_http($corePath, $site, $config, 'GET', '/admin-panel/submissions?form_id=emptyform&mail_status=failed&page=9', $admin, [
+    'form_id' => 'emptyform',
+    'mail_status' => 'failed',
+    'page' => '9',
+], []);
+check(str_contains(sa_table($res['body']), 'Нет заявок с этим статусом') && !str_contains($res['body'], 'Страница '), 'пустой фильтр и страница вне диапазона не рисуют пейджер');
+$res = sa_http($corePath, $site, $config, 'GET', '/admin-panel/submissions?form_id=letters&mail_status=sent&page=40', $admin, [
+    'form_id' => 'letters',
+    'mail_status' => 'sent',
+    'page' => '40',
+], []);
+$table = sa_table($res['body']);
+check(str_contains($res['body'], 'Всего 10') && str_contains($table, '2021-01-01_') && !str_contains($table, '2021-02-02_'), 'страница за пределом фильтра sent прижимается к единственной странице sent');
+$res = sa_http($corePath, $site, $config, 'GET', '/admin-panel/submissions?form_id=contact', $admin, [
+    'form_id' => 'contact',
+    'columns' => ['saved'],
+], []);
+check($res['code'] === 200 && !str_contains($res['body'], 'Столбцы сохранены'), 'массив в columns не роняет страницу и не считается сохранением');
+file_put_contents($site . '/content/forms/xssform.yaml', "id: xssform\nlabel: \"Метка <b>&\"\nsubject: Заявка\nsuccess_message: Спасибо\n");
+$res = sa_http($corePath, $site, $config, 'GET', '/admin-panel/submissions?form_id=xssform', $admin, ['form_id' => 'xssform'], []);
+check(str_contains($res['body'], 'Метка &lt;b&gt;&amp;') && !str_contains($res['body'], 'Метка <b>'), 'подпись вкладки из YAML экранируется');
+
+$quoteLabel = 'A & B <"\'>';
+$res = sa_http($corePath, $site, $config, 'POST', '/admin-panel/submissions/columns', $admin, [], [
+    '_csrf' => 'tok',
+    'form_id' => 'customizer-order',
+    'columns' => [
+        ['key' => 'office', 'label' => 'Исполнитель', 'order' => '0', 'enabled' => '1'],
+        ['key' => 'product_model', 'label' => $quoteLabel, 'order' => '2', 'enabled' => '1'],
+        ['key' => 'item', 'label' => 'Изделие', 'order' => '5', 'enabled' => '1'],
+        ['key' => 'name', 'label' => 'Заказчик', 'order' => '9'],
+    ],
+]);
+check($res['code'] === 302 && str_contains($res['body'], 'columns=saved'), 'порядок столбцов сохраняется по полю order');
+$savedOrder = array_column($store->get('customizer-order') ?? [], 'key');
+check($savedOrder === ['office', 'product_model', 'item'], 'меньший order идёт раньше, выключенный ключ не попадает в таблицу');
+$res = sa_http($corePath, $site, $config, 'GET', '/admin-panel/submissions?form_id=customizer-order', $admin, ['form_id' => 'customizer-order'], []);
+$table = sa_table($res['body']);
+$theadEnd = strpos($table, '</thead>');
+$thead = $theadEnd === false ? '' : substr($table, 0, $theadEnd);
+check(strpos($thead, 'Исполнитель') < strpos($thead, 'A &amp; B &lt;&quot;&#039;&gt;') && strpos($thead, 'A &amp; B &lt;&quot;&#039;&gt;') < strpos($thead, 'Изделие'), 'порядок после перезагрузки и экранирование кавычек');
+check(str_contains($res['body'], 'value="A &amp; B &lt;&quot;&#039;&gt;"'), 'подпись в поле настройки экранирована в атрибуте');
+check(preg_match('/name="columns\[\d+\]\[key\]" value="office"/', $res['body']) === 1, 'после сохранения ключ office снова в форме настройки');
+
 $res = sa_http($corePath, $site, $config, 'POST', '/admin-panel/submissions/columns', $admin, [], [
     '_csrf' => 'tok',
     'form_id' => 'customizer-order',
@@ -575,7 +650,7 @@ $res = sa_http($corePath, $site, $config, 'GET', '/admin-panel/submissions?form_
 check($res['code'] === 200 && str_contains($res['body'], 'повреждён') && str_contains(sa_table($res['body']), '2020-01-01_000000_old1'), 'при битых настройках список заявок всё ещё открывается', (string) $res['code'] . ' ' . substr(strip_tags($res['body']), 0, 300));
 
 $yaml = glob($site . '/content/forms/*.yaml') ?: [];
-check(count($yaml) === 2 && !is_file($site . '/content/forms/customizer-order.yaml'), 'каталог публичных форм не пополняется настройками и формами плагина');
+check(count($yaml) === 3 && !is_file($site . '/content/forms/customizer-order.yaml'), 'каталог публичных форм не пополняется настройками и формами плагина');
 
 sa_rm($site);
 ob_end_clean();

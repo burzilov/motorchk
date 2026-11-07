@@ -696,7 +696,9 @@ class AdminRouter
             }
         }
 
-        $notice = match ((string) ($_GET['columns'] ?? '')) {
+        $columnsFlag = $_GET['columns'] ?? '';
+        $columnsFlag = is_string($columnsFlag) ? $columnsFlag : '';
+        $notice = match ($columnsFlag) {
             'saved' => 'Столбцы сохранены',
             'reset' => 'Столбцы сброшены к значениям по умолчанию',
             default => '',
@@ -783,7 +785,12 @@ class AdminRouter
             }
 
             $picked = [];
-            foreach (array_slice($posted, 0, 100, true) as $index => $row) {
+            $seenPosted = 0;
+            foreach ($posted as $index => $row) {
+                // Потолок на размер POST, а не на страницу списка: ключ со старой заявки тоже сохраняется.
+                if (++$seenPosted > 500) {
+                    break;
+                }
                 if (!is_array($row)) {
                     continue;
                 }
