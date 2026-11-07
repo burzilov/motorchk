@@ -475,10 +475,10 @@ final class PluginContext
         (new Mailer($this->config))->send($subject, $body, $to, null, $replyTo);
     }
 
-    /** Заявки в разделе «Заявки» админки. */
+    /** Заявки в разделе «Заявки» админки, включая регистрацию вкладки и столбцов. */
     public function submissions(): PluginSubmissions
     {
-        return new PluginSubmissions(new SubmissionStore($this->config));
+        return new PluginSubmissions(new SubmissionStore($this->config), $this->manager, $this->id());
     }
 
     /** Значение из .env сайта (null — нет ключа). */

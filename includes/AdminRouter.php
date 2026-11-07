@@ -167,6 +167,12 @@ class AdminRouter
             return;
         }
 
+        if ($path === '/submissions/columns' && $method === 'POST') {
+            $this->requireCsrf();
+            $this->handleSubmissionColumns();
+            return;
+        }
+
         if (preg_match('#^/submissions/([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$#', $path, $m) && $method === 'GET') {
             $this->renderSubmissionView($m[1], $m[2]);
             return;
@@ -643,17 +649,194 @@ class AdminRouter
 
     private function renderSubmissionsList(): void
     {
-        $formId = trim((string) ($_GET['form_id'] ?? ''));
-        $mailStatus = trim((string) ($_GET['mail_status'] ?? ''));
-        $store = new SubmissionStore($this->config);
-        $repo = new FormRepository($this->config);
+        $views = $this->submissionViews();
+        $tabs = $views->tabs();
+        $ids = array_column($tabs, 'id');
+        $requestedRaw = $_GET['form_id'] ?? '';
+        $requested = is_string($requestedRaw) ? trim($requestedRaw) : '';
+        $formId = in_array($requested, $ids, true) ? $requested : (string) ($ids[0] ?? '');
+
+        $mailRaw = $_GET['mail_status'] ?? '';
+        $mailStatus = is_string($mailRaw) ? trim($mailRaw) : '';
+        if (!in_array($mailStatus, ['sent', 'failed', 'pending'], true)) {
+            $mailStatus = '';
+        }
+
+        $pageRaw = $_GET['page'] ?? 1;
+        $page = is_numeric($pageRaw) ? (int) $pageRaw : 1;
+        if ($page < 1) {
+            $page = 1;
+        }
+
+        if ($formId === '') {
+            $result = [
+                'items' => [],
+                'total' => 0,
+                'page' => 1,
+                'per_page' => SubmissionStore::PAGE_SIZE,
+                'pages' => 0,
+            ];
+        } else {
+            $result = (new SubmissionStore($this->config))->paginate(
+                $formId,
+                $mailStatus !== '' ? $mailStatus : null,
+                $page
+            );
+        }
+
+        $columns = [];
+        $editorRows = [];
+        $columnsError = null;
+        if ($formId !== '') {
+            try {
+                $columns = $views->columns($formId);
+                $editorRows = $views->editor($formId);
+            } catch (RuntimeException $e) {
+                $columnsError = $e->getMessage();
+            }
+        }
+
+        $notice = match ((string) ($_GET['columns'] ?? '')) {
+            'saved' => 'Столбцы сохранены',
+            'reset' => 'Столбцы сброшены к значениям по умолчанию',
+            default => '',
+        };
+        if ($columnsError === null && isset($_GET['columns_error']) && is_string($_GET['columns_error'])) {
+            $columnsError = mb_substr($_GET['columns_error'], 0, 300);
+        }
+
+        $activeLabel = $formId;
+        foreach ($tabs as $tab) {
+            if ($tab['id'] === $formId) {
+                $activeLabel = $tab['label'];
+                break;
+            }
+        }
 
         $this->render('submissions/index.php', [
-            'items' => $store->list($formId !== '' ? $formId : null, $mailStatus !== '' ? $mailStatus : null),
-            'forms' => $repo->listMeta(),
-            'filterFormId' => $formId,
+            'tabs' => $tabs,
+            'activeFormId' => $formId,
+            'activeLabel' => $activeLabel,
+            'items' => $result['items'],
+            'columns' => $columns,
+            'editorRows' => $editorRows,
             'filterMailStatus' => $mailStatus,
+            'page' => $result['page'],
+            'pages' => $result['pages'],
+            'total' => $result['total'],
+            'notice' => $notice,
+            'columnsError' => $columnsError,
         ]);
+    }
+
+    private function handleSubmissionColumns(): void
+    {
+        $formRaw = $_POST['form_id'] ?? '';
+        $formId = is_string($formRaw) ? trim($formRaw) : '';
+        $mailRaw = $_POST['mail_status'] ?? '';
+        $mailStatus = is_string($mailRaw) ? trim($mailRaw) : '';
+        if (!in_array($mailStatus, ['sent', 'failed', 'pending'], true)) {
+            $mailStatus = '';
+        }
+
+        $fail = function (string $message) use ($formId, $mailStatus): void {
+            $query = [];
+            if (preg_match('/^[a-zA-Z0-9_-]+$/', $formId)) {
+                $query['form_id'] = $formId;
+            }
+            if ($mailStatus !== '') {
+                $query['mail_status'] = $mailStatus;
+            }
+            $query['columns_error'] = $message;
+            $this->redirect('/admin-panel/submissions?' . http_build_query($query));
+        };
+
+        if (!preg_match('/^[a-zA-Z0-9_-]+$/', $formId)) {
+            $fail('Некорректная форма');
+            return;
+        }
+
+        $views = $this->submissionViews();
+        $known = array_column($views->tabs(), 'id');
+        if (!in_array($formId, $known, true)) {
+            $fail('Форма не найдена');
+            return;
+        }
+
+        $store = new SubmissionColumnStore($this->config);
+        try {
+            if (!empty($_POST['reset'])) {
+                $store->reset($formId);
+                $this->redirectSubmissions($formId, $mailStatus, 'reset');
+                return;
+            }
+
+            $posted = $_POST['columns'] ?? [];
+            if (!is_array($posted)) {
+                $fail('Некорректный список столбцов');
+                return;
+            }
+
+            $allowed = [];
+            foreach ($views->editor($formId) as $row) {
+                $allowed[$row['key']] = true;
+            }
+
+            $picked = [];
+            foreach (array_slice($posted, 0, 100, true) as $index => $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $key = isset($row['key']) && is_string($row['key']) ? $row['key'] : '';
+                if ($key === '' || !isset($allowed[$key]) || isset($picked[$key])) {
+                    continue;
+                }
+                if (!isset($row['enabled']) || (string) $row['enabled'] !== '1') {
+                    continue;
+                }
+                $label = isset($row['label']) && is_string($row['label']) ? $row['label'] : '';
+                try {
+                    $label = SubmissionColumns::label($label);
+                } catch (InvalidArgumentException) {
+                    $fail('Некорректная подпись столбца');
+                    return;
+                }
+                $order = isset($row['order']) && is_numeric($row['order']) ? (int) $row['order'] : 1000000;
+                $picked[$key] = [
+                    'key' => $key,
+                    'label' => $label,
+                    'order' => $order,
+                    'index' => is_int($index) ? $index : 0,
+                ];
+            }
+
+            $rows = array_values($picked);
+            usort($rows, static function (array $a, array $b): int {
+                return [$a['order'], $a['index']] <=> [$b['order'], $b['index']];
+            });
+            $columns = array_map(
+                static fn (array $row): array => ['key' => $row['key'], 'label' => $row['label']],
+                $rows
+            );
+            $store->save($formId, $columns);
+        } catch (RuntimeException $e) {
+            $fail($e->getMessage());
+            return;
+        }
+
+        $this->redirectSubmissions($formId, $mailStatus, 'saved');
+    }
+
+    private function redirectSubmissions(string $formId, string $mailStatus, string $flag): void
+    {
+        $query = ['form_id' => $formId];
+        if ($mailStatus !== '') {
+            $query['mail_status'] = $mailStatus;
+        }
+        if ($flag !== '') {
+            $query['columns'] = $flag;
+        }
+        $this->redirect('/admin-panel/submissions?' . http_build_query($query));
     }
 
     private function renderSubmissionView(string $formId, string $id): void
@@ -665,16 +848,21 @@ class AdminRouter
             return;
         }
 
-        $formLabel = $formId;
-        try {
-            $formLabel = (new FormRepository($this->config))->get($formId)['label'];
-        } catch (Throwable) {
-        }
+        $formLabel = $this->submissionViews()->label($formId);
 
         $this->render('submissions/view.php', [
             'item' => $item,
             'formLabel' => $formLabel,
+            'listUrl' => '/admin-panel/submissions?' . http_build_query(['form_id' => $formId]),
         ]);
+    }
+
+    private function submissionViews(): SubmissionViews
+    {
+        $plugins = $this->plugins();
+        $plugins->bootSubmissionForms();
+
+        return new SubmissionViews($this->config, $plugins);
     }
 
     private function handleCheckUpdate(): void
@@ -1137,6 +1325,11 @@ class AdminRouter
     private function redirect(string $url): void
     {
         header('Location: ' . $url, true, 302);
+        // В CLI заголовок Location не попадает в headers_list(); тело нужно тестам.
+        // На сайте (Apache/FPM) ответ — только заголовок, как раньше.
+        if (PHP_SAPI === 'cli') {
+            echo 'Redirect: ' . $url;
+        }
         exit;
     }
 

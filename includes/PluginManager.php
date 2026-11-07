@@ -7,7 +7,8 @@
  * причина видна на странице «Система». Ядро не выполняет код плагина, пока
  * к нему не пришёл запрос (админка /admin-panel/plugins/{id}/..., публичный
  * префикс /{prefix}/...), пока не нужна его служба (plugin.json "provides"),
- * пока не срабатывает объявленный им хук (plugin.json "hooks") или пока не открыта «Система».
+ * пока не срабатывает объявленный им хук (plugin.json "hooks"), пока админка
+ * не открыла «Заявки» у плагина с "submission_forms": true, или пока не открыта «Система».
  */
 class PluginManager
 {
@@ -78,6 +79,13 @@ class PluginManager
 
     /** @var array<string, bool> хуки, для которых объявившие их плагины уже загружены */
     private array $hooksLoaded = [];
+
+    /**
+     * Формы, зарегистрированные плагинами для раздела «Заявки».
+     *
+     * @var array<string, array{id: string, label: string, plugin: string, columns: list<array{key: string, label: string}>}>
+     */
+    private array $submissionForms = [];
 
     private int $hookSeq = 0;
 
@@ -400,6 +408,62 @@ class PluginManager
         foreach ($this->hooks as $name => $handlers) {
             $this->hooks[$name] = array_values(array_filter($handlers, static fn(array $h): bool => $h['plugin'] !== $id));
         }
+        foreach ($this->submissionForms as $formId => $form) {
+            if ($form['plugin'] === $id) {
+                unset($this->submissionForms[$formId]);
+            }
+        }
+    }
+
+    /**
+     * Загрузить плагины, которые регистрируют форму в «Заявках» (plugin.json "submission_forms": true).
+     * Остальные плагины не запускаются.
+     */
+    public function bootSubmissionForms(): void
+    {
+        if (!$this->hasPluginsDir()) {
+            return;
+        }
+        foreach ($this->enabled() as $id => $plugin) {
+            if (!empty($plugin['submission_forms'])) {
+                $this->boot($id);
+            }
+        }
+    }
+
+    /**
+     * @internal PluginSubmissions::registerForm()
+     * @param array<mixed> $columns ключ payload => подпись, порядок сохраняется
+     */
+    public function registerSubmissionForm(string $plugin, string $formId, string $label, array $columns): void
+    {
+        $info = $this->discover()[$plugin] ?? null;
+        if ($info === null || empty($info['submission_forms']) || ($info['status'] ?? '') !== 'ok') {
+            throw new LogicException('registerForm() требует "submission_forms": true в plugin.json плагина «' . $plugin . '»');
+        }
+        if (!preg_match('/^[a-zA-Z0-9_-]+$/', $formId)) {
+            throw new InvalidArgumentException('registerForm(): некорректный id формы');
+        }
+        $label = SubmissionColumns::formLabel($label);
+        $normalized = SubmissionColumns::fromMap($columns);
+        $existing = $this->submissionForms[$formId] ?? null;
+        if ($existing !== null && $existing['plugin'] !== $plugin) {
+            throw new LogicException('Форма «' . $formId . '» уже зарегистрирована плагином «' . $existing['plugin'] . '»');
+        }
+        $this->submissionForms[$formId] = [
+            'id' => $formId,
+            'label' => $label,
+            'plugin' => $plugin,
+            'columns' => $normalized,
+        ];
+    }
+
+    /**
+     * @return array<string, array{id: string, label: string, plugin: string, columns: list<array{key: string, label: string}>}>
+     */
+    public function submissionForms(): array
+    {
+        return $this->submissionForms;
     }
 
     /**
@@ -640,6 +704,7 @@ class PluginManager
             'autoload' => [],
             'provides' => [],
             'hooks' => [],
+            'submission_forms' => false,
             'compatible' => null,
             'data_dir' => $this->dataRoot() . '/' . $folder,
             'data_writable' => false,
@@ -774,6 +839,13 @@ class PluginManager
                 }
             }
             $info['hooks'] = array_values(array_unique($hooks));
+        }
+
+        if (array_key_exists('submission_forms', $manifest)) {
+            if ($manifest['submission_forms'] !== true) {
+                return self::fail($info, 'submission_forms — true, если плагин регистрирует форму в разделе «Заявки»');
+            }
+            $info['submission_forms'] = true;
         }
 
         if (!$compatible) {
