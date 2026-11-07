@@ -100,7 +100,7 @@ $colspan = 3 + count($columns);
                 <tbody>
                     <?php if ($items === []): ?>
                         <tr>
-                            <td colspan="<?= $colspan ?>" class="mc-table__empty">Заявок пока нет</td>
+                            <td colspan="<?= $colspan ?>" class="mc-table__empty"><?= $filterMailStatus !== '' ? 'Нет заявок с этим статусом' : 'Заявок пока нет' ?></td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($items as $item): ?>

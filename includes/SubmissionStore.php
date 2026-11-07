@@ -159,14 +159,25 @@ class SubmissionStore
     public function formIds(): array
     {
         $root = $this->root();
+        $realRoot = realpath($root);
+        if ($realRoot === false) {
+            return [];
+        }
         $ids = [];
         foreach (scandir($root) ?: [] as $name) {
             if ($name === '.' || $name === '..' || !preg_match('/^[a-zA-Z0-9_-]+$/', $name)) {
                 continue;
             }
-            if (is_dir($root . '/' . $name)) {
-                $ids[] = $name;
+            $path = $root . '/' . $name;
+            // Симлинк не открываем: вкладка не должна читать каталог вне submissions/.
+            if (is_link($path) || !is_dir($path)) {
+                continue;
             }
+            $real = realpath($path);
+            if ($real === false || !str_starts_with($real, $realRoot . DIRECTORY_SEPARATOR)) {
+                continue;
+            }
+            $ids[] = $name;
         }
         sort($ids, SORT_STRING);
 
@@ -186,6 +197,7 @@ class SubmissionStore
         }
 
         $labels = [];
+        $payloadKeys = [];
         foreach ($this->files($formId) as $file) {
             $data = $this->readJson($file);
             if ($data === null) {
@@ -210,9 +222,14 @@ class SubmissionStore
             $payload = is_array($data['payload'] ?? null) ? $data['payload'] : [];
             foreach (array_keys($payload) as $name) {
                 $name = (string) $name;
-                if (!SubmissionColumns::isKey($name) || isset($labels[$name])) {
+                if (!SubmissionColumns::isKey($name) || isset($payloadKeys[$name])) {
                     continue;
                 }
+                $payloadKeys[$name] = true;
+            }
+        }
+        foreach (array_keys($payloadKeys) as $name) {
+            if (!isset($labels[$name])) {
                 $labels[$name] = $name;
             }
         }

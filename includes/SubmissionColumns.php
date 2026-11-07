@@ -99,6 +99,8 @@ final class SubmissionColumns
         if (!mb_check_encoding($label, 'UTF-8')) {
             throw new InvalidArgumentException($what . ': некорректная кодировка');
         }
+        // Управляющие байты (в том числе NUL) не должны обрывать атрибут HTML.
+        $label = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $label) ?? '';
         $label = trim(preg_replace('/\s+/u', ' ', $label) ?? '');
         if ($label === '' || mb_strlen($label) > $max) {
             throw new InvalidArgumentException($what . ': от 1 до ' . $max . ' символов');
