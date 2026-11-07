@@ -1,6 +1,7 @@
 <?php
 $item = $item ?? [];
 $formLabel = $formLabel ?? '';
+$listUrl = $listUrl ?? '/admin-panel/submissions';
 $payload = is_array($item['payload'] ?? null) ? $item['payload'] : [];
 $contract = is_array($item['contract'] ?? null) ? $item['contract'] : [];
 $labels = [];
@@ -13,7 +14,7 @@ foreach ($contract as $field) {
 <div class="mc-page">
     <div class="mc-head">
         <h1 class="mc-head__title">Заявка</h1>
-        <a href="/admin-panel/submissions" class="mc-link">← К списку</a>
+        <a href="<?= htmlspecialchars($listUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" class="mc-link">← К списку</a>
     </div>
 
     <section class="mc-sheet mc-facts">

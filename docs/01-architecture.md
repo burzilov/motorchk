@@ -19,7 +19,7 @@
 
 Служебные файлы `/sitemap.xml`, `/robots.txt`, `/llms.txt` строит ядро из опубликованных страниц (`core/includes/SeoFiles.php`, настройки — `seo` в `config/site.php`). Подробнее — [13-seo.md](13-seo.md).
 
-Формы заявок: meta в `content/forms/*.yaml`, разметка в теме через `Form::begin`/`end`, приём `POST /api/forms/submit`, хранение в `submissions/`. Подробнее — [09-forms.md](09-forms.md).
+Формы заявок: meta в `content/forms/*.yaml`, разметка в теме через `Form::begin`/`end`, приём `POST /api/forms/submit`, хранение в `submissions/`. Столбцы таблиц в админке — отдельно, в `content/_submission-columns.json` (не в `content/forms/` и не в файлах заявок). Подробнее — [09-forms.md](09-forms.md).
 
 ## Темы и шаблоны страниц
 
