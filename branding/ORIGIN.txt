@@ -1,0 +1,25 @@
+Происхождение исходников логотипа Motorchk CMS
+
+Каталог approved-raster/ — содержимое пакета утверждённых растров,
+распакованное без перекодирования и без нового монтажа.
+SHA-256 архива поставки: cd7a128d5a98017dbe17a7af8da2a82e4a0107d0ac594bf5f10df0a8b8a0b076
+Внутренний каталог архива: motorchk-branding-approved-raster/
+Суммы файлов: approved-raster/SHA256SUMS
+
+Утверждённые компоновки (delivery/) скопированы побайтно в runtime:
+
+  delivery/motorchk-cms-horizontal.png
+    → assets/brand/motorchk-cms-horizontal.png
+    1656×378, RGB, белый фон, sha256 abf8f98d85f99de2c431b6e03548961f6e3417cd8dcaf9ce98b4bb3aac9136e2
+
+  delivery/motorchk-cms-stacked.png
+    → assets/brand/motorchk-cms-stacked.png
+    1330×1377, RGB, белый фон, sha256 30d839d77a6c47caf837619e4682eeedbd380ff8583741a9eca9724115e2e235
+
+Горизонтальный вариант финальный: курочка слева, лапки на baseline надписи.
+Компактный вариант: курочка сверху, надпись снизу.
+SVG не используются. montage.py только документирует уже выполненный монтаж;
+runtime-файлы из него заново не собираются.
+
+Каталог branding/ закрыт от HTTP (core/.htaccess и этот .htaccess)
+и не входит в release zip (.github/build-release.sh).

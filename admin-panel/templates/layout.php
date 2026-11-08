@@ -39,7 +39,9 @@
 <body class="mc-admin<?= $layoutFullscreen ? ' mc-admin--fullscreen' : '' ?>">
     <header class="mc-bar">
         <div class="mc-bar__inner">
-            <a href="/admin-panel/pages" class="mc-brand"><span class="mc-brand__square" aria-hidden="true"></span>motorchk</a>
+            <a href="/admin-panel/pages" class="mc-brand mc-brand--logo">
+                <img class="mc-brand__logo" src="/core/assets/brand/motorchk-cms-horizontal.png" width="1656" height="378" alt="Motorchk CMS">
+            </a>
             <nav class="mc-nav" aria-label="Разделы админки">
                 <?php foreach ($layoutNav as $layoutNavUrl => $layoutNavLabel): ?>
                     <?php $layoutNavCurrent = $layoutPath === $layoutNavUrl || str_starts_with($layoutPath, $layoutNavUrl . '/'); ?>

@@ -14,6 +14,7 @@
 Артефакты релиза: `motorchk-install-X.Y.Z.zip` — для новой установки; `motorchk-core-X.Y.Z.zip` — только ядро
 (папка `motorchk-core-X.Y.Z/` = `public_html/core/`), его скачивает обновление из админки. Установочный zip
 не распаковывайте поверх работающего сайта: он заменит корневые `.htaccess` и `index.php`.
+Каталог `branding/` (исходники логотипа) в эти zip не входит, как `tests/` и `scripts/`.
 
 Fresh install получает поставляемую тему-пример `themes/example/`; шаблоны страниц лежат в корне темы, а её CSS/JS — в `themes/example/assets/`.
 

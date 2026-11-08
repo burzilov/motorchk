@@ -11,7 +11,7 @@
 </head>
 <body class="mc-auth">
     <main class="mc-auth__main">
-        <p class="mc-brand mc-brand--auth"><span class="mc-brand__square" aria-hidden="true"></span>motorchk</p>
+        <img class="mc-auth__logo" src="/core/assets/brand/motorchk-cms-stacked.png" width="1330" height="1377" alt="Motorchk CMS">
         <?php require __DIR__ . '/login-form.php'; ?>
     </main>
 </body>

@@ -16,8 +16,9 @@ trap 'rm -rf "$TMP"' EXIT
 
 CORE_STAGE="motorchk-core-${VERSION}"
 mkdir -p "$TMP/$CORE_STAGE"
-# tests/ и scripts/ (исходники CSS) — только для разработки; plugins/ и plugins-data/ принадлежат сайту и в ядро не входят
-rsync -a --exclude '.git' --exclude '/tests' --exclude '/scripts' --exclude '/plugins' --exclude '/plugins-data' --exclude '/plugin-data' ./ "$TMP/$CORE_STAGE/"
+# tests/, scripts/ (исходники CSS) и branding/ (исходники логотипа) — только репозиторий.
+# plugins/ и plugins-data/ принадлежат сайту и в ядро не входят.
+rsync -a --exclude '.git' --exclude '/tests' --exclude '/scripts' --exclude '/branding' --exclude '/plugins' --exclude '/plugins-data' --exclude '/plugin-data' ./ "$TMP/$CORE_STAGE/"
 (cd "$TMP" && zip -qr "$OUT/${CORE_STAGE}.zip" "$CORE_STAGE")
 
 INST="$TMP/install"

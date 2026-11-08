@@ -6,6 +6,8 @@
 |------|------|
 | `core/includes/`, `core/admin-panel/`, `core/vendor/` | ядро |
 | `core/assets/` | CSS/JS админки, библиотек и chrome публичных страниц (`site-chrome.css`) |
+| `core/assets/brand/` | утверждённые PNG логотипа админки (runtime) |
+| `core/branding/` | исходники логотипа: не отдаются по HTTP и не входят в release zip |
 | `core/skeleton/` | шаблон первичной установки |
 | `content/`, `themes/`, `plugins/`, `media/` | сайт (`media/` — публичные файлы содержимого, [12-themes.md](12-themes.md)) |
 | `.env`, `config/site.php`, `cache/`, `submissions/`, `plugins-data/` | сайт / runtime |
