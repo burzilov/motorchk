@@ -257,7 +257,7 @@ check(!str_contains($rootHt, '/core/(') && preg_match('~^RedirectMatch \d+ \^/co
 check(str_contains($rootHt, 'RewriteRule ^admin-panel(/.*)?$ core/admin-panel/index.php [L,QSA]'), 'админка — внутренний переход /admin-panel → core/admin-panel/index.php');
 $coreRe = '~' . ($htm[1] ?? '^$') . '~';
 $closed = ['/core/VERSION', '/core/README.md', '/core/CHANGELOG.md', '/core/composer.json', '/core/composer.lock', '/core/', '/core/admin-panel/index.php', '/core/includes/bootstrap.php', '/core/vendor/autoload.php'];
-$open = ['/core/assets/css/admin.css', '/core/assets/js/htmx.min.js', '/core/assets/favicon.svg', '/admin-panel/login', '/customizer/', '/plugin-assets/x/a.js', '/themes/example/assets/css/app.css'];
+$open = ['/core/assets/css/admin.css', '/core/assets/js/htmx.min.js', '/core/assets/favicon.svg', '/admin-panel/login', '/customizer/', '/plugins-assets/x/a.js', '/themes/example/assets/css/app.css'];
 check(array_filter($closed, static fn(string $u): bool => preg_match($coreRe, $u) !== 1) === [] && array_filter($open, static fn(string $u): bool => preg_match($coreRe, $u) === 1) === [], 'правило: служебные файлы ядра закрыты, /core/assets/ и маршруты сайта открыты');
 $coreUrls = [];
 $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($corePath, FilesystemIterator::SKIP_DOTS));

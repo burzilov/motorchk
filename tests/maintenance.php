@@ -176,7 +176,7 @@ $_SERVER['REQUEST_METHOD'] = 'POST';
 check($st === 503, 'POST /api/forms/submit — 503 (гейт раньше API)', (string) $st);
 $_SERVER['REQUEST_METHOD'] = 'GET';
 
-out("\n[plugin-роут и plugin-assets под гейтом]\n");
+out("\n[plugin-роут и plugins-assets под гейтом]\n");
 @mkdir($site . '/plugins/shoplib/assets', 0775, true);
 file_put_contents($site . '/plugins/shoplib/plugin.json', json_encode(
     ['id' => 'shoplib', 'name' => 'shoplib', 'version' => '1.0.0', 'core' => '>=0.5.0', 'public' => ['prefix' => 'shop'], 'hooks' => []],
@@ -187,8 +187,8 @@ file_put_contents($site . '/plugins/shoplib/assets/logo.png', 'png');
 
 [$st, $page] = $public('/shop/');
 check($st === 503 && !str_starts_with($page, 'shop'), 'публичный роут плагина — 503, не вывод плагина', (string) $st);
-[$st] = $public('/plugin-assets/shoplib/logo.png');
-check($st === 503, '/plugin-assets/ — 503', (string) $st);
+[$st] = $public('/plugins-assets/shoplib/logo.png');
+check($st === 503, '/plugins-assets/ — 503', (string) $st);
 
 out("\n[админка вне гейта]\n");
 $adminIndex = (string) file_get_contents($corePath . '/skeleton/admin-panel/index.php');

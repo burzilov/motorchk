@@ -20,7 +20,7 @@ public_html/
 │       ├── plugin.php       ← точка входа (entry)
 │       ├── lib/Hello/…      ← классы (autoload)
 │       ├── templates/…      ← PHP-шаблоны плагина
-│       └── assets/…         ← статика → /plugin-assets/hello/…
+│       └── assets/…         ← статика → /plugins-assets/hello/…
 └── plugins-data/            ← данные плагинов (закрыто от HTTP)
     ├── .htaccess            ← создаёт ядро
     └── hello/
@@ -74,7 +74,7 @@ mv public_html/plugin-data public_html/plugins-data
 
 `^0.3` означает `>=0.3.0 <0.4.0` (для `0.x` минорная версия считается несовместимой), `^1.2` — `>=1.2.0 <2.0.0`. Поэтому плагины с `"core": "^0.3"` на ядре 0.4 не загружаются: API 0.3 в 0.4 сохранён, поднимите ограничение до `">=0.3.0 <0.5.0"` или `"^0.4"`. Так же и с 0.5: плагин с `"^0.4"` на ядре 0.5 не загрузится — API 0.4 сохранён, укажите `"^0.5"` (или `">=0.4.0 <0.6.0"`, если плагин не использует новые методы 0.5). `registerForm()` добавлен в 0.7.0: старые плагины с `">=0.5.0"` продолжают загружаться, плагин со столбцами указывает `">=0.7.0"`. `^0.6` на 0.7.0 не подойдёт. Плагин без `registerForm()` по-прежнему пишет заявки через `create()`/`markMail()`; вкладка берётся из каталога `submissions/{id}/` со столбцами дата, почта и «Открыть».
 
-Зарезервированные префиксы: `admin-panel`, `api`, `core`, `themes`, `content`, `config`, `cache`, `submissions`, `plugins`, `plugins-data`, `plugin-data`, `plugin-assets`, `media`.
+Зарезервированные префиксы: `admin-panel`, `api`, `core`, `themes`, `content`, `config`, `cache`, `submissions`, `plugins`, `plugins-data`, `plugin-data`, `plugins-assets`, `media`, `index.php`. Сегмент статики — константа `PluginManager::ASSETS_PREFIX`.
 
 Конфликты:
 
@@ -142,7 +142,18 @@ return static function (PluginContext $plugin): void {
 
 **Сведения:** `id()`, `name()`, `version()`, `manifest()`, `dir()` (код плагина), `dataDir()` (`plugins-data/{id}`, создаётся ядром; путь из `plugin_data_path`), `prefix()`, `coreVersion()`, `config($key)`, `path('content_path' | 'themes_path' | 'site_path' | …)`, `isAdmin()`.
 
-**URL:** `adminUrl('/api/x')`, `publicUrl('/x', $locale = null)`, `assetUrl('app.js')` → `/plugin-assets/{id}/app.js?v={version}`. На публичных страницах `publicUrl()` проходит через фильтр `url` (плагин i18n добавляет `/en/`); в админке — без изменений.
+**URL:** `adminUrl('/api/x')`, `publicUrl('/x', $locale = null)`, `assetUrl('app.js')` → `/plugins-assets/{id}/app.js?v={version}`. На публичных страницах `publicUrl()` проходит через фильтр `url` (плагин i18n добавляет `/en/`); в админке — без изменений.
+
+**Служебный путь:** `isSystemPath($path): bool` — `true`, если путь служебный для ядра, `false` для обычной страницы. То же делает статический `Router::isSystemPath(string $path): bool`; метод контекста вызывает его.
+
+Аргумент — локальный путь от корня (`/about`, `/media/a.png`). Query (`?…`) и fragment (`#…`) отбрасываются. Строка без ведущего `/` или с `//` служебным путём не считается: метод не разбирает внешние, якорные и протокольные ссылки.
+
+`true`, если первый сегмент входит в зарезервированные префиксы (`admin-panel`, в том числе `/admin-panel/login`; `api`; `core`, в том числе `/core/assets/…`; `themes`; `content`; `config`; `cache`; `submissions`; `plugins`; `plugins-data`; `plugin-data`; `plugins-assets`; `media`; `index.php`) либо путь точно совпадает с корневым служебным файлом:
+
+- `/sitemap.xml`, `/robots.txt`, `/llms.txt` (`SeoFiles::PATHS`);
+- `/favicon.ico`, `/favicon.svg`, `/favicon.png`, `/apple-touch-icon.png`, `/apple-touch-icon-precomposed.png` (`Router::SYSTEM_FILES`).
+
+`/`, `/about`, `/hello/` — `false`. Старый `/plugin-assets/…` служебным путём не является и ядром не обслуживается.
 
 **Язык** ([11-i18n.md](11-i18n.md)): `locale()` — язык запроса, `defaultLocale()`, `locales()`, `localized(['ru' => …, 'en' => …])` — значение для текущего языка с откатом на основной, затем на первое непустое (то же, что `SiteLocale::localized()`; своей копии у службы `i18n` нет). Без службы `i18n` язык всегда `ru`.
 
@@ -155,7 +166,7 @@ return static function (PluginContext $plugin): void {
 | Метод | Назначение |
 |-------|------------|
 | `render($template, $data, $options)` | `templates/{template}.php` плагина внутри layout админки. Опции: `title`, `fullscreen` (рабочая область на всё окно под шапкой админки — для редакторов), `styles`, `scripts` (URL для `<head>`, только свой сайт; с 0.4 подключаются **до** Alpine.js), `scripts_after_alpine` (после Alpine.js, как `scripts` в 0.3), `status` |
-| `renderPublic($template, $data, $options)` | шаблон плагина внутри шаблона **активной темы** (шапка, меню, подвал): HTML попадает в `$blocks['content']`. Опции: `title`, `description`, `og_*`, `template` (шаблон темы, по умолчанию `default`), `hero`, `menu_location`, `scripts` (`/plugin-assets/...js`, в конце страницы), `styles` (CSS в `<head>`), `head_scripts` (JS в `<head>`, до Alpine.js темы), `alternates` (hreflang: `true` — все языки сайта по тому же пути, `['en' => '/en/…']` — явно), `status`, `vars` (в шаблоне темы — `$pluginVars`). Inline-edit на таких страницах выключен. `styles` и `head_scripts` выводит `includes/views/site-chrome.php` — его подключают все темы |
+| `renderPublic($template, $data, $options)` | шаблон плагина внутри шаблона **активной темы** (шапка, меню, подвал): HTML попадает в `$blocks['content']`. Опции: `title`, `description`, `og_*`, `template` (шаблон темы, по умолчанию `default`), `hero`, `menu_location`, `scripts` (`/plugins-assets/...js`, в конце страницы), `styles` (CSS в `<head>`), `head_scripts` (JS в `<head>`, до Alpine.js темы), `alternates` (hreflang: `true` — все языки сайта по тому же пути, `['en' => '/en/…']` — явно), `status`, `vars` (в шаблоне темы — `$pluginVars`). Inline-edit на таких страницах выключен. `styles` и `head_scripts` выводит `includes/views/site-chrome.php` — его подключают все темы |
 | `partial($template, $data)` | шаблон плагина в строку |
 | `json($data, $status)`, `jsonError($message, $status)` | JSON-ответ (`Cache-Control: no-store`) |
 | `raw($body, $contentType, $status)` | ответ как есть, без layout |
@@ -261,7 +272,7 @@ document.addEventListener('alpine:init', () => {
 
 ## Статика и безопасность
 
-- Статика отдаётся ядром (`index.php`) по `/plugin-assets/{id}/{путь}` **только** из `plugins/{id}/assets/` и только типов `js, mjs, css, png, jpg, jpeg, gif, webp, avif, svg, ico, woff, woff2, ttf, wasm, txt`. PHP, JSON, скрытые файлы, `..` и файлы невалидных плагинов — 404. Заголовки: `X-Content-Type-Options: nosniff`, ETag/304, для SVG — запрещающий CSP; с `?v={версия плагина}` — `immutable` на год, иначе час.
+- Статика отдаётся ядром (`index.php`) по `/plugins-assets/{id}/{путь}` **только** из `plugins/{id}/assets/` и только типов `js, mjs, css, png, jpg, jpeg, gif, webp, avif, svg, ico, woff, woff2, ttf, wasm, txt`. PHP, JSON, скрытые файлы, `..` и файлы невалидных плагинов — 404. Заголовки: `X-Content-Type-Options: nosniff`, ETag/304, для SVG — запрещающий CSP; с `?v={версия плагина}` — `immutable` на год, иначе час. Префикс — `PluginManager::ASSETS_PREFIX`. Старый `/plugin-assets/…` не обслуживается и не перенаправляется: это обычный 404.
 - Прямой HTTP к `plugins/` и `plugins-data/` закрыт файлами `.htaccess` (`Require all denied`), которые ядро создаёт при первом обращении к папкам, и правилами `RedirectMatch 403` в корневом `.htaccess` новых установок (`core/skeleton/.htaccess`). Корневой `.htaccess` существующих сайтов self-update не меняет — защиту обеспечивают `.htaccess` внутри папок; при желании добавьте правила вручную:
 
   ```apache
@@ -298,7 +309,9 @@ document.addEventListener('alpine:init', () => {
 
 ## Без плагинов
 
-Если папки `plugins/` нет, ядро ведёт себя как раньше: публичный роутер не перехватывает ни `/plugin-assets/`, ни префиксы, меню админки без новых пунктов, на «Системе» — «Плагины не установлены».
+Если папки `plugins/` нет, ядро ведёт себя как раньше: публичный роутер не перехватывает ни `/plugins-assets/`, ни префиксы, меню админки без новых пунктов, на «Системе» — «Плагины не установлены».
+
+`.htaccess` с запретом в `plugins/` и `plugins-data/` ядро создаёт, только если файла ещё нет (`ensureDenyFile()`). Уже существующий файл, в том числе с комментарием про старый `/plugin-assets/`, не перезаписывается.
 
 ## Тесты
 
