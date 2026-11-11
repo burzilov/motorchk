@@ -12,9 +12,9 @@ CSS-фреймворк: публичные страницы получают д�
 | `$title`, `$description`, `$ogTitle`, `$ogDescription`, `$ogImage` | для `<head>`; `og_title`/`og_description` необязательны — без них берутся `title`/`description` |
 | `$menu`, `$menus` | меню страницы (`menu_location` или `main`) и все меню по id |
 | `$themeAssetsUrl` | `/themes/{name}/assets` |
-| `$locale`, `$defaultLocale`, `$contentLocale`, `$alternates`, `$i18n` | язык ([11-i18n.md](11-i18n.md)) |
+| `$locale`, `$defaultLocale`, `$contentLocale`, `$alternates`, `$localeProvider` | язык ([11-locale.md](11-locale.md)) |
 | `$scripts`, `$canEdit`, `$config` | скрипты страницы, inline-edit, конфиг сайта |
-| `$plugins` | `PluginManager` или `null` (нет папки plugins/): службы плагинов — `$plugins?->service('customizer')`, объект или `null` ([10-plugins.md](10-plugins.md)) |
+| `$plugins` | `PluginManager` или `null` (нет папки plugins/): службы плагинов — `$plugins?->service('example')`, объект или `null` ([10-plugins.md](10-plugins.md)) |
 
 ## Страница 404: `404.php`
 
@@ -48,7 +48,7 @@ CSS-фреймворк: публичные страницы получают д�
 [
     'label' => 'Наколенники',
     'slug' => 'equipment/pads',   // null для url-пунктов
-    'url' => '/equipment/pads',   // с языковым префиксом, если активна служба i18n
+    'url' => '/equipment/pads',   // с языковым префиксом, если активна служба locale
     'external' => false,
     'active' => true,             // открыта страница пункта или страница внутри его раздела
     'current' => false,           // открыта ровно страница пункта

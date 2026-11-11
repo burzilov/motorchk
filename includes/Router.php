@@ -147,7 +147,7 @@ class Router
             }
 
             header('X-Robots-Tag: noindex');
-            $this->renderPage($page, $slug, true, ['i18n' => $this->pageLocaleMeta($slug, $page)]);
+            $this->renderPage($page, $slug, true, ['locale' => $this->pageLocaleMeta($slug, $page)]);
             return;
         }
 
@@ -163,7 +163,7 @@ class Router
         if (SeoFiles::noindex($page['front_matter'])) {
             header('X-Robots-Tag: noindex');
         }
-        $this->renderPage($page, $slug, false, ['i18n' => $this->pageLocaleMeta($slug, $page)]);
+        $this->renderPage($page, $slug, false, ['locale' => $this->pageLocaleMeta($slug, $page)]);
     }
 
     /** /sitemap.xml, /robots.txt, /llms.txt из опубликованных страниц (SeoFiles, docs/13-seo.md). */
@@ -209,7 +209,7 @@ class Router
     }
 
     /**
-     * Язык содержимого, hreflang и canonical Markdown-страницы. Без службы i18n — пусто.
+     * Язык содержимого, hreflang и canonical Markdown-страницы. Без службы locale — пусто.
      *
      * @return array{content_locale?: string, alternates?: array<string, string>, canonical?: ?string}
      */
@@ -330,7 +330,7 @@ class Router
             'vars' => (array) ($options['vars'] ?? []),
             'styles' => $options['styles'] ?? [],
             'head_scripts' => $options['head_scripts'] ?? [],
-            'i18n' => $this->pluginLocaleMeta($options['alternates'] ?? false, $path),
+            'locale' => $this->pluginLocaleMeta($options['alternates'] ?? false, $path),
         ]);
     }
 
@@ -428,13 +428,13 @@ class Router
 
         $locale = SiteLocale::current();
         $defaultLocale = SiteLocale::default();
-        $i18nMeta = (array) ($options['i18n'] ?? []);
-        $contentLocale = (string) ($i18nMeta['content_locale'] ?? $locale);
-        $alternates = (array) ($i18nMeta['alternates'] ?? []);
-        $i18n = SiteLocale::provider();
+        $localeMeta = (array) ($options['locale'] ?? []);
+        $contentLocale = (string) ($localeMeta['content_locale'] ?? $locale);
+        $alternates = (array) ($localeMeta['alternates'] ?? []);
+        $localeProvider = SiteLocale::provider();
         $manager = $this->pluginManager !== null && $this->pluginManager->hasPluginsDir() ? $this->pluginManager : null;
         $hookContext = ['slug' => $slug, 'locale' => $locale, 'content_locale' => $contentLocale, 'preview' => $isPreview];
-        // службы плагинов для темы: $plugins?->service('customizer') — объект или null
+        // службы плагинов для темы: $plugins?->service('example') — объект или null
         $plugins = $manager ?? ($this->manager()->hasPluginsDir() ? $this->manager() : null);
 
         $this->menuBuilder->setLocale(SiteLocale::isActive() && $locale !== $defaultLocale ? $locale : null);
@@ -463,7 +463,7 @@ class Router
         $inlineEditCsrf = $canEdit ? Csrf::token() : '';
         $config = $this->config;
         Form::setConfig($this->config);
-        $siteHead = $this->siteHead($options, $alternates, $i18nMeta['canonical'] ?? null);
+        $siteHead = $this->siteHead($options, $alternates, $localeMeta['canonical'] ?? null);
         if ($manager !== null) {
             $siteHead = (string) $manager->filter('head', $siteHead, $hookContext);
         }

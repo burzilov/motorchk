@@ -111,7 +111,7 @@ class PageTree
     }
 
     /**
-     * Файлы переводов (about.en.md) не страницы, пока активна служба i18n. В кеше 'pages:tree'
+     * Файлы переводов (about.en.md) не страницы, пока активна служба locale. В кеше 'pages:tree'
      * дерево хранится полным (с отпечатком содержимого PageLoader::contentStamp()), переводы убираются при чтении — PageWriter сбрасывает тот же ключ.
      */
     private function withoutTranslationsTree(array $tree): array

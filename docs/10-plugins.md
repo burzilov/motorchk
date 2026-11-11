@@ -67,8 +67,8 @@ mv public_html/plugin-data public_html/plugins-data
 | `admin.menu` | нет | подпись пункта меню админки (до 40 символов) → `/admin-panel/plugins/{id}` |
 | `public.prefix` | нет | первый сегмент URL сайта, который занимает плагин (`^[a-z0-9-]+$`) |
 | `autoload` | нет | PSR-4: `{"Namespace\\": "папка/"}` внутри плагина |
-| `provides` | нет | службы для других плагинов: `["i18n"]` (имена `^[a-z0-9-]+$`), см. «Службы» |
-| `hooks` | нет | хуки сайта, на которые плагин подписывается: `request`, `url`, `menu`, `head`, `output` ([11-i18n.md](11-i18n.md)), `sitemap`, `robots`, `llms` (с 0.7.0, [13-seo.md](13-seo.md)) |
+| `provides` | нет | службы для других плагинов: `["locale"]` (имена `^[a-z0-9-]+$`), см. «Службы» |
+| `hooks` | нет | хуки сайта, на которые плагин подписывается: `request`, `url`, `menu`, `head`, `output` ([11-locale.md](11-locale.md)), `sitemap`, `robots`, `llms` (с 0.7.0, [13-seo.md](13-seo.md)) |
 | `submission_forms` | нет | ровно `true`, если точка входа вызывает `submissions()->registerForm()`. Иначе ядро не загружает плагин на странице «Заявки» |
 | `repository` | нет | GitHub-репозиторий релизов плагина: `"owner/repo"` (или `https://github.com/owner/repo`), см. «Обновление плагинов» |
 
@@ -142,7 +142,7 @@ return static function (PluginContext $plugin): void {
 
 **Сведения:** `id()`, `name()`, `version()`, `manifest()`, `dir()` (код плагина), `dataDir()` (`plugins-data/{id}`, создаётся ядром; путь из `plugin_data_path`), `prefix()`, `coreVersion()`, `config($key)`, `path('content_path' | 'themes_path' | 'site_path' | …)`, `isAdmin()`.
 
-**URL:** `adminUrl('/api/x')`, `publicUrl('/x', $locale = null)`, `assetUrl('app.js')` → `/plugins-assets/{id}/app.js?v={version}`. На публичных страницах `publicUrl()` проходит через фильтр `url` (плагин i18n добавляет `/en/`); в админке — без изменений.
+**URL:** `adminUrl('/api/x')`, `publicUrl('/x', $locale = null)`, `assetUrl('app.js')` → `/plugins-assets/{id}/app.js?v={version}`. На публичных страницах `publicUrl()` проходит через фильтр `url`; в админке — без изменений.
 
 **Служебный путь:** `isSystemPath($path): bool` — `true`, если путь служебный для ядра, `false` для обычной страницы. То же делает статический `Router::isSystemPath(string $path): bool`; метод контекста вызывает его.
 
@@ -155,11 +155,11 @@ return static function (PluginContext $plugin): void {
 
 `/`, `/about`, `/hello/` — `false`. Старый `/plugin-assets/…` служебным путём не является и ядром не обслуживается.
 
-**Язык** ([11-i18n.md](11-i18n.md)): `locale()` — язык запроса, `defaultLocale()`, `locales()`, `localized(['ru' => …, 'en' => …])` — значение для текущего языка с откатом на основной, затем на первое непустое (то же, что `SiteLocale::localized()`; своей копии у службы `i18n` нет). Без службы `i18n` язык всегда `ru`.
+**Язык** ([11-locale.md](11-locale.md)): `locale()` — язык запроса, `defaultLocale()`, `locales()`, `localized(['ru' => …, 'en' => …])` — значение для текущего языка с откатом на основной, затем на первое непустое (то же, что `SiteLocale::localized()`). Без службы `locale` язык всегда `ru`.
 
-**Службы:** `provide('i18n', $object)` — в точке входа, имя должно быть в `provides`; `service('i18n')` — объект или `null`, если службы нет. Владелец службы загружается при первом обращении, поэтому порядок загрузки не важен; вызывайте `service()` в обработчиках, а не в точке входа.
+**Службы:** `provide('locale', $object)` — в точке входа, имя должно быть в `provides`; `service('locale')` — объект или `null`, если службы нет. Языковая служба регистрируется под именем `locale` (`SiteLocale::SERVICE`) и реализует `LocaleProvider`. Владелец службы загружается при первом обращении, поэтому порядок загрузки не важен; вызывайте `service()` в обработчиках, а не в точке входа.
 
-**Хуки сайта:** `on('request', fn (SiteRequest $r))` и `filter('url' | 'menu' | 'head' | 'output' | 'sitemap' | 'robots' | 'llms', fn ($value, array $context))` — только публичная часть, имя хука должно быть в `hooks`. Описание — [11-i18n.md](11-i18n.md), фильтры служебных файлов — [13-seo.md](13-seo.md).
+**Хуки сайта:** `on('request', fn (SiteRequest $r))` и `filter('url' | 'menu' | 'head' | 'output' | 'sitemap' | 'robots' | 'llms', fn ($value, array $context))` — только публичная часть, имя хука должно быть в `hooks`. Описание — [11-locale.md](11-locale.md), фильтры служебных файлов — [13-seo.md](13-seo.md).
 
 **Ответы:**
 
@@ -317,7 +317,7 @@ document.addEventListener('alpine:init', () => {
 
 ```bash
 php tests/plugins.php
-php tests/i18n.php
+php tests/locale.php
 php tests/themes.php
 php tests/toast.php
 php tests/plugin-updates.php
@@ -327,4 +327,4 @@ php tests/seo.php
 php tests/brand.php
 ```
 
-`plugins.php` создаёт временный сайт из skeleton, копирует пример `hello` и набор заведомо сломанных плагинов и проверяет обнаружение, валидацию, install-хуки, маршруты админки и сайта, CSRF, статику и поведение без `plugins/`. `i18n.php` — службы, хуки, язык запроса, переводы страниц и hreflang на тестовых плагинах. `themes.php` — страницы без `og_*`, 404 из `404.php` темы, сверка кеша страниц и меню с файлами, `media/`, `MenuRenderer` и меню темы-примера. `toast.php` — заголовок `HX-Trigger` тостов админки (только ASCII, кириллица и эмодзи не искажаются). `plugin-updates.php` — обновление плагинов с подменённой сетью: `repository` и разрешённые хосты, редиректы, сравнение версий и совместимость с ядром, кеш и TTL, проверка архива (zip-slip, лишние папки, симлинки, неверная версия), замена папки с резервной копией, `onInstall` и откат, кнопки и CSRF на «Системе». `forms.php` — приём заявок: флажки (снятый — `false`, отмеченный — `true`, обязательный требует отметки, группы — списки), старый и новый `forms.js`, отправка без JS, письмо и «Заявки». `submissions.php` — вкладки форм, столбцы (плагин, настройка, сброс, пропуск), страницы списка, фильтр почты, CSRF и экранирование; заявки в фикстурах синтетические. `seo.php` — `/sitemap.xml`, `/robots.txt`, `/llms.txt`: отбор страниц, настройки `seo`, hreflang при i18n, фильтры плагинов. `brand.php` — байты утверждённых PNG, закрытый каталог `branding/` и разметка шапки с формой входа. Папки `tests/`, `scripts/` и `branding/` в release zip не попадают.
+`plugins.php` создаёт временный сайт из skeleton, копирует пример `hello` и набор заведомо сломанных плагинов и проверяет обнаружение, валидацию, install-хуки, маршруты админки и сайта, CSRF, статику и поведение без `plugins/`. `locale.php` — службы, хуки, язык запроса, переводы страниц и hreflang на тестовых плагинах. `themes.php` — страницы без `og_*`, 404 из `404.php` темы, сверка кеша страниц и меню с файлами, `media/`, `MenuRenderer` и меню темы-примера. `toast.php` — заголовок `HX-Trigger` тостов админки (только ASCII, кириллица и эмодзи не искажаются). `plugin-updates.php` — обновление плагинов с подменённой сетью: `repository` и разрешённые хосты, редиректы, сравнение версий и совместимость с ядром, кеш и TTL, проверка архива (zip-slip, лишние папки, симлинки, неверная версия), замена папки с резервной копией, `onInstall` и откат, кнопки и CSRF на «Системе». `forms.php` — приём заявок: флажки (снятый — `false`, отмеченный — `true`, обязательный требует отметки, группы — списки), старый и новый `forms.js`, отправка без JS, письмо и «Заявки». `submissions.php` — вкладки форм, столбцы (плагин, настройка, сброс, пропуск), страницы списка, фильтр почты, CSRF и экранирование; заявки в фикстурах синтетические. `seo.php` — `/sitemap.xml`, `/robots.txt`, `/llms.txt`: отбор страниц, настройки `seo`, hreflang при службе locale, фильтры плагинов. `brand.php` — байты утверждённых PNG, закрытый каталог `branding/` и разметка шапки с формой входа. Папки `tests/`, `scripts/` и `branding/` в release zip не попадают.
