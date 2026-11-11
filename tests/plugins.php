@@ -153,6 +153,47 @@ foreach ($cases as [$v, $c, $expected]) {
     check($got === $expected, "satisfies({$v}, '{$c}')", 'получено ' . var_export($got, true));
 }
 
+// ---------------------------------------------------------------- isSystemPath
+out("\n[isSystemPath]\n");
+check(PluginManager::ASSETS_PREFIX === 'plugins-assets' && PluginManager::assetsBase() === '/plugins-assets/' && in_array(PluginManager::ASSETS_PREFIX, PluginManager::RESERVED_PREFIXES, true) && !in_array('plugin-assets', PluginManager::RESERVED_PREFIXES, true), 'ASSETS_PREFIX = plugins-assets, старый сегмент не зарезервирован');
+$systemPaths = [];
+foreach (PluginManager::RESERVED_PREFIXES as $prefix) {
+    $systemPaths[] = '/' . $prefix;
+    $systemPaths[] = '/' . $prefix . '/';
+    $systemPaths[] = '/' . $prefix . '/x';
+}
+foreach (array_merge(array_keys(SeoFiles::PATHS), Router::SYSTEM_FILES) as $file) {
+    $systemPaths[] = $file;
+    $systemPaths[] = $file . '?x=1';
+    $systemPaths[] = $file . '#top';
+}
+$systemPaths = array_merge($systemPaths, [
+    '/plugins-assets/hello/app.js?v=1.0.0',
+    '/core/assets/css/admin.css',
+    '/core/assets/favicon.svg',
+    '/core/includes/bootstrap.php',
+    '/admin-panel/login',
+    '/media/products/a.webp',
+    '/api/forms/submit',
+    '/themes/example/assets/css/app.css',
+    '/index.php',
+]);
+foreach ($systemPaths as $p) {
+    check(Router::isSystemPath($p), "isSystemPath true: {$p}");
+}
+$ordinary = [
+    '/', '/about', '/about/', '/hello', '/hello/to/Ivan', '/customizer/',
+    '/plugin-assets', '/plugin-assets/', '/plugin-assets/hello/a.js',
+    '/about?preview=1', '/about#section',
+    'https://example.com/about', '//cdn.example/a.js', 'mailto:a@b.c', '#anchor', 'about', '',
+    '/uploads/a.png', '/vendor/autoload.php', '/favicon', '/robots.txt/extra',
+];
+foreach ($ordinary as $p) {
+    check(!Router::isSystemPath($p), 'isSystemPath false: ' . ($p === '' ? '(пустая строка)' : $p));
+}
+check(PageScripts::sanitizePath('/plugins-assets/hello/app.js?v=1.0.0') === '/plugins-assets/hello/app.js?v=1.0.0', 'PageScripts принимает /plugins-assets/…js');
+check(PageScripts::sanitizePath('/plugin-assets/hello/app.js') === null, 'PageScripts не принимает старый /plugin-assets/');
+
 // ---------------------------------------------------------------- без plugins/
 out("\n[без папки plugins/]\n");
 $manager = new PluginManager($config);
@@ -161,8 +202,8 @@ check(!is_dir($site . '/plugins') && !is_dir($site . '/plugins-data'), 'plugins/
 [$st, $body] = tp_capture(fn() => (new Router($config))->dispatchPublic('/about'));
 check($st === 200 && str_contains($body, 'Страница about.'), 'Markdown-страница /about рендерится', "status {$st}");
 $aboutBefore = $body;
-[$st, $body] = tp_capture(fn() => (new Router($config))->dispatchPublic('/plugin-assets/hello/hello.css'));
-check($st === 404 && str_contains($body, 'Страница не найдена'), '/plugin-assets/... без plugins/ — обычный 404 Markdown-роутера', "status {$st}");
+[$st, $body] = tp_capture(fn() => (new Router($config))->dispatchPublic('/plugins-assets/hello/hello.css'));
+check($st === 404 && str_contains($body, 'Страница не найдена'), '/plugins-assets/... без plugins/ — обычный 404 Markdown-роутера', "status {$st}");
 $_SESSION = ['admin_authenticated' => true, 'csrf_token' => 'tok'];
 [$st, $body] = tp_capture(fn() => (new AdminRouter($config))->dispatchAdmin('/admin-panel/system'));
 check($st === 200 && str_contains($body, 'Плагины не установлены'), '«Система»: «Плагины не установлены»');
@@ -213,7 +254,9 @@ check(($all['too-new']['compatible'] ?? null) === false, 'too-new: compatible = 
 check(($all['hello']['status'] ?? '') === 'ok' && ($all['hello']['compatible'] ?? null) === true, 'hello валиден и совместим');
 check(in_array('Префикс /hello/ также заявлен плагином «zz-conflict» (он отключён)', $all['hello']['warnings'], true), 'hello: предупреждение о конфликте префикса');
 check(($all['about']['status'] ?? '') === 'ok' && str_contains(implode(' ', $all['about']['warnings']), 'перекрыты'), 'about: префикс перекрывает Markdown-страницу (предупреждение)');
-check(is_file($site . '/plugins/.htaccess') && str_contains((string) file_get_contents($site . '/plugins/.htaccess'), 'Require all denied'), 'plugins/.htaccess создан (deny)');
+$pluginsHt = (string) file_get_contents($site . '/plugins/.htaccess');
+check(is_file($site . '/plugins/.htaccess') && str_contains($pluginsHt, 'Require all denied'), 'plugins/.htaccess создан (deny)');
+check(str_contains($pluginsHt, '/' . PluginManager::ASSETS_PREFIX . '/{id}/'), 'новый plugins/.htaccess: комментарий про /plugins-assets/');
 check($manager->prefixOwner('hello') === 'hello' && $manager->prefixOwner('nope') === null && $manager->prefixOwner('Hello') === null, 'prefixOwner()');
 check(array_column($manager->adminMenu(), 'label') === ['Hello'], 'adminMenu(): только «Hello»');
 
@@ -224,7 +267,15 @@ check($manager->boot('throws') === null && str_contains(implode(' ', $manager->d
 check($manager->boot('bad-return') === null && str_contains(implode(' ', $manager->discover()['bad-return']['errors']), 'должна вернуть'), 'точка входа без функции → ошибка');
 $hello = $manager->boot('hello');
 check($hello instanceof PluginContext, 'hello загружен');
-check(is_file($site . '/plugins-data/.htaccess'), 'plugins-data/.htaccess создан (deny)');
+$dataHt = (string) file_get_contents($site . '/plugins-data/.htaccess');
+check($dataHt !== '' && str_contains($dataHt, 'Require all denied'), 'plugins-data/.htaccess создан (deny)');
+check(str_contains($dataHt, '/' . PluginManager::ASSETS_PREFIX . '/{id}/'), 'новый plugins-data/.htaccess: комментарий про /plugins-assets/');
+$ownHt = "# свой комментарий про /plugin-assets/\nRequire all denied\n";
+file_put_contents($site . '/plugins/.htaccess', $ownHt);
+file_put_contents($site . '/plugins-data/.htaccess', $ownHt);
+check(PluginManager::ensureDenyFile($site . '/plugins') && PluginManager::ensureDenyFile($site . '/plugins-data')
+    && file_get_contents($site . '/plugins/.htaccess') === $ownHt
+    && file_get_contents($site . '/plugins-data/.htaccess') === $ownHt, 'ensureDenyFile() не перезаписывает существующие plugins/.htaccess и plugins-data/.htaccess');
 check(is_file($site . '/plugins-data/hello/greeting.json'), 'install-хук hello создал greeting.json');
 $state = json_decode((string) file_get_contents($site . '/plugins-data/hello/.plugin-state.json'), true);
 check(($state['version'] ?? null) === '1.0.0' && array_key_exists('previous_version', $state) && $state['previous_version'] === null, '.plugin-state.json: version 1.0.0, previous null');
@@ -245,7 +296,8 @@ check((new PluginManager($config))->discover()['hooks']['installed_version'] ===
 out("\n[PluginContext]\n");
 check($hello->adminUrl('/api/greeting') === '/admin-panel/plugins/hello/api/greeting' && $hello->adminUrl() === '/admin-panel/plugins/hello', 'adminUrl()');
 check($hello->publicUrl('/') === '/hello' && $hello->publicUrl('to/x') === '/hello/to/x', 'publicUrl()');
-check($hello->assetUrl('hello.css') === '/plugin-assets/hello/hello.css?v=1.0.0', 'assetUrl()');
+check($hello->assetUrl('hello.css') === '/plugins-assets/hello/hello.css?v=1.0.0', 'assetUrl()');
+check($hello->isSystemPath('/media/a.png') && $hello->isSystemPath('/plugins-assets/hello/a.js') && !$hello->isSystemPath('/about') && !$hello->isSystemPath('/plugin-assets/hello/a.js'), 'PluginContext::isSystemPath совпадает с правилами ядра');
 $threw = false;
 try {
     $hello->dataPath('../secret');
@@ -357,23 +409,25 @@ check(($star->matchRoute('admin', 'GET', '/files/a/b.png')['params']['path'] ?? 
 check($star->matchRoute('admin', 'GET', '/files/a/../b.png') === null, '{path*} отклоняет ..');
 
 // ---------------------------------------------------------------- assets
-out("\n[статика /plugin-assets/]\n");
+out("\n[статика /plugins-assets/]\n");
 check(($manager->resolveAsset('hello/hello.css')['type'] ?? '') === 'text/css; charset=UTF-8', 'hello/hello.css отдаётся');
 check(($manager->resolveAsset('hooks/ok.js')['type'] ?? '') === 'text/javascript; charset=UTF-8', 'hooks/ok.js отдаётся');
 foreach (['hello/../plugin.json', 'hello/plugin.json', 'hello/plugin.php', 'hooks/x.php', 'hooks/data.json', 'hooks/.hidden.js', 'hello/%2e%2e/plugin.php', 'too-new/ok.js', 'nope/a.css', 'hello/lib/Hello/GreetingStore.php', 'hello/'] as $bad) {
     check($manager->resolveAsset($bad) === null, "отказ: {$bad}");
 }
+[$st, $body] = tp_capture(fn() => (new Router($config))->dispatchPublic('/plugins-assets/hello/hello.css?v=1.0.0'));
+check($st === 200 && str_contains($body, '.hello-card'), 'Router: /plugins-assets/hello/hello.css → 200');
+[$st] = tp_capture(fn() => (new Router($config))->dispatchPublic('/plugins-assets/hello/../plugin.json'));
+check($st === 404, 'Router: /plugins-assets/hello/../plugin.json → 404');
 [$st, $body] = tp_capture(fn() => (new Router($config))->dispatchPublic('/plugin-assets/hello/hello.css?v=1.0.0'));
-check($st === 200 && str_contains($body, '.hello-card'), 'Router: /plugin-assets/hello/hello.css → 200');
-[$st] = tp_capture(fn() => (new Router($config))->dispatchPublic('/plugin-assets/hello/../plugin.json'));
-check($st === 404, 'Router: /plugin-assets/hello/../plugin.json → 404');
+check($st === 404 && str_contains($body, 'Страница не найдена') && !str_contains($body, '.hello-card'), 'старый /plugin-assets/... — обычный 404, без отдачи файла', "status {$st}");
 
 // ---------------------------------------------------------------- public
 out("\n[сайт]\n");
 $_SESSION = [];
 [$st, $body] = tp_capture(fn() => (new Router($config))->dispatchPublic('/hello/'));
 check($st === 200 && str_contains($body, 'Привет из плагина hello!') && str_contains($body, '<header'), '/hello/ в шаблоне темы', "status {$st}");
-check(str_contains($body, '/plugin-assets/hello/hello-public.js?v=1.0.0'), '/hello/: скрипт плагина подключён через scripts');
+check(str_contains($body, '/plugins-assets/hello/hello-public.js?v=1.0.0'), '/hello/: скрипт плагина подключён через scripts');
 [$st, $body] = tp_capture(fn() => (new Router($config))->dispatchPublic('/hello'));
 check($st === 200 && str_contains($body, 'Привет из плагина hello!'), '/hello без слеша');
 [$st, $body] = tp_capture(fn() => (new Router($config))->dispatchPublic('/hello/to/Ivan'));
@@ -415,7 +469,7 @@ $_SESSION = ['admin_authenticated' => true, 'csrf_token' => 'tok'];
 [$st, $body] = tp_capture(fn() => (new AdminRouter($config))->dispatchAdmin('/admin-panel/plugins/hello'));
 check($st === 200 && str_contains($body, 'id="hello-admin"') && str_contains($body, '<title>Hello — Админка motorchk</title>'), 'GET /admin-panel/plugins/hello в layout', "status {$st}");
 check(str_contains($body, 'href="/admin-panel/plugins/hello" class="mc-nav__link mc-nav__link--plugin" aria-current="page"'), 'пункт меню «Hello» активен');
-check(str_contains($body, '/plugin-assets/hello/hello.css?v=1.0.0" rel="stylesheet"') && str_contains($body, 'hello-admin.js?v=1.0.0'), 'styles/scripts плагина в <head>');
+check(str_contains($body, '/plugins-assets/hello/hello.css?v=1.0.0" rel="stylesheet"') && str_contains($body, 'hello-admin.js?v=1.0.0'), 'styles/scripts плагина в <head>');
 check(strpos($body, '>Система</a>') < strpos($body, '>Hello</a>'), 'пункт плагина после встроенных');
 [$st, $body] = tp_capture(fn() => (new AdminRouter($config))->dispatchAdmin('/admin-panel/plugins/hello/fullscreen'));
 check($st === 200 && str_contains($body, 'mc-admin--fullscreen') && str_contains($body, 'id="mc-admin-main"'), 'полноэкранный layout');

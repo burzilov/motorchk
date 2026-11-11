@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.8.0 — 2026-11-11
+
+### Несовместимые изменения
+
+- Виртуальный URL статики плагинов сменился: `/plugin-assets/{id}/…` → `/plugins-assets/{id}/…`.
+  Редиректа и совместимости со старым путём нет: `/plugin-assets/…` отвечает обычным 404.
+  Плагины, которые захардкодили `/plugin-assets/`, нужно обновить. `assetUrl()` уже отдаёт новый адрес.
+- Префикс задаётся константой `PluginManager::ASSETS_PREFIX` (`plugins-assets`). Зарезервированный
+  сегмент — `plugins-assets`; `plugin-assets` больше не зарезервирован.
+- `PluginManager::ensureDenyFile()` по-прежнему не перезаписывает уже существующие
+  `plugins/.htaccess` и `plugins-data/.htaccess`. В новых файлах комментарий указывает
+  `/plugins-assets/{id}/…`; в уже созданных комментарий может остаться со старым путём.
+  На запрет доступа это не влияет. Корневой `.htaccess` существующих сайтов обновление ядра тоже не меняет.
+
+### Служебные пути ядра
+
+- `Router::isSystemPath(string $path): bool` и `PluginContext::isSystemPath(string $path): bool`.
+  `true` — служебный путь ядра: зарезервированный префикс (включая `/plugins-assets/`, `/core/…`,
+  `/media/…`, `/admin-panel/…`) или корневой служебный файл (`/robots.txt`, `/sitemap.xml`,
+  `/llms.txt`, favicon). Обычная страница — `false`. Метод принимает локальный путь;
+  query и fragment отбрасываются.
+
 ## 0.7.1 — 2026-11-08
 
 ### Логотип в админке

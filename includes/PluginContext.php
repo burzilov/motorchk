@@ -206,7 +206,16 @@ final class PluginContext
             throw new InvalidArgumentException('Некорректный путь статики: ' . $path);
         }
 
-        return '/plugin-assets/' . $this->id() . '/' . $path . '?v=' . rawurlencode($this->version());
+        return PluginManager::assetsBase() . $this->id() . '/' . $path . '?v=' . rawurlencode($this->version());
+    }
+
+    /**
+     * Служебный путь ядра (см. Router::isSystemPath): статика, админка, закрытые каталоги,
+     * служебные файлы. Обычная страница — false.
+     */
+    public function isSystemPath(string $path): bool
+    {
+        return Router::isSystemPath($path);
     }
 
     // ---------- регистрация ----------
@@ -323,7 +332,7 @@ final class PluginContext
      * HTML попадает в $blocks['content'] шаблона темы.
      *
      * @param array{title?: string, description?: string, template?: string, scripts?: list<string>, head_scripts?: list<string>, styles?: list<string>, hero?: string, menu_location?: string, status?: int, vars?: array<string, mixed>, alternates?: bool|array<string, string>} $options
-     *        template — шаблон темы (по умолчанию default); scripts — /plugin-assets/{id}/...js в конце страницы;
+     *        template — шаблон темы (по умолчанию default); scripts — /plugins-assets/{id}/...js в конце страницы;
      *        styles — CSS и head_scripts — JS (defer, до Alpine.js темы) в <head> через site-chrome.php;
      *        vars — доступны шаблону темы как $pluginVars;
      *        alternates — переводы страницы для hreflang: true — на всех языках сайта по тому же пути,

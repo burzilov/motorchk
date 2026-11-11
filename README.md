@@ -46,7 +46,7 @@ public_html/
 
 ## Плагины
 
-Плагин устанавливается распаковкой архива в `public_html/plugins/{id}/`; плагин в папке включён. Плагины добавляют страницы и JSON API в админку (`/admin-panel/plugins/{id}/`), публичные адреса (`/{prefix}/`) и статику (`/plugin-assets/{id}/`). Self-update ядра не трогает `plugins/` и `plugins-data/`. Подробнее — [docs/10-plugins.md](docs/10-plugins.md), пример — [docs/examples/plugins/hello](docs/examples/plugins/hello/).
+Плагин устанавливается распаковкой архива в `public_html/plugins/{id}/`; плагин в папке включён. Плагины добавляют страницы и JSON API в админку (`/admin-panel/plugins/{id}/`), публичные адреса (`/{prefix}/`) и статику (`/plugins-assets/{id}/`). Self-update ядра не трогает `plugins/` и `plugins-data/`. Подробнее — [docs/10-plugins.md](docs/10-plugins.md), пример — [docs/examples/plugins/hello](docs/examples/plugins/hello/).
 
 ## Темы
 

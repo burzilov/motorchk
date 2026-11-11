@@ -5,6 +5,20 @@ class Router
     /** Шаблон темы для 404 публичных страниц: themes/{тема}/404.php. */
     private const NOT_FOUND_TEMPLATE = '404';
 
+    /**
+     * Корневые служебные файлы (точное совпадение пути, без подкаталогов).
+     * /sitemap.xml, /robots.txt и /llms.txt берутся из SeoFiles::PATHS.
+     *
+     * @var list<string>
+     */
+    public const SYSTEM_FILES = [
+        '/favicon.ico',
+        '/favicon.svg',
+        '/favicon.png',
+        '/apple-touch-icon.png',
+        '/apple-touch-icon-precomposed.png',
+    ];
+
     private Cache $cache;
     private MarkdownRenderer $renderer;
     private PageLoader $pageLoader;
@@ -22,6 +36,47 @@ class Router
         $this->menuBuilder = new MenuBuilder($config, $this->cache, $this->pageLoader, $this->pageTree, $menuWriter);
     }
 
+    /**
+     * Служебный путь ядра: true для зарезервированного префикса (PluginManager::RESERVED_PREFIXES,
+     * в том числе статика плагинов, /core/, /media/, админка) и для корневого служебного файла
+     * (SeoFiles::PATHS и SYSTEM_FILES). Обычная страница — false.
+     *
+     * Аргумент — локальный путь от корня сайта. Query и fragment отбрасываются.
+     * Строка без ведущего «/» или с «//» служебным путём ядра не является.
+     */
+    public static function isSystemPath(string $path): bool
+    {
+        $path = self::localPath($path);
+        if ($path === null) {
+            return false;
+        }
+        $bare = rtrim($path, '/');
+        if ($bare === '') {
+            return false;
+        }
+        if (isset(SeoFiles::PATHS[$bare]) || in_array($bare, self::SYSTEM_FILES, true)) {
+            return true;
+        }
+        $segment = explode('/', ltrim($bare, '/'), 2)[0];
+
+        return in_array($segment, PluginManager::RESERVED_PREFIXES, true);
+    }
+
+    /**
+     * Локальный путь без query и fragment.
+     * null — строка не является путём от корня сайта.
+     */
+    private static function localPath(string $path): ?string
+    {
+        $path = trim($path);
+        $path = substr($path, 0, strcspn($path, '?#'));
+        if ($path === '' || !str_starts_with($path, '/') || str_starts_with($path, '//')) {
+            return null;
+        }
+
+        return $path;
+    }
+
     public function dispatchPublic(string $requestUri): void
     {
         $path = parse_url($requestUri, PHP_URL_PATH) ?? '/';
@@ -33,14 +88,15 @@ class Router
             return;
         }
 
-        // /sitemap.xml, /robots.txt, /llms.txt — до хука «request»: без языковых префиксов и редиректов
+        // /sitemap.xml, /robots.txt, /llms.txt — до хука «request»: хуки плагинов их не переписывают
         $seoKind = SeoFiles::kind($path);
         if ($seoKind !== null && SeoFiles::enabled($this->config, $seoKind)) {
             $this->dispatchSeo($seoKind, $method);
             return;
         }
 
-        if (!str_starts_with($path, '/plugin-assets/')) {
+        // Статика плагинов не проходит beforeRouting — мимо хуков плагинов.
+        if (!str_starts_with($path, PluginManager::assetsBase())) {
             $path = $this->beforeRouting($path, $method);
             if ($path === null) {
                 return;
@@ -128,7 +184,7 @@ class Router
     }
 
     /**
-     * Служба i18n и событие «request» до маршрутизации. Возвращает путь для маршрутизации
+     * Хук «request» до маршрутизации. Возвращает путь для маршрутизации
      * или null, если хук сам ответил (редирект). Без plugins/ — путь как есть.
      */
     private function beforeRouting(string $path, string $method): ?string
@@ -181,7 +237,7 @@ class Router
     }
 
     /**
-     * Статика /plugin-assets/{id}/... и публичные префиксы плагинов (приоритет над Markdown-страницами).
+     * Статика плагинов (/plugins-assets/{id}/...) и публичные префиксы (приоритет над Markdown-страницами).
      * Без папки plugins/ ничего не делает.
      */
     private function dispatchPlugins(string $path, string $method): bool
@@ -191,13 +247,14 @@ class Router
             return false;
         }
 
-        if (str_starts_with($path, '/plugin-assets/')) {
+        $assets = PluginManager::assetsBase();
+        if (str_starts_with($path, $assets)) {
             if (!in_array($method, ['GET', 'HEAD'], true)) {
                 http_response_code(405);
                 header('Allow: GET, HEAD');
                 return true;
             }
-            $manager->serveAsset(rawurldecode(substr($path, strlen('/plugin-assets/'))));
+            $manager->serveAsset(rawurldecode(substr($path, strlen($assets))));
             return true;
         }
 

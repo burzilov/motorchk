@@ -7,7 +7,7 @@
 - полноэкранный режим `/admin-panel/plugins/hello/fullscreen`;
 - публичные страницы `/hello/` и `/hello/to/{name}` в шаблоне активной темы, сырой JSON `/hello/api/greeting`;
 - публичный `POST /hello/api/echo` с CSRF;
-- статику из `assets/` по `/plugin-assets/hello/...`;
+- статику из `assets/` по `/plugins-assets/hello/...`;
 - данные в `plugins-data/hello/greeting.json`, install-хук и autoload `Hello\` → `lib/Hello/`.
 
 ## Установка

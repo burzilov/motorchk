@@ -13,7 +13,7 @@ RedirectMatch 403 ^/config/
 RedirectMatch 403 ^/cache/
 RedirectMatch 403 ^/submissions/
 # /core/: снаружи только /core/assets/ — правила в core/.htaccess, обновляются вместе с ядром
-# Плагины: код и данные закрыты; статика — через /plugin-assets/{id}/... (index.php)
+# Плагины: код и данные закрыты; статика — через /plugins-assets/{id}/... (index.php)
 RedirectMatch 403 ^/plugins/
 RedirectMatch 403 ^/plugins-data/
 # Старый каталог (если сайт ещё не переехал) — тоже закрыт

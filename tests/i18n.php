@@ -177,7 +177,7 @@ foreach (['/about', '/team', '/about.en', '/en/about', '/'] as $uri) {
 }
 [$st, $body] = $public('/plain/');
 check($st === 200 && str_contains($body, 'svc=нет url=/plain/x locale=ru'), 'service(i18n) → null, publicUrl без префикса, locale ru', $body);
-check(str_contains($body, '<link href="/plugin-assets/plain/p.css?v=1.0.0" rel="stylesheet">') && str_contains($body, '<script src="/plugin-assets/plain/early.js?v=1.0.0" defer></script>'), 'renderPublic: styles и head_scripts в <head>');
+check(str_contains($body, '<link href="/plugins-assets/plain/p.css?v=1.0.0" rel="stylesheet">') && str_contains($body, '<script src="/plugins-assets/plain/early.js?v=1.0.0" defer></script>'), 'renderPublic: styles и head_scripts в <head>');
 check(strpos($body, 'early.js') < strpos($body, 'alpine.min.js') && strpos($body, 'p.css') < strpos($body, '</head>'), 'head_scripts подключены до Alpine.js темы');
 check(!str_contains($body, 'hreflang'), 'alternates без службы i18n игнорируются');
 

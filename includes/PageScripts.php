@@ -52,7 +52,8 @@ class PageScripts
             return null;
         }
 
-        if (preg_match('#^/plugin-assets/[a-z0-9-]+/[a-zA-Z0-9._/-]+\.m?js(?:\?v=[a-zA-Z0-9._+-]+)?$#', $path)) {
+        $assets = preg_quote(PluginManager::assetsBase(), '#');
+        if (preg_match('#^' . $assets . '[a-z0-9-]+/[a-zA-Z0-9._/-]+\.m?js(?:\?v=[a-zA-Z0-9._+-]+)?$#', $path)) {
             return $path;
         }
 

@@ -14,10 +14,16 @@ class PluginManager
 {
     public const ID_PATTERN = '/^[a-z0-9-]+$/';
 
+    /**
+     * Первый сегмент URL статики плагинов.
+     * Публичный адрес: /plugins-assets/{id}/... (см. assetsBase()).
+     */
+    public const ASSETS_PREFIX = 'plugins-assets';
+
     /** Первые сегменты URL, которые плагин не может занять. */
     public const RESERVED_PREFIXES = [
         'admin-panel', 'api', 'core', 'themes', 'content', 'config', 'cache',
-        'submissions', 'plugins', 'plugins-data', 'plugin-data', 'plugin-assets', 'media', 'index.php',
+        'submissions', 'plugins', 'plugins-data', 'plugin-data', self::ASSETS_PREFIX, 'media', 'index.php',
     ];
 
     /** Разрешённые типы статики плагина (только из папки assets/ плагина). */
@@ -55,7 +61,7 @@ class PluginManager
     ];
 
     private const DENY_HTACCESS = "# motorchk: служебная папка — прямой HTTP-доступ запрещён.\n"
-        . "# Статика плагинов отдаётся ядром по /plugin-assets/{id}/...\n"
+        . "# Статика плагинов отдаётся ядром по /" . self::ASSETS_PREFIX . "/{id}/...\n"
         . "<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n"
         . "<IfModule !mod_authz_core.c>\n    Order allow,deny\n    Deny from all\n</IfModule>\n";
 
@@ -91,6 +97,12 @@ class PluginManager
 
     public function __construct(private array $config)
     {
+    }
+
+    /** Префикс URL статики плагинов с завершающим слэшем: /plugins-assets/ */
+    public static function assetsBase(): string
+    {
+        return '/' . self::ASSETS_PREFIX . '/';
     }
 
     public function pluginsPath(): string
