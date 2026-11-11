@@ -53,18 +53,25 @@ fwrite(STDOUT, "brand: утверждённые PNG\n");
 
 $horizontal = 'assets/brand/motorchk-cms-horizontal.png';
 $stacked = 'assets/brand/motorchk-cms-stacked.png';
+$onDark = 'assets/brand/motorchk-cms-horizontal-on-dark.png';
 $approved = [
     $horizontal => [
-        'sha256' => 'abf8f98d85f99de2c431b6e03548961f6e3417cd8dcaf9ce98b4bb3aac9136e2',
-        'source' => 'branding/approved-raster/delivery/motorchk-cms-horizontal.png',
+        'sha256' => '84d66c0df2c28643a905d3a20e363da07864e02632d4397dbf141a57e44949cc',
+        'source' => 'branding/approved-raster/transparent-2026-11-12/motorchk-cms-horizontal.png',
         'width' => 1656,
         'height' => 378,
     ],
     $stacked => [
-        'sha256' => '30d839d77a6c47caf837619e4682eeedbd380ff8583741a9eca9724115e2e235',
-        'source' => 'branding/approved-raster/delivery/motorchk-cms-stacked.png',
+        'sha256' => 'd5f7174494685e3abebc9c3e9cb0311ce56909f61ad55f7a62a3e127e17ed868',
+        'source' => 'branding/approved-raster/transparent-2026-11-12/motorchk-cms-stacked.png',
         'width' => 1330,
         'height' => 1377,
+    ],
+    $onDark => [
+        'sha256' => '5d478432ae9569496124da5d889a378218e99fadff610d7541dd4c80a67a8b09',
+        'source' => 'branding/approved-raster/transparent-2026-11-12/motorchk-cms-horizontal-on-dark-outline.png',
+        'width' => 1656,
+        'height' => 378,
     ],
 ];
 
@@ -73,36 +80,71 @@ foreach ($approved as $rel => $expect) {
     $source = $corePath . '/' . $expect['source'];
     $hash = is_file($runtime) ? hash_file('sha256', $runtime) : '';
     check($hash === $expect['sha256'], "{$rel}: sha256 утверждённого PNG", $hash);
-    check(is_file($source) && hash_file('sha256', $source) === $hash && $hash !== '', "{$rel}: побайтно совпадает с delivery/");
+    check(is_file($source) && hash_file('sha256', $source) === $hash && $hash !== '', "{$rel}: побайтно совпадает с утверждённым исходником");
     [$w, $h, $color] = pngIhdr($runtime);
     check(
-        $w === $expect['width'] && $h === $expect['height'] && $color === 2,
-        "{$rel}: {$expect['width']}×{$expect['height']}, RGB без альфы",
+        $w === $expect['width'] && $h === $expect['height'] && $color === 6,
+        "{$rel}: {$expect['width']}×{$expect['height']}, RGBA",
         "{$w}×{$h} color {$color}"
     );
 }
+
+$rejected = 'branding/approved-raster/transparent-2026-11-12/motorchk-cms-horizontal-on-dark.png';
+$rejectedHash = is_file($corePath . '/' . $rejected) ? hash_file('sha256', $corePath . '/' . $rejected) : '';
+check(
+    $rejectedHash === '78ad2bf416c6cb8b10e2dbd265b84bdda807615c375c4805cc1ef44c5a89fd0c',
+    'отклонённый вариант без контура сохранён в исходниках',
+    $rejectedHash
+);
+check(
+    $rejectedHash !== '' && $rejectedHash !== $approved[$onDark]['sha256'],
+    'runtime on-dark — не отклонённый вариант без контура'
+);
+check(!is_file($corePath . '/assets/brand/motorchk-cms-horizontal-on-dark-outline.png'), 'в runtime нет файла с именем черновика outline');
 
 $sumFile = $corePath . '/branding/approved-raster/SHA256SUMS';
 $sumOk = is_file($sumFile);
 $sumLines = $sumOk ? file($sumFile, FILE_IGNORE_NEW_LINES) : [];
 check($sumOk && is_array($sumLines) && count($sumLines) >= 8, 'SHA256SUMS на месте', (string) count((array) $sumLines));
+$listed = [];
 foreach ($sumLines ?: [] as $line) {
     if (!preg_match('/^([a-f0-9]{64})  (.+)$/', $line, $m)) {
         $sumOk = false;
         check(false, 'строка SHA256SUMS', $line);
         continue;
     }
+    $listed[$m[2]] = $m[1];
     $path = $corePath . '/branding/approved-raster/' . $m[2];
     $actual = is_file($path) ? hash_file('sha256', $path) : '';
     check($actual === $m[1], "исходник {$m[2]}", $actual);
 }
+$disk = [];
+$rasterRoot = $corePath . '/branding/approved-raster';
+$sumScan = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($rasterRoot, FilesystemIterator::SKIP_DOTS));
+foreach ($sumScan as $file) {
+    if (!$file->isFile()) {
+        continue;
+    }
+    $rel = substr($file->getPathname(), strlen($rasterRoot) + 1);
+    if ($rel === 'SHA256SUMS') {
+        continue;
+    }
+    $disk[] = $rel;
+}
+$missingFromSums = array_values(array_diff($disk, array_keys($listed)));
+check($missingFromSums === [], 'SHA256SUMS покрывает все исходники', implode(', ', $missingFromSums));
 
 $origin = (string) @file_get_contents($corePath . '/branding/ORIGIN.txt');
+$originHasRuntime = true;
+foreach ($approved as $expect) {
+    if (!str_contains($origin, $expect['sha256'])) {
+        $originHasRuntime = false;
+    }
+}
 check(
     str_contains($origin, 'cd7a128d5a98017dbe17a7af8da2a82e4a0107d0ac594bf5f10df0a8b8a0b076')
-        && str_contains($origin, $approved[$horizontal]['sha256'])
-        && str_contains($origin, $approved[$stacked]['sha256']),
-    'ORIGIN.txt хранит суммы архива и runtime PNG'
+        && $originHasRuntime,
+    'ORIGIN.txt хранит сумму прежнего архива и sha256 runtime PNG'
 );
 
 fwrite(STDOUT, "\nbrand: каталог исходников закрыт\n");
@@ -114,7 +156,16 @@ check(preg_match('~RedirectMatch 404 \^/core/\(\?!assets/\)~', $coreHt) === 1, '
 $coreRe = '~^/core/(?!assets/)~';
 check(preg_match($coreRe, '/core/branding/approved-raster/originals/enamel-hen-original.jpg') === 1, '/core/branding/… попадает под 404');
 check(preg_match($coreRe, '/core/branding/approved-raster/delivery/motorchk-cms-horizontal.png') === 1, 'delivery PNG по HTTP закрыт');
-check(preg_match($coreRe, '/core/' . $horizontal) !== 1 && preg_match($coreRe, '/core/' . $stacked) !== 1, 'runtime PNG открыты как /core/assets/');
+check(
+    preg_match($coreRe, '/core/' . $horizontal) !== 1
+        && preg_match($coreRe, '/core/' . $stacked) !== 1
+        && preg_match($coreRe, '/core/' . $onDark) !== 1,
+    'runtime PNG открыты как /core/assets/'
+);
+check(
+    preg_match($coreRe, '/core/branding/approved-raster/transparent-2026-11-12/motorchk-cms-horizontal-on-dark.png') === 1,
+    'отклонённый PNG по HTTP закрыт'
+);
 check(!str_starts_with($horizontal, 'branding/') && !str_contains($horizontal, '..'), 'runtime отделён от исходников');
 
 $build = (string) @file_get_contents($corePath . '/.github/build-release.sh');
@@ -140,7 +191,19 @@ fwrite(STDOUT, "\nbrand: шапка и форма входа\n");
 $cssSrc = (string) file_get_contents($corePath . '/scripts/css/admin.css');
 $cssBuilt = (string) file_get_contents($corePath . '/assets/css/admin.css');
 foreach (['scripts/css/admin.css' => $cssSrc, 'assets/css/admin.css' => $cssBuilt] as $label => $css) {
-    check(str_contains($css, '.mc-brand.mc-brand--logo') && str_contains($css, 'background: #fff'), "{$label}: белая плашка под горизонтальный PNG");
+    $logoRules = [];
+    if (preg_match_all('/\.mc-brand\.mc-brand--logo\s*\{([^}]*)\}/', $css, $logoMatch)) {
+        $logoRules = $logoMatch[1];
+    }
+    $logoBody = implode("\n", $logoRules);
+    check($logoRules !== [], "{$label}: правило шапки на месте");
+    check(!preg_match('/\bbackground\s*:/', $logoBody), "{$label}: белой плашки под логотипом шапки нет");
+    check(!preg_match('/\bpadding\s*:/', $logoBody), "{$label}: у логотипа шапки нет отступов плашки");
+    $authLogo = '';
+    if (preg_match('/\.mc-auth__logo\s*\{([^}]*)\}/', $css, $authMatch)) {
+        $authLogo = $authMatch[1];
+    }
+    check($authLogo !== '' && !preg_match('/\bbackground\s*:/', $authLogo), "{$label}: под знаком входа нет плашки");
     check(str_contains($css, 'aspect-ratio: 1656 / 378') && str_contains($css, 'aspect-ratio: 1330 / 1377'), "{$label}: пропорции обоих знаков");
     check(
         preg_match('/\.mc-brand__logo\s*\{[^}]*object-fit/', $css) !== 1
@@ -204,11 +267,12 @@ require $corePath . '/admin-panel/templates/layout.php';
 $layout = (string) ob_get_clean();
 check(
     str_contains($layout, 'class="mc-brand mc-brand--logo"')
-        && str_contains($layout, 'src="/core/assets/brand/motorchk-cms-horizontal.png"')
+        && str_contains($layout, 'src="/core/assets/brand/motorchk-cms-horizontal-on-dark.png"')
+        && !str_contains($layout, 'src="/core/assets/brand/motorchk-cms-horizontal.png"')
         && str_contains($layout, 'width="1656"')
         && str_contains($layout, 'height="378"')
         && str_contains($layout, 'alt="Motorchk CMS"'),
-    'шапка: горизонтальный знак, ссылка на страницы'
+    'шапка: on-dark знак, ссылка на страницы'
 );
 check(!str_contains($layout, 'mc-brand__square'), 'шапка больше не рисует красный квадрат вместо знака');
 foreach (['Страницы', 'Меню', 'Заявки', 'Система', 'На сайт', 'Выйти', 'id="brand-fixture"'] as $piece) {

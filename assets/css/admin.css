@@ -1533,9 +1533,6 @@
     min-width: 0;
     min-height: 0;
     max-width: 100%;
-    padding: 2px 4px;
-    background: #fff;
-    color: var(--color-ink);
     line-height: 0;
   }
   .mc-brand__logo {
@@ -1688,7 +1685,6 @@
       flex: 0 1 auto;
       min-width: 0;
       max-width: calc(100% - 12.5rem);
-      padding: 2px 3px;
     }
     .mc-brand__logo {
       width: 7.25rem;

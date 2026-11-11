@@ -1,25 +1,39 @@
 Происхождение исходников логотипа Motorchk CMS
 
-Каталог approved-raster/ — содержимое пакета утверждённых растров,
-распакованное без перекодирования и без нового монтажа.
-SHA-256 архива поставки: cd7a128d5a98017dbe17a7af8da2a82e4a0107d0ac594bf5f10df0a8b8a0b076
-Внутренний каталог архива: motorchk-branding-approved-raster/
-Суммы файлов: approved-raster/SHA256SUMS
+Каталог approved-raster/ — исходные растры. Файлы скопированы без перекодирования.
+Суммы: approved-raster/SHA256SUMS
 
-Утверждённые компоновки (delivery/) скопированы побайтно в runtime:
+Прежняя поставка (белый фон).
+SHA-256 архива: cd7a128d5a98017dbe17a7af8da2a82e4a0107d0ac594bf5f10df0a8b8a0b076
+Внутренний каталог архива: motorchk-branding-approved-raster/
+Эти PNG остаются в delivery/ и в интерфейс больше не копируются:
 
   delivery/motorchk-cms-horizontal.png
-    → assets/brand/motorchk-cms-horizontal.png
     1656×378, RGB, белый фон, sha256 abf8f98d85f99de2c431b6e03548961f6e3417cd8dcaf9ce98b4bb3aac9136e2
 
   delivery/motorchk-cms-stacked.png
-    → assets/brand/motorchk-cms-stacked.png
     1330×1377, RGB, белый фон, sha256 30d839d77a6c47caf837619e4682eeedbd380ff8583741a9eca9724115e2e235
 
-Горизонтальный вариант финальный: курочка слева, лапки на baseline надписи.
-Компактный вариант: курочка сверху, надпись снизу.
-SVG не используются. montage.py только документирует уже выполненный монтаж;
-runtime-файлы из него заново не собираются.
+Прозрачная поставка (transparent-2026-11-12/) утверждена для runtime.
+PNG скопированы побайтно, без пережатия:
+
+  transparent-2026-11-12/motorchk-cms-horizontal.png
+    → assets/brand/motorchk-cms-horizontal.png
+    1656×378, RGBA, прозрачный фон (светлые подложки), sha256 84d66c0df2c28643a905d3a20e363da07864e02632d4397dbf141a57e44949cc
+
+  transparent-2026-11-12/motorchk-cms-stacked.png
+    → assets/brand/motorchk-cms-stacked.png
+    1330×1377, RGBA, прозрачный фон, sha256 d5f7174494685e3abebc9c3e9cb0311ce56909f61ad55f7a62a3e127e17ed868
+
+  transparent-2026-11-12/motorchk-cms-horizontal-on-dark-outline.png
+    → assets/brand/motorchk-cms-horizontal-on-dark.png
+    1656×378, RGBA, шапка на --color-ink: надпись #f8f7f3, тонкий светлый контур, sha256 5d478432ae9569496124da5d889a378218e99fadff610d7541dd4c80a67a8b09
+
+  transparent-2026-11-12/motorchk-cms-horizontal-on-dark.png
+    отклонён (без контура), в runtime не копируется, sha256 78ad2bf416c6cb8b10e2dbd265b84bdda807615c375c4805cc1ef44c5a89fd0c
+
+SVG не используются. extract2.py и build.py только документируют уже выполненное
+снятие фона; runtime-файлы из них заново не собираются.
 
 Каталог branding/ закрыт от HTTP (core/.htaccess и этот .htaccess)
 и не входит в release zip (.github/build-release.sh).
