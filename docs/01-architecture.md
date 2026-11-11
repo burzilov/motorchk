@@ -17,7 +17,7 @@
 
 Конфиг сайта задаёт пути (`content_path`, `themes_path`, `forms_path`, `submissions_path`, `core_path`, …); bootstrap подмешивает их после установки.
 
-Плагины: `core/includes/PluginManager.php` читает `plugins/*/plugin.json`; `AdminRouter` передаёт `/admin-panel/plugins/{id}/…` плагину после проверки входа и CSRF, `Router` до Markdown-страниц обслуживает `/plugins-assets/{id}/…` и публичные префиксы плагинов. API — `PluginContext`, `PluginRequest`. Подробнее — [10-plugins.md](10-plugins.md).
+Плагины: `core/includes/PluginManager.php` читает `plugins/*/plugin.json`; `AdminRouter` передаёт `/admin-panel/plugins/{id}/…` плагину после проверки входа и CSRF, `Router` до Markdown-страниц обслуживает `/plugins-assets/{id}/…` и публичные префиксы плагинов. API — `PluginContext`, `PluginRequest`. Языковая служба — `locale` (`LocaleProvider`). Подробнее — [10-plugins.md](10-plugins.md), [11-locale.md](11-locale.md).
 
 Служебные файлы `/sitemap.xml`, `/robots.txt`, `/llms.txt` строит ядро из опубликованных страниц (`core/includes/SeoFiles.php`, настройки — `seo` в `config/site.php`). Подробнее — [13-seo.md](13-seo.md).
 

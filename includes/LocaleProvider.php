@@ -1,13 +1,13 @@
 <?php
 
 /**
- * Контракт службы языков сайта. Плагин регистрирует её под именем «i18n»:
+ * Контракт службы языков сайта. Плагин регистрирует её под именем «locale»:
  *
- *     $plugin->provide('i18n', $service); // $service implements LocaleProvider
+ *     $plugin->provide('locale', $service); // $service implements LocaleProvider
  *
  * Пока такой службы нет, ядро работает на одном языке (SiteLocale::FALLBACK) и не ищет
  * переводы страниц. Адреса на других языках ядро получает через фильтр «url»
- * (его регистрирует тот же плагин), см. docs/11-i18n.md.
+ * (его регистрирует плагин со службой), см. docs/11-locale.md.
  */
 interface LocaleProvider
 {

@@ -830,7 +830,7 @@ class PluginManager
         if (isset($manifest['provides'])) {
             $provides = $manifest['provides'];
             if (!is_array($provides) || !array_is_list($provides)) {
-                return self::fail($info, 'provides — список имён служб ["i18n"]');
+                return self::fail($info, 'provides — список имён служб ["locale"]');
             }
             foreach ($provides as $service) {
                 if (!is_string($service) || !preg_match(self::ID_PATTERN, $service)) {

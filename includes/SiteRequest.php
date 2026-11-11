@@ -53,7 +53,7 @@ final class SiteRequest
         return SiteLocale::current();
     }
 
-    /** Язык запроса; false — язык не из списка службы i18n (или службы нет и язык не основной). */
+    /** Язык запроса; false — язык не из списка службы locale (или службы нет и язык не основной). */
     public function setLocale(string $locale): bool
     {
         return SiteLocale::set($locale);

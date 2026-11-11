@@ -60,7 +60,7 @@ class Maintenance
     /**
      * Гейт: вернёт true, если запрос полностью обработан (503), ложь —
      * продолжить обычную маршрутизацию. Вызывается первым шагом dispatchPublic —
-     * раньше SEO-файлов, языковых префиксов, хуков плагинов и API форм.
+     * раньше SEO-файлов, хуков плагинов и API форм.
      */
     public static function gate(array $config, string $path, string $method): bool
     {

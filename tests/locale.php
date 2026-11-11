@@ -1,12 +1,12 @@
 <?php
 
 /**
- * Тесты точек расширения 0.4.0 (без PHPUnit): php tests/i18n.php
+ * Тесты точек расширения 0.4.0 (без PHPUnit): php tests/locale.php
  *
  * Службы плагинов (provides/service), хуки сайта (request, url, menu, head, output),
  * язык запроса (SiteLocale), переводы Markdown-страниц, hreflang, styles/head_scripts,
- * порядок скриптов относительно Alpine.js и поведение без службы i18n.
- * Тестовые плагины создаются во временном сайте; настоящий плагин i18n не нужен.
+ * порядок скриптов относительно Alpine.js и поведение без службы locale.
+ * Тестовые плагины создаются во временном сайте.
  */
 
 if (PHP_SAPI !== 'cli') {
@@ -24,7 +24,7 @@ spl_autoload_register(static function (string $class) use ($corePath): void {
 });
 
 ob_start();
-Env::set('APP_SECRET', 'i18n-test-secret');
+Env::set('APP_SECRET', 'locale-test-secret');
 $failures = 0;
 $passed = 0;
 
@@ -112,7 +112,7 @@ function ti_capture(callable $fn): array
     return [http_response_code(), $body];
 }
 
-$site = sys_get_temp_dir() . '/motorchk-i18n-test-' . getmypid();
+$site = sys_get_temp_dir() . '/motorchk-locale-test-' . getmypid();
 ti_rm($site);
 mkdir($site, 0775, true);
 foreach (['content', 'themes', 'config'] as $dir) {
@@ -138,7 +138,7 @@ $_SERVER['REQUEST_METHOD'] = 'GET';
 $_SERVER['HTTP_HOST'] = 'example.test';
 $public = static fn(string $uri): array => ti_capture(fn() => (new Router($config))->dispatchPublic($uri));
 
-out("motorchk i18n/hooks tests (core v" . Version::current() . ")\n");
+out("motorchk locale/hooks tests (core v" . Version::current() . ")\n");
 
 // ---------------------------------------------------------------- без плагинов
 out("\n[без плагинов — как до 0.4.0]\n");
@@ -147,19 +147,19 @@ foreach (['/about', '/team', '/about.en', '/en/about', '/'] as $uri) {
     $baseline[$uri] = $public($uri);
 }
 check($baseline['/about'][0] === 200 && str_contains($baseline['/about'][1], '<html lang="ru">') && !str_contains($baseline['/about'][1], 'hreflang'), '/about: lang="ru", без hreflang');
-check($baseline['/about.en'][0] === 200 && str_contains($baseline['/about.en'][1], 'English about text.'), 'без службы i18n about.en.md — обычная страница /about.en (как раньше)');
-check($baseline['/en/about'][0] === 404, '/en/about без i18n — 404');
+check($baseline['/about.en'][0] === 200 && str_contains($baseline['/about.en'][1], 'English about text.'), 'без службы locale about.en.md — обычная страница /about.en (как раньше)');
+check($baseline['/en/about'][0] === 404, '/en/about без службы locale — 404');
 check(SiteLocale::current() === 'ru' && SiteLocale::locales() === ['ru'] && !SiteLocale::isActive(), 'SiteLocale: ru, неактивен');
 check(SiteLocale::localized(['en' => 'Item', 'ru' => 'Товар']) === 'Товар' && SiteLocale::localized(['ru' => '', 'en' => 'Item']) === 'Item' && SiteLocale::localized(['ru' => 'Товар', 'en' => 'Item'], 'en') === 'Item' && SiteLocale::localized(['ru' => '']) === null, 'SiteLocale::localized() без службы: язык → ru → первое непустое → null');
 check(str_contains($baseline['/about'][1], "site-chrome.css\">\n    <script src=\"/core/assets/js/htmx.min.js\""), 'site-chrome.php без дополнений выводит ровно одну строку');
 
-// ---------------------------------------------------------------- плагины без i18n
-out("\n[плагины без службы i18n]\n");
+// ---------------------------------------------------------------- плагины без locale
+out("\n[плагины без службы locale]\n");
 ti_plugin($site, 'plain', ['public' => ['prefix' => 'plain']], <<<'PHP'
 <?php
 return static function (PluginContext $plugin): void {
     $plugin->publicRoute('GET', '/', static function (PluginRequest $r, PluginContext $p): void {
-        $svc = $p->service('i18n');
+        $svc = $p->service('locale');
         $p->renderPublic('page', ['svc' => $svc === null ? 'нет' : 'есть', 'url' => $p->publicUrl('/x'), 'locale' => $p->locale()], ['title' => 'Plain', 'styles' => [$p->assetUrl('p.css')], 'head_scripts' => [$p->assetUrl('early.js')], 'alternates' => true]);
     });
 };
@@ -176,29 +176,40 @@ foreach (['/about', '/team', '/about.en', '/en/about', '/'] as $uri) {
     check($got[0] === $baselineNorm[$uri][0] && $outNormalize($got[1]) === $baselineNorm[$uri][1], "{$uri}: ответ байт в байт как без плагинов");
 }
 [$st, $body] = $public('/plain/');
-check($st === 200 && str_contains($body, 'svc=нет url=/plain/x locale=ru'), 'service(i18n) → null, publicUrl без префикса, locale ru', $body);
+check($st === 200 && str_contains($body, 'svc=нет url=/plain/x locale=ru'), 'service(locale) → null, publicUrl без префикса, locale ru', $body);
 check(str_contains($body, '<link href="/plugins-assets/plain/p.css?v=1.0.0" rel="stylesheet">') && str_contains($body, '<script src="/plugins-assets/plain/early.js?v=1.0.0" defer></script>'), 'renderPublic: styles и head_scripts в <head>');
 check(strpos($body, 'early.js') < strpos($body, 'alpine.min.js') && strpos($body, 'p.css') < strpos($body, '</head>'), 'head_scripts подключены до Alpine.js темы');
-check(!str_contains($body, 'hreflang'), 'alternates без службы i18n игнорируются');
+check(!str_contains($body, 'hreflang'), 'alternates без службы locale игнорируются');
+ti_plugin($site, 'oldname', ['provides' => ['i18n']], <<<'PHP'
+<?php
+return static function (PluginContext $plugin): void {
+    $plugin->provide('i18n', new class implements LocaleProvider {
+        public function locales(): array { return ['ru', 'en']; }
+        public function defaultLocale(): string { return 'en'; }
+    });
+};
+PHP);
+[$st] = $public('/about');
+check($st === 200 && !SiteLocale::isActive() && SiteLocale::current() === 'ru' && (new PluginManager($config))->service('i18n') instanceof LocaleProvider, 'имя службы i18n ядро не подхватывает');
 
 // ---------------------------------------------------------------- манифест
 out("\n[plugin.json: provides и hooks]\n");
 ti_plugin($site, 'bad-hooks', ['hooks' => ['request', 'nope']], "<?php return static function (PluginContext \$p): void {};\n");
 ti_plugin($site, 'bad-provides', ['provides' => ['Bad Name']], "<?php return static function (PluginContext \$p): void {};\n");
 ti_plugin($site, 'undeclared', ['public' => ['prefix' => 'undeclared']], "<?php return static function (PluginContext \$p): void { \$p->filter('url', fn(string \$u): string => \$u); };\n");
-ti_plugin($site, 'zz-second', ['provides' => ['i18n']], "<?php return static function (PluginContext \$p): void {};\n");
+ti_plugin($site, 'zz-second', ['provides' => ['locale']], "<?php return static function (PluginContext \$p): void {};\n");
 $m = new PluginManager($config);
 $all = $m->discover();
 check($all['bad-hooks']['status'] === 'error' && str_contains(implode(' ', $all['bad-hooks']['errors']), 'неизвестный хук «nope»'), 'неизвестный хук — ошибка манифеста');
 check($all['bad-provides']['status'] === 'error', 'некорректное имя службы — ошибка манифеста');
 check($m->boot('undeclared') === null && str_contains(implode(' ', $m->discover()['undeclared']['errors']), 'не объявлен в plugin.json "hooks"'), 'хук без объявления в манифесте — ошибка загрузки');
 
-// ---------------------------------------------------------------- служба i18n и хуки
-out("\n[служба i18n и хуки]\n");
-ti_plugin($site, 'langs', ['provides' => ['i18n'], 'hooks' => ['request', 'url', 'menu', 'head', 'output'], 'autoload' => ['Langs\\' => 'lib']], <<<'PHP'
+// ---------------------------------------------------------------- служба locale и хуки
+out("\n[служба locale и хуки]\n");
+ti_plugin($site, 'langs', ['provides' => ['locale'], 'hooks' => ['request', 'url', 'menu', 'head', 'output'], 'autoload' => ['Langs\\' => 'lib']], <<<'PHP'
 <?php
 return static function (PluginContext $plugin): void {
-    $plugin->provide('i18n', new Langs\Service());
+    $plugin->provide('locale', new Langs\Service());
     $plugin->on('request', static function (SiteRequest $r): void {
         if ($r->path() === '/old') {
             $r->redirect('/about', 301);
@@ -236,14 +247,14 @@ ti_plugin($site, 'shop', ['public' => ['prefix' => 'shop']], <<<'PHP'
 return static function (PluginContext $plugin): void {
     $plugin->publicRoute('GET', '/{item}', static function (PluginRequest $r, PluginContext $p): void {
         $name = $p->localized(['ru' => 'Товар', 'en' => 'Item']);
-        $p->renderPublic('item', ['name' => $name, 'link' => $p->publicUrl('/other'), 'ru' => $p->publicUrl('/other', 'ru'), 'svc' => get_class($p->service('i18n'))], ['title' => $name, 'alternates' => true]);
+        $p->renderPublic('item', ['name' => $name, 'link' => $p->publicUrl('/other'), 'ru' => $p->publicUrl('/other', 'ru'), 'svc' => get_class($p->service('locale'))], ['title' => $name, 'alternates' => true]);
     });
 };
 PHP, ['templates/item.php' => '<p id="shop"><?= $name ?>|<?= $link ?>|<?= $ru ?>|<?= $svc ?></p>']);
 
 $m = new PluginManager($config);
-check($m->serviceOwner('i18n') === 'langs' && in_array('Служба «i18n» уже предоставляется плагином «langs» — объявление проигнорировано', $m->discover()['zz-second']['warnings'], true), 'две службы с одним именем — первая по алфавиту, вторая с предупреждением');
-check($m->service('i18n') instanceof LocaleProvider && $m->service('nothing') === null, 'service(): объект владельца / null для неизвестной');
+check($m->serviceOwner('locale') === 'langs' && in_array('Служба «locale» уже предоставляется плагином «langs» — объявление проигнорировано', $m->discover()['zz-second']['warnings'], true), 'две службы с одним именем — первая по алфавиту, вторая с предупреждением');
+check($m->service('locale') instanceof LocaleProvider && $m->service('nothing') === null, 'service(): объект владельца / null для неизвестной');
 
 [$st, $ru] = $public('/about');
 check($st === 200 && str_contains($ru, 'Русский текст about.') && str_contains($ru, '<html lang="ru">'), '/about — русский оригинал');

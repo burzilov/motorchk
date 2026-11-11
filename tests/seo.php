@@ -4,7 +4,7 @@
  * Тесты служебных файлов (без PHPUnit): php tests/seo.php
  *
  * /sitemap.xml, /robots.txt, /llms.txt из опубликованных страниц: черновики, noindex, sitemap: false,
- * служебные файлы и префиксы плагинов исключены; настройки seo в config/site.php; hreflang при i18n;
+ * служебные файлы и префиксы плагинов исключены; настройки seo в config/site.php; hreflang при службе locale;
  * фильтры плагинов sitemap/robots/llms.
  */
 
@@ -160,7 +160,7 @@ foreach (['draft' => 'черновик (published: false)', 'secret' => 'noindex
     check(!str_contains($xml, '/' . $needle), "исключено: {$why}");
 }
 check(str_contains($xml, '<lastmod>' . date('c', strtotime('2026-01-02 03:04:05')) . '</lastmod>'), 'lastmod — mtime файла в формате W3C', $xml);
-check(str_contains($xml, '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">') && !str_contains($xml, 'xhtml'), 'без i18n — без xhtml:link');
+check(str_contains($xml, '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">') && !str_contains($xml, 'xhtml'), 'без службы locale — без xhtml:link');
 
 $_SERVER['REQUEST_METHOD'] = 'HEAD';
 [$st] = $public('/sitemap.xml');
@@ -214,11 +214,11 @@ $_SERVER['HTTPS'] = 'on';
 check(str_contains($robots, 'Sitemap: https://example.test/sitemap.xml'), 'HTTPS=on (за прокси) — https-адреса', $robots);
 unset($_SERVER['HTTPS']);
 
-out("\n[плагины: i18n, префиксы, фильтры]\n");
-ti_plugin($site, 'langs', ['provides' => ['i18n'], 'hooks' => ['request', 'url'], 'autoload' => ['Langs\\' => 'lib']], <<<'PHP'
+out("\n[плагины: locale, префиксы, фильтры]\n");
+ti_plugin($site, 'langs', ['provides' => ['locale'], 'hooks' => ['request', 'url'], 'autoload' => ['Langs\\' => 'lib']], <<<'PHP'
 <?php
 return static function (PluginContext $plugin): void {
-    $plugin->provide('i18n', new Langs\Service());
+    $plugin->provide('locale', new Langs\Service());
     $plugin->on('request', static function (SiteRequest $r): void {
         if (preg_match('#^/en(/.*)?$#', $r->path(), $m)) {
             $r->setLocale('en');
@@ -261,12 +261,12 @@ $m = new PluginManager($config);
 check(($m->discover()['shop']['status'] ?? '') !== 'error', 'хуки sitemap, robots, llms — допустимы в plugin.json', implode(' ', $m->discover()['shop']['errors'] ?? []));
 [$st, $xml] = $public('/sitemap.xml');
 $doc = @simplexml_load_string($xml);
-check($st === 200 && $doc !== false, 'i18n: sitemap — корректный XML', $xml);
-check(str_contains($xml, 'xmlns:xhtml="http://www.w3.org/1999/xhtml"'), 'i18n: объявлено пространство xhtml');
-check(str_contains($xml, "<loc>http://example.test/about</loc>") && str_contains($xml, "<loc>http://example.test/en/about</loc>"), 'i18n: обе языковые версии about — отдельные <url>', $xml);
-check(substr_count($xml, '<xhtml:link rel="alternate" hreflang="en" href="http://example.test/en/about"/>') === 2 && substr_count($xml, 'hreflang="x-default" href="http://example.test/about"') === 2, 'i18n: hreflang ru/en и x-default у обеих версий');
-check(str_contains($xml, '<loc>http://example.test/en/about</loc>' . "\n" . '    <lastmod>' . date('c', strtotime('2026-02-03 04:05:06')) . '</lastmod>'), 'i18n: lastmod перевода — mtime файла перевода');
-check(!str_contains($xml, '/en/services') && !str_contains($xml, 'about.en') && !str_contains($xml, '/en/secret'), 'i18n: только существующие переводы, файлы переводов — не страницы');
+check($st === 200 && $doc !== false, 'locale: sitemap — корректный XML', $xml);
+check(str_contains($xml, 'xmlns:xhtml="http://www.w3.org/1999/xhtml"'), 'locale: объявлено пространство xhtml');
+check(str_contains($xml, "<loc>http://example.test/about</loc>") && str_contains($xml, "<loc>http://example.test/en/about</loc>"), 'locale: обе языковые версии about — отдельные <url>', $xml);
+check(substr_count($xml, '<xhtml:link rel="alternate" hreflang="en" href="http://example.test/en/about"/>') === 2 && substr_count($xml, 'hreflang="x-default" href="http://example.test/about"') === 2, 'locale: hreflang ru/en и x-default у обеих версий');
+check(str_contains($xml, '<loc>http://example.test/en/about</loc>' . "\n" . '    <lastmod>' . date('c', strtotime('2026-02-03 04:05:06')) . '</lastmod>'), 'locale: lastmod перевода — mtime файла перевода');
+check(!str_contains($xml, '/en/services') && !str_contains($xml, 'about.en') && !str_contains($xml, '/en/secret'), 'locale: только существующие переводы, файлы переводов — не страницы');
 check(!str_contains($xml, '<loc>http://example.test/shop</loc>'), 'страница shop.md перекрыта префиксом плагина — не в sitemap');
 check(str_contains($xml, '<loc>http://example.test/shop/item-1</loc>') && str_contains($xml, '<lastmod>2026-10-01</lastmod>') && str_contains($xml, '<priority>0.5</priority>'), 'фильтр sitemap: запись плагина с lastmod и priority', $xml);
 check(!str_contains($xml, 'javascript'), 'фильтр sitemap: некорректные записи отброшены');

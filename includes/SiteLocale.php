@@ -3,11 +3,14 @@
 /**
  * Язык текущего публичного запроса (состояние на запрос, как Csrf/Form).
  *
- * Без службы «i18n» (LocaleProvider) язык всегда FALLBACK, переводы не ищутся,
+ * Без службы «locale» (LocaleProvider) язык всегда FALLBACK, переводы не ищутся,
  * адреса не меняются — сайт ведёт себя как до 0.4.0.
  */
 final class SiteLocale
 {
+    /** Имя службы языков: plugin.json "provides" и provide()/service(). */
+    public const SERVICE = 'locale';
+
     public const FALLBACK = 'ru';
 
     /** Код языка: ru, en, pt-br, zh-hant. */
@@ -28,7 +31,7 @@ final class SiteLocale
     }
 
     /**
-     * Найти службу i18n. $publicFilters — включить фильтр «url» плагинов (только сайт).
+     * Найти службу locale. $publicFilters — включить фильтр «url» плагинов (только сайт).
      */
     public static function init(?PluginManager $manager, bool $publicFilters): void
     {
@@ -36,7 +39,7 @@ final class SiteLocale
         if ($manager === null || !$manager->hasPluginsDir()) {
             return;
         }
-        $service = $manager->service('i18n');
+        $service = $manager->service(self::SERVICE);
         if ($service instanceof LocaleProvider) {
             self::$provider = $service;
         }
@@ -80,7 +83,7 @@ final class SiteLocale
         return $out;
     }
 
-    /** Языки переводов (все, кроме основного). Пусто, если службы i18n нет. */
+    /** Языки переводов (все, кроме основного). Пусто, если службы locale нет. */
     public static function translationLocales(): array
     {
         return self::isActive() ? array_values(array_slice(self::locales(), 1)) : [];

@@ -11,7 +11,7 @@ class PageLoader
 
     /**
      * Файл страницы. С $locale — файл перевода рядом с оригиналом: about.md → about.en.md,
-     * index.md → index.en.md, about/team.md → about/team.en.md (docs/11-i18n.md).
+     * index.md → index.en.md, about/team.md → about/team.en.md (docs/11-locale.md).
      */
     public function slugToPath(string $slug, ?string $locale = null): string
     {
