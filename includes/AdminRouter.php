@@ -589,6 +589,14 @@ class AdminRouter
             return;
         }
 
+        try {
+            $bcc = Mailer::parseBccList((string) ($_POST['smtp_bcc'] ?? ''));
+        } catch (RuntimeException $e) {
+            $this->redirect('/admin-panel/system?smtp_error=' . rawurlencode($e->getMessage()));
+            return;
+        }
+        $updates['SMTP_BCC'] = implode(', ', $bcc);
+
         if ($passwordInput !== '') {
             $updates['SMTP_PASSWORD'] = $passwordInput;
         }

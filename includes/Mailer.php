@@ -10,7 +10,7 @@ class Mailer
     }
 
     /**
-     * @return array{host: string, port: int, encryption: string, username: string, password: string, from: string, from_name: string, to: string}
+     * @return array{host: string, port: int, encryption: string, username: string, password: string, from: string, from_name: string, to: string, bcc: string}
      */
     public function settingsFromEnv(): array
     {
@@ -23,11 +23,46 @@ class Mailer
             'from' => (string) Env::get('SMTP_FROM', ''),
             'from_name' => (string) Env::get('SMTP_FROM_NAME', ''),
             'to' => (string) Env::get('SMTP_TO', ''),
+            'bcc' => (string) Env::get('SMTP_BCC', ''),
         ];
     }
 
     /**
-     * @param array{host?: string, port?: int, encryption?: string, username?: string, password?: string, from?: string, from_name?: string, to?: string}|null $override
+     * Адреса из SMTP_BCC: один адрес или несколько через запятую.
+     * Пробелы по краям обрезаются, пустые фрагменты пропускаются, повторы без учёта регистра схлопываются.
+     * Пустая строка и null — пустой список. Некорректный адрес — RuntimeException.
+     *
+     * @return list<string>
+     */
+    public static function parseBccList(?string $raw): array
+    {
+        if ($raw === null || trim($raw) === '') {
+            return [];
+        }
+
+        $seen = [];
+        $addresses = [];
+        foreach (explode(',', $raw) as $part) {
+            $address = trim($part);
+            if ($address === '') {
+                continue;
+            }
+            if (!self::isEmailAddress($address)) {
+                throw new RuntimeException('Некорректный адрес SMTP_BCC: ' . $address);
+            }
+            $key = strtolower($address);
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $addresses[] = $address;
+        }
+
+        return $addresses;
+    }
+
+    /**
+     * @param array{host?: string, port?: int, encryption?: string, username?: string, password?: string, from?: string, from_name?: string, to?: string, bcc?: string}|null $override
      */
     public function testConnection(?array $override = null): void
     {
@@ -40,7 +75,7 @@ class Mailer
     }
 
     /**
-     * @param array{host?: string, port?: int, encryption?: string, username?: string, password?: string, from?: string, from_name?: string, to?: string}|null $override
+     * @param array{host?: string, port?: int, encryption?: string, username?: string, password?: string, from?: string, from_name?: string, to?: string, bcc?: string}|null $override
      * @param string|null $replyTo заголовок Reply-To (например, email автора заявки)
      */
     public function send(string $subject, string $body, ?string $to = null, ?array $override = null, ?string $replyTo = null): void
@@ -65,6 +100,7 @@ class Mailer
         $mail->AltBody = $body;
 
         try {
+            $this->appendBcc($mail, (string) ($settings['bcc'] ?? ''), $recipient);
             if (!$mail->send()) {
                 throw new RuntimeException($mail->ErrorInfo !== '' ? $mail->ErrorInfo : 'Ошибка отправки письма');
             }
@@ -82,7 +118,7 @@ class Mailer
             throw new RuntimeException('Не указан SMTP_HOST');
         }
 
-        $mail = new PHPMailer(true);
+        $mail = $this->createPhpMailer();
         $mail->isSMTP();
         $mail->Host = $settings['host'];
         $mail->Port = $settings['port'] > 0 ? $settings['port'] : 587;
@@ -103,5 +139,29 @@ class Mailer
         }
 
         return $mail;
+    }
+
+    /**
+     * Точка подмены в тестах: боевой код создаёт обычный PHPMailer.
+     */
+    protected function createPhpMailer(): PHPMailer
+    {
+        return new PHPMailer(true);
+    }
+
+    private function appendBcc(PHPMailer $mail, string $raw, string $recipient): void
+    {
+        $skip = strtolower(trim($recipient));
+        foreach (self::parseBccList($raw) as $address) {
+            if ($skip !== '' && strtolower($address) === $skip) {
+                continue;
+            }
+            $mail->addBCC($address);
+        }
+    }
+
+    private static function isEmailAddress(string $value): bool
+    {
+        return !preg_match('/[\r\n,;]/', $value) && PHPMailer::validateAddress($value);
     }
 }
