@@ -82,6 +82,11 @@ $enc = (string) ($smtp['encryption'] ?? 'tls');
                     To (получатель заявок)
                     <input name="smtp_to" type="email" value="<?= htmlspecialchars((string) ($smtp['to'] ?? '')) ?>" class="mc-input">
                 </label>
+                <label class="mc-field mc-label">
+                    Скрытая копия (BCC)
+                    <input name="smtp_bcc" type="text" value="<?= htmlspecialchars((string) ($smtp['bcc'] ?? '')) ?>" placeholder="address@example.com, copy@example.com" class="mc-input" autocomplete="off">
+                    <span class="mc-hint">Один адрес или несколько через запятую. Пусто — без скрытой копии.</span>
+                </label>
             </div>
             <div class="mc-actions">
                 <button type="submit" class="mc-btn mc-btn--primary">

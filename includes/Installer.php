@@ -59,7 +59,8 @@ class Installer
         $env = "APP_SECRET={$secret}\n"
             . "ADMIN_USERNAME={$username}\n"
             . "ADMIN_PASSWORD_HASH={$hash}\n"
-            . "UPDATE_CHECK_TTL=21600\n";
+            . "UPDATE_CHECK_TTL=21600\n"
+            . "# SMTP_BCC=\n";
 
         if (file_put_contents($sitePath . '/.env', $env) === false) {
             throw new RuntimeException('Не удалось записать .env');

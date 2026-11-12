@@ -471,6 +471,7 @@ final class PluginContext
 
     /**
      * Письмо через SMTP из настроек ядра (.env). Получатель обязателен — SMTP_TO не подставляется.
+     * Скрытая копия из SMTP_BCC добавляется ко всем письмам; адрес, совпадающий с $to, не дублируется.
      * $replyTo — заголовок Reply-To. Ошибка отправки — RuntimeException.
      */
     public function mail(string $subject, string $body, string $to, ?string $replyTo = null): void
