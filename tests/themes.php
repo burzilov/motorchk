@@ -141,6 +141,13 @@ out("motorchk themes tests (core v" . Version::current() . ")\n");
 
 $warnings = [];
 set_error_handler(static function (int $no, string $msg, string $file, int $line) use (&$warnings): bool {
+    if (
+        ($no & (E_DEPRECATED | E_USER_DEPRECATED)) !== 0
+        && preg_match('~(^|/)vendor/~', str_replace('\\', '/', $file)) !== 1
+    ) {
+        fwrite(STDERR, "E_DEPRECATED: {$msg} in {$file} on line {$line}\n");
+        exit(1);
+    }
     $warnings[] = "{$msg} ({$file}:{$line})";
     return true;
 });

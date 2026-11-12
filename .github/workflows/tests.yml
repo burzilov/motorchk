@@ -16,12 +16,17 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: mbstring, dom, zip
+          extensions: mbstring, dom, zip, curl
           tools: composer:v2
           coverage: none
       - run: composer install --no-dev --no-interaction --no-progress
       - name: Run core tests
         run: |
-          for t in plugins locale themes toast plugin-updates forms mail submissions seo maintenance brand; do
-            php "tests/$t.php" || exit 1
+          # На PHP 8.5 E_DEPRECATED из ядра (не из vendor/) завершает прогон.
+          args=()
+          if [ "${{ matrix.php }}" = "8.5" ]; then
+            args+=(-d error_reporting=E_ALL -d display_errors=1 -d auto_prepend_file=tests/fail-on-deprecation.php)
+          fi
+          for t in plugins locale themes toast plugin-updates forms mail submissions seo maintenance brand deprecations; do
+            php "${args[@]}" "tests/$t.php" || exit 1
           done
