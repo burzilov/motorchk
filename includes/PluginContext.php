@@ -472,9 +472,15 @@ final class PluginContext
     /**
      * Письмо через SMTP из настроек ядра (.env). Получатель обязателен — SMTP_TO не подставляется.
      * Скрытая копия из SMTP_BCC добавляется ко всем письмам; адрес, совпадающий с $to, не дублируется.
-     * $replyTo — заголовок Reply-To. Ошибка отправки — RuntimeException.
+     * $replyTo — заголовок Reply-To.
+     * Без ключа html аргумент $body — обычный текст: ядро собирает HTML, текстовая альтернатива равна $body.
+     * Готовый HTML — $options['html'] (как есть). Текстовая альтернатива — $options['text'], если ключ передан;
+     * иначе непустой $body; иначе текст собирается из HTML.
+     * Некорректный адрес или тип html/text — InvalidArgumentException, ошибка отправки — RuntimeException.
+     *
+     * @param array{html?: string, text?: string} $options
      */
-    public function mail(string $subject, string $body, string $to, ?string $replyTo = null): void
+    public function mail(string $subject, string $body, string $to, ?string $replyTo = null, array $options = []): void
     {
         if (!self::isEmail($to)) {
             throw new InvalidArgumentException('mail(): некорректный адрес получателя');
@@ -482,7 +488,12 @@ final class PluginContext
         if ($replyTo !== null && !self::isEmail($replyTo)) {
             throw new InvalidArgumentException('mail(): некорректный адрес Reply-To');
         }
-        (new Mailer($this->config))->send($subject, $body, $to, null, $replyTo);
+        foreach (['html', 'text'] as $key) {
+            if (array_key_exists($key, $options) && !is_string($options[$key])) {
+                throw new InvalidArgumentException('mail(): параметр ' . $key . ' должен быть строкой');
+            }
+        }
+        (new Mailer($this->config))->send($subject, $body, $to, null, $replyTo, $options);
     }
 
     /** Заявки в разделе «Заявки» админки, включая регистрацию вкладки и столбцов. */

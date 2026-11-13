@@ -199,6 +199,21 @@ out("Письмо и «Заявки»\n");
 $handler = new FormSubmitHandler($config);
 $body = (new ReflectionMethod($handler, 'renderBody'))->invoke($handler, 'Обратная связь', $contractFields, ['name' => 'Иван', 'consent' => true, 'news' => false, 'topics' => ['a', 'b']], 'x1');
 check(str_contains($body, 'Согласие: да') && str_contains($body, 'Рассылка: нет') && str_contains($body, 'topics: a, b'), 'письмо: да / нет / список через запятую', $body);
+$htmlBody = (new ReflectionMethod($handler, 'renderHtmlBody'))->invoke($handler, 'Обратная связь', $contractFields, ['name' => 'Иван', 'consent' => true, 'news' => false, 'topics' => ['a', 'b']], 'x1');
+check(str_contains($htmlBody, '<table') && str_contains($htmlBody, '<meta charset="UTF-8">'), 'HTML письма: таблица и UTF-8', $htmlBody);
+check(str_contains($htmlBody, '>Согласие</th>') && str_contains($htmlBody, '>да</td>') && str_contains($htmlBody, '>нет</td>') && str_contains($htmlBody, '>a, b</td>'), 'HTML письма: подпись и значение в ячейках', $htmlBody);
+$dangerFields = [
+    ['name' => 'note', 'type' => 'textarea', 'required' => false, 'label' => 'Заметка <i>'],
+];
+$dangerText = (new ReflectionMethod($handler, 'renderBody'))->invoke($handler, 'Форма <b>', $dangerFields, ['note' => "a <c>\nвторая"], 'id&1');
+$dangerHtml = (new ReflectionMethod($handler, 'renderHtmlBody'))->invoke($handler, 'Форма <b>', $dangerFields, ['note' => "a <c>\nвторая"], 'id&1');
+check(str_contains($dangerText, "Форма: Форма <b>") && str_contains($dangerText, "Заметка <i>: a <c>\nвторая") && str_contains($dangerText, 'Заявка: id&1'), 'текст письма сохраняет символы как есть', $dangerText);
+check(
+    str_contains($dangerHtml, '&lt;b&gt;') && str_contains($dangerHtml, '&lt;i&gt;') && str_contains($dangerHtml, '&lt;c&gt;') && str_contains($dangerHtml, '&amp;') && str_contains($dangerHtml, "a &lt;c&gt;<br>\nвторая"),
+    'HTML письма экранирует подписи и значения и сохраняет перенос',
+    $dangerHtml
+);
+check(!str_contains($dangerHtml, '<b>') && !str_contains($dangerHtml, '<i>') && !str_contains($dangerHtml, '<c>'), 'в HTML письма нет сырых тегов из значений', $dangerHtml);
 $subject = (new ReflectionMethod($handler, 'renderSubject'))->invoke($handler, 'Заявка: {{name}}, рассылка {{news}}', ['name' => 'Иван', 'news' => false]);
 check($subject === 'Заявка: Иван, рассылка нет', 'тема письма: false → «нет»', $subject);
 
