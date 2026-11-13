@@ -66,7 +66,7 @@ function mail_bcc(PHPMailer $mail): array
 }
 
 /** PHPMailer без сети: postSend не ходит на SMTP. */
-class MailProbeMessage extends PHPMailer
+class MailProbeMessage extends MotorchkMailMessage
 {
     public bool $delivered = false;
 
@@ -278,6 +278,77 @@ $probe = new MailProbe();
 $probe->send('Тема', 'Текст', null, ['bcc' => 'override@example.test']);
 check(mail_bcc($probe->message) === ['override@example.test'], 'override bcc заменяет список из окружения');
 
+out("HTML и текстовая альтернатива\n");
+mail_base_env();
+Env::set('SMTP_BCC', 'copy@example.test');
+$raw = "Строка 1\r\nСтрока 2\n\nАбзац <b> & https://example.com/a?x=1&y=2.";
+$probe = new MailProbe();
+$probe->send('Тема', $raw, null, null, 'reply@example.test');
+check($probe->message->ContentType === 'multipart/alternative', 'после отправки конверт — multipart/alternative', $probe->message->ContentType);
+check($probe->message->AltBody === $raw, 'AltBody обычного текста — исходная строка, включая CRLF');
+$html = $probe->message->Body;
+check(str_contains($html, "Строка 1<br>\nСтрока 2") && substr_count($html, '<p style="margin:0 0 1em;">') === 2, 'одиночный перенос — br, пустая строка — абзац', $html);
+check(str_contains($html, '&lt;b&gt;') && str_contains($html, '&amp;') && !str_contains($html, '<b>'), 'символы HTML экранируются', $html);
+check(
+    str_contains($html, 'href="https://example.com/a?x=1&amp;y=2"') && str_contains($html, '</a>.'),
+    'ссылка http(s) кликабельна, точка после адреса остаётся снаружи',
+    $html
+);
+check(str_contains($html, '<meta charset="UTF-8">') && str_contains($html, 'font-family:Arial,Helvetica,sans-serif'), 'обёртка: UTF-8 и шрифт', $html);
+check(substr_count($html, '<!DOCTYPE html>') === 1, 'обёртка одна');
+$mime = $probe->message->getSentMIMEMessage();
+$plainPos = strpos($mime, 'Content-Type: text/plain');
+$htmlPos = strpos($mime, 'Content-Type: text/html');
+check(str_contains($mime, 'multipart/alternative') && $plainPos !== false && $htmlPos !== false && $plainPos < $htmlPos, 'MIME: multipart/alternative, сначала text/plain, затем text/html');
+check(str_contains($mime, 'Reply-To: reply@example.test') && str_contains($mime, 'from@example.test') && mail_bcc($probe->message) === ['copy@example.test'], 'HTML-письмо сохраняет From, Reply-To и BCC');
+
+$linked = Mailer::textToHtml('seehttp://example.com и javascript:alert(1) и (https://ok.test/a_(b)).');
+check(!str_contains($linked, 'href="http://example.com"'), 'схема внутри слова не становится ссылкой', $linked);
+check(!preg_match('/href="[^"]*javascript:/', $linked), 'javascript: не становится ссылкой', $linked);
+check(str_contains($linked, 'href="https://ok.test/a_(b)"') && str_contains($linked, '</a>).'), 'скобки адреса сохраняются, хвост пунктуации снаружи', $linked);
+
+$given = "<p>Готово</p>\n<script>x</script>";
+$probe = new MailProbe();
+$probe->send('Тема', 'не используется', null, null, null, ['html' => $given, 'text' => "Готово\n"]);
+check($probe->message->Body === $given, 'готовый HTML попадает в Body как есть');
+check($probe->message->AltBody === "Готово\n", 'AltBody готового HTML — переданный text');
+check(!str_contains($probe->message->Body, '<!DOCTYPE html>'), 'готовый HTML не оборачивается');
+
+$fragment = '<p>A &amp; B<br>C</p><p>D</p>';
+$probe = new MailProbe();
+$probe->send('Тема', 'мой текст', null, null, null, ['html' => $fragment]);
+check($probe->message->Body === $fragment && $probe->message->AltBody === 'мой текст', 'без text непустой body становится текстовой альтернативой');
+
+$generatedFrom = '<head><title>T</title><style>p{}</style></head><p>A &amp; B<br>C</p><p>D</p><script>alert(1)</script>';
+$expectedText = Mailer::htmlToText($generatedFrom);
+check($expectedText === "A & B\nC\n\nD", 'htmlToText: сущности, br, абзацы, без head и script', $expectedText);
+$probe = new MailProbe();
+$probe->send('Тема', '', null, null, null, ['html' => $generatedFrom]);
+check($probe->message->Body === $generatedFrom && $probe->message->AltBody === $expectedText, 'без text и с пустым body AltBody собирается из HTML');
+
+$probe = new MailProbe();
+$probe->send('Тема', '0');
+check($probe->message->AltBody === '0' && str_contains($probe->message->Body, '>0</p>'), 'текст «0» не теряется', $probe->message->AltBody);
+check(str_contains($probe->message->getSentMIMEMessage(), 'multipart/alternative'), 'текст «0» тоже уходит как multipart/alternative');
+
+$probe = new MailProbe();
+$probe->send('Тема', 'исходный', null, null, null, ['html' => '<p>H</p>', 'text' => '']);
+check($probe->message->AltBody === '' && str_contains($probe->message->getSentMIMEMessage(), 'multipart/alternative'), 'явный пустой text всё равно даёт текстовую часть');
+
+Env::set('SMTP_TO', 'to@example.test');
+Env::set('SMTP_BCC', 'TO@example.test, copy@example.test');
+$probe = new MailProbe();
+$probe->send('Тема', '', 'to@example.test', null, 'reply@example.test', ['html' => '<p>H</p>', 'text' => 'H']);
+check(mail_bcc($probe->message) === ['copy@example.test'], 'готовое HTML-письмо не дублирует To в BCC', implode(',', mail_bcc($probe->message)));
+$mime = $probe->message->getSentMIMEMessage();
+check(str_contains($mime, 'Reply-To: reply@example.test') && str_contains($mime, 'from@example.test') && !preg_match('/^Bcc:/mi', $mime), 'готовое HTML сохраняет From и Reply-To, Bcc в заголовки не попадает');
+
+$probe = new MailProbe();
+$err = mail_throws(static fn () => $probe->send('Тема', 'Текст', null, null, null, ['html' => 1]));
+check($err instanceof InvalidArgumentException && str_contains((string) $err?->getMessage(), 'html'), 'html не строка — исключение до отправки', (string) $err?->getMessage());
+$err = mail_throws(static fn () => (new MailProbe())->send('Тема', 'Текст', null, null, null, ['text' => null]));
+check($err instanceof InvalidArgumentException && str_contains((string) $err?->getMessage(), 'text'), 'text не строка — исключение', (string) $err?->getMessage());
+
 Env::set('SMTP_HOST', '');
 $err = mail_throws(static fn () => (new MailProbe())->send('Тема', 'Текст'));
 check($err instanceof RuntimeException && str_contains($err->getMessage(), 'SMTP_HOST'), 'без SMTP_HOST по-прежнему ошибка хоста', (string) $err?->getMessage());
@@ -286,10 +357,17 @@ Env::set('SMTP_TO', '');
 $err = mail_throws(static fn () => (new MailProbe())->send('Тема', 'Текст'));
 check($err instanceof RuntimeException && str_contains($err->getMessage(), 'SMTP_TO'), 'без получателя по-прежнему ошибка SMTP_TO', (string) $err?->getMessage());
 
+$mailerSrc = (string) file_get_contents($corePath . '/includes/Mailer.php');
 $formHandler = (string) file_get_contents($corePath . '/includes/FormSubmitHandler.php');
 $pluginMail = (string) file_get_contents($corePath . '/includes/PluginContext.php');
-check(str_contains($formHandler, '(new Mailer($this->config))->send($subject, $body)'), 'заявки форм отправляются через Mailer::send');
-check(str_contains($pluginMail, '(new Mailer($this->config))->send($subject, $body, $to, null, $replyTo)'), 'почта ядра для плагинов отправляется через Mailer::send');
+check(str_contains($mailerSrc, '$mail->isHTML(true);'), 'Mailer всегда вызывает isHTML(true)');
+check(
+    str_contains($formHandler, "(new Mailer(\$this->config))->send(\$subject, \$text, null, null, null, [")
+        && str_contains($formHandler, "'html' => \$html")
+        && str_contains($formHandler, "'text' => \$text"),
+    'заявки форм отправляются через Mailer::send с HTML и текстом'
+);
+check(str_contains($pluginMail, '(new Mailer($this->config))->send($subject, $body, $to, null, $replyTo, $options)'), 'почта ядра для плагинов отправляется через Mailer::send');
 
 out("Админка и .env\n");
 $site = sys_get_temp_dir() . '/motorchk-mail-test-' . getmypid();

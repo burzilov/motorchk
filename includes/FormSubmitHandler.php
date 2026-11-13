@@ -97,10 +97,14 @@ class FormSubmitHandler
         $created = $store->create($formId, $payload, $contract['fields'], $ip);
 
         $subject = $this->renderSubject($meta['subject'], $payload);
-        $body = $this->renderBody($meta['label'], $contract['fields'], $payload, $created['id']);
+        $text = $this->renderBody($meta['label'], $contract['fields'], $payload, $created['id']);
+        $html = $this->renderHtmlBody($meta['label'], $contract['fields'], $payload, $created['id']);
 
         try {
-            (new Mailer($this->config))->send($subject, $body);
+            (new Mailer($this->config))->send($subject, $text, null, null, null, [
+                'html' => $html,
+                'text' => $text,
+            ]);
             $store->updateMailStatus($formId, $created['id'], 'sent', null);
         } catch (Throwable $e) {
             $store->updateMailStatus($formId, $created['id'], 'failed', $e->getMessage());
@@ -258,18 +262,64 @@ class FormSubmitHandler
         ];
 
         foreach ($fields as $field) {
-            $name = $field['name'];
-            $val = $payload[$name] ?? '';
-            if (is_array($val)) {
-                $text = implode(', ', array_map('strval', $val));
-            } elseif (is_bool($val)) {
-                $text = $val ? 'да' : 'нет';
-            } else {
-                $text = (string) $val;
-            }
-            $lines[] = $field['label'] . ': ' . $text;
+            $lines[] = $field['label'] . ': ' . $this->formatValue($payload[$field['name']] ?? '');
         }
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * Таблица «поле — значение». Подписи и значения экранируются.
+     *
+     * @param list<array{name: string, type: string, required: bool, label: string}> $fields
+     * @param array<string, mixed> $payload
+     */
+    private function renderHtmlBody(string $formLabel, array $fields, array $payload, string $submissionId): string
+    {
+        $rows = [
+            ['Форма', $formLabel],
+            ['Заявка', $submissionId],
+        ];
+        foreach ($fields as $field) {
+            $rows[] = [$field['label'], $this->formatValue($payload[$field['name']] ?? '')];
+        }
+
+        $html = '';
+        foreach ($rows as [$label, $value]) {
+            $html .= '<tr>'
+                . '<th scope="row" style="text-align:left;vertical-align:top;padding:6px 16px 6px 0;font-weight:600;">'
+                . self::h($label)
+                . '</th>'
+                . '<td style="vertical-align:top;padding:6px 0;">'
+                . self::hMultiline($value)
+                . '</td>'
+                . '</tr>';
+        }
+
+        return Mailer::htmlDocument('<table style="border-collapse:collapse;">' . $html . '</table>');
+    }
+
+    private function formatValue(mixed $val): string
+    {
+        if (is_array($val)) {
+            return implode(', ', array_map('strval', $val));
+        }
+        if (is_bool($val)) {
+            return $val ? 'да' : 'нет';
+        }
+
+        return (string) $val;
+    }
+
+    private static function h(string $value): string
+    {
+        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    private static function hMultiline(string $value): string
+    {
+        $value = str_replace(["\r\n", "\r"], "\n", $value);
+
+        return str_replace("\n", "<br>\n", self::h($value));
     }
 }
