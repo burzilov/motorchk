@@ -502,6 +502,51 @@ final class PluginContext
         return new PluginSubmissions(new SubmissionStore($this->config), $this->manager, $this->id());
     }
 
+    /**
+     * Страницы сайта: загрузка, создание, частичное обновление front matter, удаление.
+     * Для записи своих ключей в Markdown без затирания содержимого и чужих полей.
+     */
+    public function pages(): PluginPages
+    {
+        return new PluginPages($this->config, $this->manager, $this->id());
+    }
+
+    /**
+     * Поле редактора страницы ядра. Нужен `"page_fields": true` в plugin.json.
+     * Значение пишется в front matter под $key. Вызывать из точки входа на каждый boot.
+     *
+     * @param array{
+     *   type?: string,
+     *   label?: string|array<string, string>,
+     *   hint?: string|array<string, string>,
+     *   placement?: string,
+     *   options?: array<string, string|array<string, string>>,
+     *   default?: mixed,
+     *   show_when?: array{template?: string|list<string>, section?: string|list<string>},
+     *   validate?: callable
+     * } $spec
+     */
+    public function registerPageField(string $key, array $spec): void
+    {
+        $this->manager->registerPageField($this->id(), $key, $spec);
+    }
+
+    /**
+     * Панель в редакторе страницы (HTML от callable render). Нужен `"page_fields": true`.
+     * Тяжёлые действия (загрузка файлов, DnD) делайте через adminRoute плагина.
+     *
+     * @param array{
+     *   label?: string|array<string, string>,
+     *   placement?: string,
+     *   show_when?: array{template?: string|list<string>, section?: string|list<string>},
+     *   render: callable
+     * } $spec
+     */
+    public function registerPagePanel(string $id, array $spec): void
+    {
+        $this->manager->registerPagePanel($this->id(), $id, $spec);
+    }
+
     /** Значение из .env сайта (null — нет ключа). */
     public function env(string $key): ?string
     {

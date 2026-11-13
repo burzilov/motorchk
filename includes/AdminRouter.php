@@ -1073,6 +1073,8 @@ class AdminRouter
             return;
         }
 
+        $extensions = $this->pageEditorExtensions($page);
+
         $this->render('pages/edit.php', [
             'page' => $page,
             'leaf_slug' => Slugifier::leafFromSlug($slug),
@@ -1081,11 +1083,21 @@ class AdminRouter
             'templates' => $this->listTemplates(),
             'descendants' => $this->pageTree->countDescendants($slug),
             'is_index' => $slug === 'index',
+            'page_fields' => $extensions['fields'],
+            'page_panels' => $extensions['panels'],
+            'page_field_plugins' => $extensions['contexts'],
         ]);
     }
 
     private function handleSavePage(string $slug): void
     {
+        $existing = $this->pageLoader->loadBySlug($slug, false);
+        if ($existing === null) {
+            http_response_code(404);
+            echo 'Страница не найдена';
+            return;
+        }
+
         $data = [
             'title' => trim($_POST['title'] ?? ''),
             'leaf_slug' => trim($_POST['slug'] ?? ''),
@@ -1097,13 +1109,41 @@ class AdminRouter
             'og_description' => trim($_POST['og_description'] ?? ''),
             'og_image' => trim($_POST['og_image'] ?? ''),
             'scripts' => PageScripts::fromTextarea($_POST['scripts'] ?? ''),
-            'order' => (int) ($_POST['order'] ?? 0),
         ];
+        if (array_key_exists('order', $_POST)) {
+            $data['order'] = (int) $_POST['order'];
+        }
 
         try {
             if (!in_array($data['template'], $this->listTemplates(), true)) {
                 throw new InvalidArgumentException('Шаблон не найден');
             }
+
+            $previewMatter = $existing['front_matter'];
+            $previewMatter['template'] = $data['template'];
+            if ($slug !== 'index') {
+                $previewMatter['parent'] = $data['parent'];
+                $previewSlug = Slugifier::buildFullSlug($data['parent'], $data['leaf_slug']);
+            } else {
+                $previewSlug = 'index';
+            }
+
+            $plugins = $this->plugins();
+            $plugins->bootPageFields();
+            $fields = $plugins->pageFieldsFor($previewMatter, $previewSlug);
+            $extra = [];
+            foreach ($fields as $field) {
+                $value = PageFields::valueFromPost($field, $_POST);
+                $error = PageFields::validateField($field, $value, $existing);
+                if ($error !== null) {
+                    throw new InvalidArgumentException($error);
+                }
+                $extra[$field['key']] = $value;
+            }
+            if ($extra !== []) {
+                $data['extra'] = $extra;
+            }
+
             $this->pageWriter->save($slug, $data, null);
             $newSlug = $slug === 'index'
                 ? 'index'
@@ -1123,6 +1163,36 @@ class AdminRouter
             http_response_code(400);
             echo htmlspecialchars($e->getMessage());
         }
+    }
+
+    /**
+     * @param array<string, mixed> $page
+     * @return array{fields: list<array<string, mixed>>, panels: list<array<string, mixed>>, contexts: array<string, PluginContext>}
+     */
+    private function pageEditorExtensions(array $page): array
+    {
+        $plugins = $this->plugins();
+        $plugins->bootPageFields();
+        $fm = $page['front_matter'] ?? [];
+        $slug = (string) ($fm['slug'] ?? '');
+        $fields = $plugins->pageFieldsFor($fm, $slug);
+        $panels = $plugins->pagePanelsFor($fm, $slug);
+        $contexts = [];
+        foreach ($panels as $panel) {
+            $pluginId = (string) $panel['plugin'];
+            if (!isset($contexts[$pluginId])) {
+                $ctx = $plugins->pageFieldPluginContext($pluginId);
+                if ($ctx !== null) {
+                    $contexts[$pluginId] = $ctx;
+                }
+            }
+        }
+
+        return [
+            'fields' => $fields,
+            'panels' => $panels,
+            'contexts' => $contexts,
+        ];
     }
 
     private function handleSaveBlock(string $slug): void

@@ -70,6 +70,7 @@ mv public_html/plugin-data public_html/plugins-data
 | `provides` | нет | службы для других плагинов: `["locale"]` (имена `^[a-z0-9-]+$`), см. «Службы» |
 | `hooks` | нет | хуки сайта, на которые плагин подписывается: `request`, `url`, `menu`, `head`, `output` ([11-locale.md](11-locale.md)), `sitemap`, `robots`, `llms` (с 0.7.0, [13-seo.md](13-seo.md)) |
 | `submission_forms` | нет | ровно `true`, если точка входа вызывает `submissions()->registerForm()`. Иначе ядро не загружает плагин на странице «Заявки» |
+| `page_fields` | нет | ровно `true`, если точка входа вызывает `registerPageField()` / `registerPagePanel()`. Иначе ядро не загружает плагин в редакторе страницы |
 | `repository` | нет | GitHub-репозиторий релизов плагина: `"owner/repo"` (или `https://github.com/owner/repo`), см. «Обновление плагинов» |
 
 `^0.3` означает `>=0.3.0 <0.4.0` (для `0.x` минорная версия считается несовместимой), `^1.2` — `>=1.2.0 <2.0.0`. Поэтому плагины с `"core": "^0.3"` на ядре 0.4 не загружаются: API 0.3 в 0.4 сохранён, поднимите ограничение до `">=0.3.0 <0.5.0"` или `"^0.4"`. Так же и с 0.5: плагин с `"^0.4"` на ядре 0.5 не загрузится — API 0.4 сохранён, укажите `"^0.5"` (или `">=0.4.0 <0.6.0"`, если плагин не использует новые методы 0.5). `registerForm()` добавлен в 0.7.0: старые плагины с `">=0.5.0"` продолжают загружаться, плагин со столбцами указывает `">=0.7.0"`. `^0.6` на 0.7.0 не подойдёт. Плагин без `registerForm()` по-прежнему пишет заявки через `create()`/`markMail()`; вкладка берётся из каталога `submissions/{id}/` со столбцами дата, почта и «Открыть».
@@ -111,7 +112,7 @@ return static function (PluginContext $plugin): void {
 
 Классы объявляйте в autoload-папке, а не в точке входа: ядро может подключить entry больше одного раза за процесс.
 
-Код плагина выполняется только когда он нужен: запрос к `/admin-panel/plugins/{id}/…` или к публичному префиксу `/{prefix}/…`, обращение к его службе (`provides`), срабатывание объявленного им хука (`hooks`; например, `request` — на каждой публичной странице), открытие **Заявок**, если в `plugin.json` стоит `"submission_forms": true`, и открытие страницы **Система** (там загружаются все валидные плагины, чтобы показать ошибки загрузки и install-хуков). Остальные плагины на странице не загружаются — ядро только читает их `plugin.json`.
+Код плагина выполняется только когда он нужен: запрос к `/admin-panel/plugins/{id}/…` или к публичному префиксу `/{prefix}/…`, обращение к его службе (`provides`), срабатывание объявленного им хука (`hooks`; например, `request` — на каждой публичной странице), открытие **Заявок**, если в `plugin.json` стоит `"submission_forms": true`, открытие **редактора страницы**, если стоит `"page_fields": true`, и открытие страницы **Система** (там загружаются все валидные плагины, чтобы показать ошибки загрузки и install-хуков). Остальные плагины на странице не загружаются — ядро только читает их `plugin.json`.
 
 ## Маршруты
 
@@ -188,6 +189,9 @@ return static function (PluginContext $plugin): void {
 | `submissions()->create($formId, $payload, $contract, $ip)` | заявка в разделе «Заявки» админки (`mail_status: pending`); возвращает `['id' => …, 'path' => …, 'data' => …]`. `$contract` — подписи полей: `[['name' => 'email', 'type' => 'email', 'required' => true, 'label' => 'Email']]` |
 | `submissions()->markMail($formId, $id, 'sent' \| 'failed', $error = null)` | итог отправки письма по заявке; текст ошибки сохраняется только для `failed` |
 | `submissions()->registerForm($formId, $label, $columns)` | одна вкладка «Заявок» и столбцы по умолчанию. Нужен `"submission_forms": true`. Подробнее ниже |
+| `registerPageField($key, $spec)` | поле в редакторе страницы; значение в front matter. Нужен `"page_fields": true`. С 0.8.5 |
+| `registerPagePanel($id, $spec)` | HTML-панель в редакторе страницы (`render` callable). Нужен `"page_fields": true`. С 0.8.5 |
+| `pages()->load/create/updateMeta/delete/children` | работа со страницами сайта и частичное обновление front matter. С 0.8.5 |
 | `env('KEY')` | значение из `.env` сайта или `null` |
 
 ```php
@@ -253,6 +257,51 @@ $plugin->submissions()->registerForm('my-order', 'Заказы', [
 Подписи в `registerForm` — только заголовки таблицы. Контракт, который уходит в `create()`, и карточка заявки остаются как их записал плагин.
 
 Готовый фрагмент для плагина, который кладёт все изделия в одну форму `customizer-order` и не показывает серверное поле «Представлена модель», — [examples/plugins/submission-form.md](examples/plugins/submission-form.md). В ядре нет отдельной логики под этот плагин: тот же `registerForm`, что и для любой другой формы.
+
+### Поля и панели редактора страницы
+
+С 0.8.5 плагин может добавить поля и панели в штатную форму `/admin-panel/pages/…` без правок ядра под конкретный плагин. В `plugin.json`:
+
+```json
+"page_fields": true,
+"core": ">=0.8.5"
+```
+
+```php
+$plugin->registerPageField('customizer', [
+    'type' => 'url',                         // text|textarea|number|url|select|checkbox
+    'label' => ['ru' => 'Ссылка на конструктор', 'en' => 'Customizer link'],
+    'hint' => 'Путь или полный URL',
+    'placement' => 'aside',                  // main|aside
+    'show_when' => [
+        'template' => ['product'],           // И
+        'section' => ['equipment/accessories'],
+    ],
+]);
+
+$plugin->registerPagePanel('gallery', [
+    'label' => 'Галерея',
+    'placement' => 'main',
+    'show_when' => ['template' => ['product']],
+    'render' => static function (array $page, PluginContext $plugin): string {
+        return '<div data-gallery="' . PluginContext::e($page['front_matter']['slug'] ?? '') . '"></div>';
+    },
+]);
+```
+
+`show_when.section` совпадает, если slug страницы равен разделу, родитель равен разделу или slug начинается с `{section}/`. Без `show_when` поле/панель видны на всех страницах. Значения полей уходят в POST как `page_field[key]` и пишутся в front matter. Ключи `title`, `slug`, `parent`, `order`, `template`, `published`, `description`, `og_*`, `scripts`, `created_at`, `updated_at`, `menu`, `locale` зарезервированы. Один ключ — один плагин.
+
+Для записи своих ключей без полной формы редактора:
+
+```php
+$plugin->pages()->updateMeta($slug, [
+    'images' => ['media/products/a-1.webp'],
+    'group' => 1,
+    'order' => 20,
+]);
+```
+
+`updateMeta` меняет только переданные ключи, сохраняет Markdown-блоки и под блокировкой файла перечитывает актуальный front matter. `null` в значении удаляет ключ. Менять `slug`/`parent`/`created_at` этим методом нельзя.
 
 **Данные** (относительные пути внутри `dataDir()`, без `..` и скрытых файлов): `dataPath($rel)`, `writeFile($rel, $content)` (через `FileWriter`, flock, папки создаются), `readFile($rel)`, `writeJson($rel, $data)`, `readJson($rel, $default)`, `readJsonStrict($rel, $default = [])`, `deleteFile($rel)`.
 

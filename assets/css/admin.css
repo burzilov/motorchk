@@ -2293,6 +2293,20 @@
   .mc-disclosure .mc-input {
     background: var(--color-sheet);
   }
+  .mc-page-panel {
+    padding: var(--space-md);
+    background: var(--color-well);
+    border-top: 2px solid var(--color-ink);
+  }
+  .mc-page-panel__title {
+    margin: 0 0 var(--space-sm);
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+  .mc-page-panel__body {
+    display: grid;
+    gap: var(--space-sm);
+  }
   .mc-savebar {
     position: sticky;
     bottom: 0;

@@ -8,7 +8,8 @@
  * к нему не пришёл запрос (админка /admin-panel/plugins/{id}/..., публичный
  * префикс /{prefix}/...), пока не нужна его служба (plugin.json "provides"),
  * пока не срабатывает объявленный им хук (plugin.json "hooks"), пока админка
- * не открыла «Заявки» у плагина с "submission_forms": true, или пока не открыта «Система».
+ * не открыла «Заявки» у плагина с "submission_forms": true, пока открыт редактор
+ * страницы у плагина с "page_fields": true, или пока не открыта «Система».
  */
 class PluginManager
 {
@@ -92,6 +93,20 @@ class PluginManager
      * @var array<string, array{id: string, label: string, plugin: string, columns: list<array{key: string, label: string}>}>
      */
     private array $submissionForms = [];
+
+    /**
+     * Поля редактора страницы от плагинов (ключ front matter → спецификация).
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    private array $pageFields = [];
+
+    /**
+     * Панели редактора страницы от плагинов (plugin/id → спецификация).
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    private array $pagePanels = [];
 
     private int $hookSeq = 0;
 
@@ -425,6 +440,16 @@ class PluginManager
                 unset($this->submissionForms[$formId]);
             }
         }
+        foreach ($this->pageFields as $key => $field) {
+            if ($field['plugin'] === $id) {
+                unset($this->pageFields[$key]);
+            }
+        }
+        foreach ($this->pagePanels as $panelKey => $panel) {
+            if ($panel['plugin'] === $id) {
+                unset($this->pagePanels[$panelKey]);
+            }
+        }
     }
 
     /**
@@ -438,6 +463,21 @@ class PluginManager
         }
         foreach ($this->enabled() as $id => $plugin) {
             if (!empty($plugin['submission_forms'])) {
+                $this->boot($id);
+            }
+        }
+    }
+
+    /**
+     * Загрузить плагины с полями/панелями редактора страницы (plugin.json "page_fields": true).
+     */
+    public function bootPageFields(): void
+    {
+        if (!$this->hasPluginsDir()) {
+            return;
+        }
+        foreach ($this->enabled() as $id => $plugin) {
+            if (!empty($plugin['page_fields'])) {
                 $this->boot($id);
             }
         }
@@ -476,6 +516,80 @@ class PluginManager
     public function submissionForms(): array
     {
         return $this->submissionForms;
+    }
+
+    /**
+     * @internal PluginContext::registerPageField()
+     * @param array<string, mixed> $spec
+     */
+    public function registerPageField(string $plugin, string $key, array $spec): void
+    {
+        $info = $this->discover()[$plugin] ?? null;
+        if ($info === null || empty($info['page_fields']) || ($info['status'] ?? '') !== 'ok') {
+            throw new LogicException('registerPageField() требует "page_fields": true в plugin.json плагина «' . $plugin . '»');
+        }
+
+        $field = PageFields::normalizeField($plugin, $key, $spec);
+        $existing = $this->pageFields[$key] ?? null;
+        if ($existing !== null && $existing['plugin'] !== $plugin) {
+            throw new LogicException('Поле страницы «' . $key . '» уже зарегистрировано плагином «' . $existing['plugin'] . '»');
+        }
+        $this->pageFields[$key] = $field;
+    }
+
+    /**
+     * @internal PluginContext::registerPagePanel()
+     * @param array<string, mixed> $spec
+     */
+    public function registerPagePanel(string $plugin, string $id, array $spec): void
+    {
+        $info = $this->discover()[$plugin] ?? null;
+        if ($info === null || empty($info['page_fields']) || ($info['status'] ?? '') !== 'ok') {
+            throw new LogicException('registerPagePanel() требует "page_fields": true в plugin.json плагина «' . $plugin . '»');
+        }
+
+        $panel = PageFields::normalizePanel($plugin, $id, $spec);
+        $panelKey = $plugin . '/' . $id;
+        $existing = $this->pagePanels[$panelKey] ?? null;
+        if ($existing !== null && $existing['plugin'] !== $plugin) {
+            throw new LogicException('Панель «' . $id . '» уже зарегистрирована');
+        }
+        $this->pagePanels[$panelKey] = $panel;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function pageFieldsFor(array $frontMatter, string $slug): array
+    {
+        $fields = [];
+        foreach ($this->pageFields as $field) {
+            if (PageFields::matches($field['show_when'] ?? null, $frontMatter, $slug)) {
+                $fields[] = $field;
+            }
+        }
+
+        return $fields;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function pagePanelsFor(array $frontMatter, string $slug): array
+    {
+        $panels = [];
+        foreach ($this->pagePanels as $panel) {
+            if (PageFields::matches($panel['show_when'] ?? null, $frontMatter, $slug)) {
+                $panels[] = $panel;
+            }
+        }
+
+        return $panels;
+    }
+
+    public function pageFieldPluginContext(string $pluginId): ?PluginContext
+    {
+        return $this->booted[$pluginId] ?? $this->boot($pluginId);
     }
 
     /**
@@ -717,6 +831,7 @@ class PluginManager
             'provides' => [],
             'hooks' => [],
             'submission_forms' => false,
+            'page_fields' => false,
             'compatible' => null,
             'data_dir' => $this->dataRoot() . '/' . $folder,
             'data_writable' => false,
@@ -858,6 +973,13 @@ class PluginManager
                 return self::fail($info, 'submission_forms — true, если плагин регистрирует форму в разделе «Заявки»');
             }
             $info['submission_forms'] = true;
+        }
+
+        if (array_key_exists('page_fields', $manifest)) {
+            if ($manifest['page_fields'] !== true) {
+                return self::fail($info, 'page_fields — true, если плагин регистрирует поля или панели редактора страницы');
+            }
+            $info['page_fields'] = true;
         }
 
         if (!$compatible) {

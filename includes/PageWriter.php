@@ -87,7 +87,11 @@ class PageWriter
         $frontMatter['title'] = $data['title'] ?? $frontMatter['title'] ?? $newSlug;
         $frontMatter['slug'] = $newSlug;
         $frontMatter['parent'] = $parent;
-        $frontMatter['order'] = (int) ($data['order'] ?? $frontMatter['order'] ?? 0);
+        if (array_key_exists('order', $data)) {
+            $frontMatter['order'] = (int) $data['order'];
+        } else {
+            $frontMatter['order'] = (int) ($frontMatter['order'] ?? 0);
+        }
         $frontMatter['template'] = $data['template'] ?? $frontMatter['template'] ?? 'default';
         $frontMatter['published'] = !empty($data['published']);
         $frontMatter['description'] = $data['description'] ?? $frontMatter['description'] ?? '';
@@ -95,6 +99,16 @@ class PageWriter
         $frontMatter['og_description'] = $data['og_description'] ?? $frontMatter['og_description'] ?? '';
         $frontMatter['og_image'] = $data['og_image'] ?? $frontMatter['og_image'] ?? '';
         $frontMatter['scripts'] = PageScripts::normalize($data['scripts'] ?? $frontMatter['scripts'] ?? []);
+
+        if (isset($data['extra']) && is_array($data['extra'])) {
+            foreach ($data['extra'] as $key => $value) {
+                if (!is_string($key) || PageFields::isReserved($key)) {
+                    continue;
+                }
+                $frontMatter[$key] = $value;
+            }
+        }
+
         unset($frontMatter['menu']);
         $frontMatter['updated_at'] = date('c');
         $frontMatter['created_at'] = $frontMatter['created_at'] ?? date('c');
@@ -233,26 +247,80 @@ class PageWriter
                 continue;
             }
 
-            $this->updatePageField($slug, 'order', $position * 10);
+            $this->updateMeta($slug, ['order' => $position * 10]);
             $position++;
         }
 
         $this->cache->delete('pages:tree');
     }
 
-    private function updatePageField(string $slug, string $field, mixed $value): void
+    /**
+     * Частичное обновление front matter: меняются только ключи из $meta.
+     * Нельзя менять slug, parent, created_at. Блоки Markdown не затрагиваются.
+     * Неизвестные ядру ключи сохраняются — плагины пишут сюда свои поля.
+     *
+     * @param array<string, mixed> $meta
+     */
+    public function updateMeta(string $slug, array $meta): void
     {
-        $path = $this->pageLoader->slugToPath($slug);
-        if (!is_file($path)) {
+        if ($meta === []) {
             return;
         }
 
-        $parsed = $this->renderer->parseFile($path);
-        $frontMatter = $parsed['front_matter'];
-        $frontMatter[$field] = $value;
-        $frontMatter['updated_at'] = date('c');
-        FileWriter::write($path, $this->renderer->serialize($frontMatter, $parsed['blocks']));
-        $this->cache->delete('page:' . $slug);
+        $forbidden = ['slug', 'parent', 'created_at'];
+        foreach ($forbidden as $key) {
+            if (array_key_exists($key, $meta)) {
+                throw new InvalidArgumentException('updateMeta(): нельзя менять «' . $key . '»');
+            }
+        }
+
+        $path = $this->pageLoader->slugToPath($slug);
+        if (!is_file($path)) {
+            throw new RuntimeException('Страница не найдена');
+        }
+
+        $fp = fopen($path, 'c+');
+        if ($fp === false) {
+            throw new RuntimeException('Не удалось открыть файл: ' . $path);
+        }
+
+        try {
+            if (!flock($fp, LOCK_EX)) {
+                throw new RuntimeException('Не удалось заблокировать файл: ' . $path);
+            }
+
+            $raw = stream_get_contents($fp);
+            if ($raw === false) {
+                throw new RuntimeException('Не удалось прочитать файл: ' . $path);
+            }
+
+            $parsed = $this->renderer->parse($raw);
+            $frontMatter = $parsed['front_matter'];
+            foreach ($meta as $key => $value) {
+                if (!is_string($key) || $key === '') {
+                    continue;
+                }
+                if ($value === null) {
+                    unset($frontMatter[$key]);
+                    continue;
+                }
+                $frontMatter[$key] = $value;
+            }
+            $frontMatter['updated_at'] = date('c');
+            $frontMatter['slug'] = $slug;
+            unset($frontMatter['menu']);
+
+            $content = $this->renderer->serialize($frontMatter, $parsed['blocks']);
+            ftruncate($fp, 0);
+            rewind($fp);
+            fwrite($fp, $content);
+            fflush($fp);
+            flock($fp, LOCK_UN);
+        } finally {
+            fclose($fp);
+        }
+
+        $this->invalidateAfterSave($slug, true);
     }
 
     private function invalidateAfterSave(string $slug, bool $checkMenu, ?string $oldSlug = null): void

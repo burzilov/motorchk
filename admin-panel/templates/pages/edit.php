@@ -2,6 +2,13 @@
 $fm = $page['front_matter'];
 $publicUrl = AdminUrl::viewPage($fm['slug'] ?? 'index', !empty($fm['published']));
 $pageHeading = trim((string) ($fm['title'] ?? '')) !== '' ? $fm['title'] : 'Редактирование';
+$page_fields = $page_fields ?? [];
+$page_panels = $page_panels ?? [];
+$page_field_plugins = $page_field_plugins ?? [];
+$mainFields = array_values(array_filter($page_fields, static fn(array $f): bool => ($f['placement'] ?? 'aside') === 'main'));
+$asideFields = array_values(array_filter($page_fields, static fn(array $f): bool => ($f['placement'] ?? 'aside') !== 'main'));
+$mainPanels = array_values(array_filter($page_panels, static fn(array $p): bool => ($p['placement'] ?? 'main') === 'main'));
+$asidePanels = array_values(array_filter($page_panels, static fn(array $p): bool => ($p['placement'] ?? 'main') !== 'main'));
 ?>
 <script>
     document.addEventListener('alpine:init', () => {
@@ -80,6 +87,17 @@ $pageHeading = trim((string) ($fm['title'] ?? '')) !== '' ? $fm['title'] : 'Ре
                     <a href="<?= htmlspecialchars($publicUrl) ?>" target="_blank" rel="noopener noreferrer" class="mc-link">страницу</a>
                     и дважды кликните по блоку.
                 </p>
+
+                <?php foreach ($mainFields as $field): ?>
+                    <?= PageFields::renderField($field, PageFields::valueFromFrontMatter($field, $fm)) ?>
+                <?php endforeach; ?>
+
+                <?php foreach ($mainPanels as $panel): ?>
+                    <?php $panelPlugin = $page_field_plugins[$panel['plugin']] ?? null; ?>
+                    <?php if ($panelPlugin instanceof PluginContext): ?>
+                        <?= PageFields::renderPanel($panel, $page, $panelPlugin) ?>
+                    <?php endif; ?>
+                <?php endforeach; ?>
             </div>
 
             <aside class="mc-editor__aside mc-stack">
@@ -87,6 +105,17 @@ $pageHeading = trim((string) ($fm['title'] ?? '')) !== '' ? $fm['title'] : 'Ре
                     <label class="mc-label" for="description">Описание для сниппета</label>
                     <textarea id="description" name="description" rows="3" class="mc-input"><?= htmlspecialchars($fm['description'] ?? '') ?></textarea>
                 </div>
+
+                <?php foreach ($asideFields as $field): ?>
+                    <?= PageFields::renderField($field, PageFields::valueFromFrontMatter($field, $fm)) ?>
+                <?php endforeach; ?>
+
+                <?php foreach ($asidePanels as $panel): ?>
+                    <?php $panelPlugin = $page_field_plugins[$panel['plugin']] ?? null; ?>
+                    <?php if ($panelPlugin instanceof PluginContext): ?>
+                        <?= PageFields::renderPanel($panel, $page, $panelPlugin) ?>
+                    <?php endif; ?>
+                <?php endforeach; ?>
 
                 <div class="mc-disclosure">
                     <button

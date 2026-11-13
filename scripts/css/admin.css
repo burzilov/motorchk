@@ -362,6 +362,9 @@ button, input, select, textarea { font: inherit; }
   .mc-disclosure__sign { color: var(--color-muted); }
   .mc-disclosure__body { padding: var(--space-sm); border-top: 1px solid var(--color-rule-soft); }
   .mc-disclosure .mc-input { background: var(--color-sheet); }
+  .mc-page-panel { padding: var(--space-md); background: var(--color-well); border-top: 2px solid var(--color-ink); }
+  .mc-page-panel__title { margin: 0 0 var(--space-sm); font-size: var(--text-sm); font-weight: 600; }
+  .mc-page-panel__body { display: grid; gap: var(--space-sm); }
   .mc-savebar { position: sticky; bottom: 0; z-index: var(--z-raised); margin: var(--space-lg) calc(-1 * var(--space-lg)) 0; padding: var(--space-sm) var(--space-lg); background: var(--color-sheet); border-top: 2px solid var(--color-ink); }
   .mc-savebar__inner { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm) var(--space-md); }
   .mc-savebar__publish { margin-left: auto; }
