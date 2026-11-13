@@ -8,7 +8,7 @@
 
 ```json
 {
-    "id": "miklin-customizer",
+    "id": "example-customizer",
     "name": "Конфигуратор",
     "version": "1.0.0",
     "core": ">=0.7.0",
