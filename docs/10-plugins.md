@@ -185,7 +185,7 @@ return static function (PluginContext $plugin): void {
 | `absoluteUrl('/path?x=1')` | абсолютный адрес по схеме и хосту текущего запроса (canonical, og:url, ссылки в письмах); не путь от корня — без изменений |
 | `honeypotName()` | имя поля-ловушки форм ядра (`<input name="…">` скрыт, непустое значение — бот) |
 | `rateLimit($key, $limit, $windowSec)` | `true` — попытка учтена, `false` — за последние `$windowSec` секунд уже `$limit` попыток. Ключ (например, хеш IP) хранится отдельно для каждого плагина: ядро добавляет id плагина, одинаковые ключи разных плагинов не пересекаются |
-| `mail($subject, $body, $to, $replyTo = null, $options = [])` | письмо через SMTP из `.env` ядра, всегда `multipart/alternative`. `$to` обязателен — `SMTP_TO` **не** подставляется; `$replyTo` — заголовок Reply-To (например, email клиента). Скрытая копия из `SMTP_BCC` добавляется ядром; адрес, совпадающий с `$to`, не дублируется. Без ключа `html` аргумент `$body` — обычный текст: ядро собирает HTML (экранирование, пустая строка — абзац, одиночный перенос — `<br>`, ссылки `http://` и `https://`) и кладёт `$body` в текстовую альтернативу. Готовый HTML — `$options['html']` (строка, в письмо как есть, без обёртки ядра). Текстовая альтернатива — `$options['text']`, если ключ передан; иначе непустой `$body`; иначе текст собирается из HTML. Некорректный адрес или тип `html`/`text` — `InvalidArgumentException`, ошибка SMTP — `RuntimeException`. Аргумент `$options` с 0.8.4; вызов из четырёх аргументов по-прежнему верен |
+| `mail($subject, $body, $to, $replyTo = null, $options = [])` | письмо через SMTP из `.env` ядра, всегда `multipart/alternative`. `$to` обязателен — `SMTP_TO` **не** подставляется; `$replyTo` — заголовок Reply-To (например, email клиента). Скрытая копия из `SMTP_BCC` добавляется ядром; адрес, совпадающий с `$to`, не дублируется. Без ключа `html` аргумент `$body` — обычный текст: ядро собирает HTML (экранирование, пустая строка — абзац, одиночный перенос — `<br>`, ссылки `http://` и `https://`) и кладёт `$body` в текстовую альтернативу. Готовый HTML — `$options['html']` (строка, в письмо как есть, без обёртки ядра). Текстовая альтернатива — `$options['text']`, если ключ передан; иначе непустой `$body`; иначе текст собирается из HTML. С 0.8.6 — `$options['embed']`: список inline CID (`cid`, `type`, ровно один из `path`/`data`, необязательный `name`); в HTML — `src="cid:…"`. Некорректный адрес или тип `html`/`text`/`embed` — `InvalidArgumentException`, ошибка SMTP — `RuntimeException`. Аргумент `$options` с 0.8.4; вызов из четырёх аргументов по-прежнему верен |
 | `submissions()->create($formId, $payload, $contract, $ip)` | заявка в разделе «Заявки» админки (`mail_status: pending`); возвращает `['id' => …, 'path' => …, 'data' => …]`. `$contract` — подписи полей: `[['name' => 'email', 'type' => 'email', 'required' => true, 'label' => 'Email']]` |
 | `submissions()->markMail($formId, $id, 'sent' \| 'failed', $error = null)` | итог отправки письма по заявке; текст ошибки сохраняется только для `failed` |
 | `submissions()->registerForm($formId, $label, $columns)` | одна вкладка «Заявок» и столбцы по умолчанию. Нужен `"submission_forms": true`. Подробнее ниже |
@@ -229,6 +229,18 @@ $plugin->mail('Заявка ' . $sub['id'], $text, $officeEmail, $clientEmail, [
 $plugin->mail('Заявка ' . $sub['id'], '', $officeEmail, null, [
     'html' => $html,
     'text' => $text,
+]);
+```
+
+Inline-картинка в HTML (с 0.8.6): в разметке `src="cid:preview"`, байты — через `embed`:
+
+```php
+$plugin->mail('Заявка ' . $sub['id'], $text, $officeEmail, $clientEmail, [
+    'html' => '<p><img src="cid:preview" alt=""></p>',
+    'text' => $text,
+    'embed' => [
+        ['cid' => 'preview', 'path' => $absoluteJpegPath, 'type' => 'image/jpeg', 'name' => 'preview.jpg'],
+    ],
 ]);
 ```
 

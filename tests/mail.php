@@ -349,6 +349,44 @@ check($err instanceof InvalidArgumentException && str_contains((string) $err?->g
 $err = mail_throws(static fn () => (new MailProbe())->send('Тема', 'Текст', null, null, null, ['text' => null]));
 check($err instanceof InvalidArgumentException && str_contains((string) $err?->getMessage(), 'text'), 'text не строка — исключение', (string) $err?->getMessage());
 
+out("Inline embed (CID)\n");
+mail_base_env();
+Env::set('SMTP_BCC', '');
+$embedDir = sys_get_temp_dir() . '/motorchk-mail-embed-' . getmypid();
+@mkdir($embedDir, 0775, true);
+$embedFile = $embedDir . '/preview.jpg';
+file_put_contents($embedFile, 'fake-jpeg-bytes');
+$probe = new MailProbe();
+$probe->send('Тема', 'Текст', null, null, null, [
+    'html' => '<img src="cid:order-preview" alt="">',
+    'text' => 'Текст',
+    'embed' => [['cid' => 'order-preview', 'path' => $embedFile, 'type' => 'image/jpeg', 'name' => 'preview.jpg']],
+]);
+$atts = $probe->message->getAttachments();
+check(count($atts) === 1 && ($atts[0][7] ?? null) === 'order-preview' && ($atts[0][6] ?? null) === 'inline' && ($atts[0][4] ?? null) === 'image/jpeg' && ($atts[0][5] ?? true) === false, 'path-embed: одно inline-вложение с cid', json_encode($atts));
+$mime = $probe->message->getSentMIMEMessage();
+check(str_contains($mime, 'Content-ID: <order-preview>') && str_contains($mime, 'Content-Disposition: inline'), 'MIME: Content-ID и disposition inline', $mime);
+
+$probe = new MailProbe();
+$probe->send('Тема', 'Текст', null, null, null, [
+    'html' => '<img src="cid:bytes">',
+    'embed' => [['cid' => 'bytes', 'data' => 'PNGDATA', 'type' => 'image/png', 'name' => 'a.png']],
+]);
+$atts = $probe->message->getAttachments();
+check(count($atts) === 1 && ($atts[0][7] ?? null) === 'bytes' && ($atts[0][5] ?? false) === true && ($atts[0][0] ?? null) === 'PNGDATA', 'data-embed: строковые байты', json_encode($atts));
+
+$err = mail_throws(static fn () => (new MailProbe())->send('Тема', 'T', null, null, null, ['embed' => 'nope']));
+check($err instanceof InvalidArgumentException && str_contains((string) $err?->getMessage(), 'embed'), 'embed не список — исключение', (string) $err?->getMessage());
+$err = mail_throws(static fn () => (new MailProbe())->send('Тема', 'T', null, null, null, ['embed' => [['cid' => 'x', 'type' => 'image/jpeg']]]));
+check($err instanceof InvalidArgumentException && str_contains((string) $err?->getMessage(), 'path или data'), 'без path/data — исключение', (string) $err?->getMessage());
+$err = mail_throws(static fn () => (new MailProbe())->send('Тема', 'T', null, null, null, ['embed' => [['cid' => 'x', 'type' => 'image/jpeg', 'path' => $embedFile, 'data' => 'z']]]));
+check($err instanceof InvalidArgumentException && str_contains((string) $err?->getMessage(), 'path или data'), 'path и data вместе — исключение', (string) $err?->getMessage());
+$err = mail_throws(static fn () => (new MailProbe())->send('Тема', 'T', null, null, null, ['embed' => [['cid' => '<bad>', 'path' => $embedFile, 'type' => 'image/jpeg']]]));
+check($err instanceof InvalidArgumentException && str_contains((string) $err?->getMessage(), 'cid'), 'cid с <> — исключение', (string) $err?->getMessage());
+$err = mail_throws(static fn () => (new MailProbe())->send('Тема', 'T', null, null, null, ['embed' => [['cid' => 'x', 'path' => $embedDir . '/missing.jpg', 'type' => 'image/jpeg']]]));
+check($err instanceof InvalidArgumentException && str_contains((string) $err?->getMessage(), 'path'), 'несуществующий path — исключение', (string) $err?->getMessage());
+mail_rm($embedDir);
+
 Env::set('SMTP_HOST', '');
 $err = mail_throws(static fn () => (new MailProbe())->send('Тема', 'Текст'));
 check($err instanceof RuntimeException && str_contains($err->getMessage(), 'SMTP_HOST'), 'без SMTP_HOST по-прежнему ошибка хоста', (string) $err?->getMessage());

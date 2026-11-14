@@ -82,14 +82,17 @@ class Mailer
      * (или options['text'], если ключ передан).
      * options['html'] — готовый HTML: Body берётся как есть и не оборачивается.
      * Текстовая альтернатива готового HTML: options['text'], иначе непустой $body, иначе текст из HTML.
+     * options['embed'] — список inline-вложений (CID): в HTML ссылаться как src="cid:…".
+     * Каждый элемент: cid (без <>), type (MIME), name (необязательно) и ровно один из path|data.
      *
      * @param array{host?: string, port?: int, encryption?: string, username?: string, password?: string, from?: string, from_name?: string, to?: string, bcc?: string}|null $override
      * @param string|null $replyTo заголовок Reply-To (например, email автора заявки)
-     * @param array{html?: string, text?: string} $options
+     * @param array{html?: string, text?: string, embed?: list<array{cid: string, type: string, name?: string, path?: string, data?: string}>} $options
      */
     public function send(string $subject, string $body, ?string $to = null, ?array $override = null, ?string $replyTo = null, array $options = []): void
     {
         [$html, $text] = self::resolveParts($body, $options);
+        $embeds = self::normalizeEmbed($options);
 
         $settings = array_merge($this->settingsFromEnv(), $override ?? []);
         $recipient = $to ?? $settings['to'];
@@ -110,6 +113,7 @@ class Mailer
         $mail->Subject = $subject;
         $mail->Body = $html;
         $mail->AltBody = $text;
+        $this->attachEmbed($mail, $embeds);
 
         try {
             $this->appendBcc($mail, (string) ($settings['bcc'] ?? ''), $recipient);
@@ -250,6 +254,80 @@ class Mailer
         }
 
         return $value;
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     * @return list<array{cid: string, type: string, name: string, path?: string, data?: string}>
+     */
+    private static function normalizeEmbed(array $options): array
+    {
+        if (!array_key_exists('embed', $options)) {
+            return [];
+        }
+        $list = $options['embed'];
+        if (!is_array($list)) {
+            throw new InvalidArgumentException('send(): параметр embed должен быть списком');
+        }
+        $out = [];
+        foreach (array_values($list) as $i => $item) {
+            if (!is_array($item)) {
+                throw new InvalidArgumentException('send(): embed[' . $i . '] должен быть объектом');
+            }
+            $cid = $item['cid'] ?? null;
+            if (!is_string($cid) || $cid === '' || !preg_match('/^[A-Za-z0-9._-]+$/', $cid)) {
+                throw new InvalidArgumentException('send(): embed[' . $i . '].cid — непустой идентификатор без <>');
+            }
+            $type = $item['type'] ?? null;
+            if (!is_string($type) || $type === '' || !preg_match('/^[A-Za-z0-9][A-Za-z0-9!#$&\-\^_+.]*\/[A-Za-z0-9][A-Za-z0-9!#$&\-\^_+.]*$/', $type)) {
+                throw new InvalidArgumentException('send(): embed[' . $i . '].type — MIME-тип');
+            }
+            $name = $item['name'] ?? '';
+            if (!is_string($name)) {
+                throw new InvalidArgumentException('send(): embed[' . $i . '].name должен быть строкой');
+            }
+            $hasPath = array_key_exists('path', $item) && $item['path'] !== null && $item['path'] !== '';
+            $hasData = array_key_exists('data', $item) && $item['data'] !== null;
+            if ($hasPath === $hasData) {
+                throw new InvalidArgumentException('send(): embed[' . $i . '] — ровно один из path или data');
+            }
+            if ($hasPath) {
+                $path = $item['path'];
+                if (!is_string($path)) {
+                    throw new InvalidArgumentException('send(): embed[' . $i . '].path должен быть строкой');
+                }
+                if (!is_file($path) || !is_readable($path)) {
+                    throw new InvalidArgumentException('send(): embed[' . $i . '].path не читается');
+                }
+                $out[] = ['cid' => $cid, 'type' => $type, 'name' => $name, 'path' => $path];
+                continue;
+            }
+            $data = $item['data'];
+            if (!is_string($data)) {
+                throw new InvalidArgumentException('send(): embed[' . $i . '].data должен быть строкой');
+            }
+            $out[] = ['cid' => $cid, 'type' => $type, 'name' => $name, 'data' => $data];
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param list<array{cid: string, type: string, name: string, path?: string, data?: string}> $embeds
+     */
+    private function attachEmbed(PHPMailer $mail, array $embeds): void
+    {
+        foreach ($embeds as $item) {
+            $name = $item['name'] !== '' ? $item['name'] : ($item['cid'] . '.bin');
+            if (isset($item['path'])) {
+                $ok = $mail->addEmbeddedImage($item['path'], $item['cid'], $name, PHPMailer::ENCODING_BASE64, $item['type']);
+            } else {
+                $ok = $mail->addStringEmbeddedImage($item['data'], $item['cid'], $name, PHPMailer::ENCODING_BASE64, $item['type']);
+            }
+            if ($ok !== true) {
+                throw new RuntimeException($mail->ErrorInfo !== '' ? $mail->ErrorInfo : 'Не удалось вложить cid:' . $item['cid']);
+            }
+        }
     }
 
     private static function escape(string $value): string

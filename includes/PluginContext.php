@@ -476,9 +476,10 @@ final class PluginContext
      * Без ключа html аргумент $body — обычный текст: ядро собирает HTML, текстовая альтернатива равна $body.
      * Готовый HTML — $options['html'] (как есть). Текстовая альтернатива — $options['text'], если ключ передан;
      * иначе непустой $body; иначе текст собирается из HTML.
-     * Некорректный адрес или тип html/text — InvalidArgumentException, ошибка отправки — RuntimeException.
+     * Некорректный адрес или тип html/text/embed — InvalidArgumentException, ошибка отправки — RuntimeException.
+     * options['embed'] — inline CID (с 0.8.6): list of {cid, type, path|data, name?}; в HTML — src="cid:…".
      *
-     * @param array{html?: string, text?: string} $options
+     * @param array{html?: string, text?: string, embed?: list<array{cid: string, type: string, name?: string, path?: string, data?: string}>} $options
      */
     public function mail(string $subject, string $body, string $to, ?string $replyTo = null, array $options = []): void
     {
