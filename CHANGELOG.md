@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.7 — 2026-11-19
+
+### Self-update: VERSION в zip
+
+- `Updater::validateZip` читает только корневой `VERSION` пакета (`VERSION` или `motorchk-core-X.Y.Z/VERSION`), не `vendor/**/VERSION` (PHPMailer и др.). Иначе при неудачном порядке записей в архиве сравнение с релизом падало с «VERSION в архиве не совпадает…».
+- `install/migrate.php` не менялся. Обновление с 0.8.6 выполняет прежние шаги: замена `themes/example`, запись версии ядра и сброс кеша.
+
 ## 0.8.6 — 2026-11-14
 
 ### Письма: inline CID (embed)

@@ -290,6 +290,26 @@ check(str_contains($build, 'cp "$INST/core/skeleton/.htaccess" "$INST/.htaccess"
 $findZip = Closure::bind(fn(array $r, string $v): ?string => $this->findZipAssetUrl($r, $v), new Updater([]), Updater::class);
 $assets = ['assets' => [['name' => 'motorchk-install-9.9.9.zip', 'browser_download_url' => 'https://x/install.zip'], ['name' => 'motorchk-core-9.9.9.zip', 'browser_download_url' => 'https://x/core.zip']]];
 check($findZip($assets, '9.9.9') === 'https://x/core.zip', 'обновление берёт motorchk-core-X.zip, установочный zip не трогает');
+// validateZip: VERSION ядра, не vendor/phpmailer/.../VERSION (порядок в zip — phpmailer после)
+$zipPath = sys_get_temp_dir() . '/mk-core-zip-' . bin2hex(random_bytes(4)) . '.zip';
+$z = new ZipArchive();
+check($z->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true, 'тестовый zip ядра создан');
+$prefix = 'motorchk-core-9.9.9/';
+$z->addFromString($prefix . 'VERSION', "9.9.9\n");
+$z->addFromString($prefix . 'includes/x.php', "<?php\n");
+$z->addFromString($prefix . 'admin-panel/x.php', "<?php\n");
+$z->addFromString($prefix . 'vendor/autoload.php', "<?php\n");
+$z->addFromString($prefix . 'vendor/phpmailer/phpmailer/VERSION', "6.12.0\n"); // после VERSION ядра
+$z->close();
+$validateZip = Closure::bind(fn(string $p, string $v) => $this->validateZip($p, $v), new Updater([]), Updater::class);
+$err = null;
+try {
+    $validateZip($zipPath, '9.9.9');
+} catch (Throwable $e) {
+    $err = $e->getMessage();
+}
+check($err === null, 'validateZip игнорирует VERSION PHPMailer в vendor/', (string) $err);
+@unlink($zipPath);
 $inst = sys_get_temp_dir() . '/mk-inst-' . bin2hex(random_bytes(4));
 mkdir($inst, 0755, true);
 copy($corePath . '/skeleton/.htaccess', $inst . '/.htaccess');

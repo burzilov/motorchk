@@ -313,23 +313,17 @@ class Updater
             throw new RuntimeException('Повреждённый zip обновления');
         }
 
-        $names = [];
-        for ($i = 0; $i < $zip->numFiles; $i++) {
-            $names[] = $zip->getNameIndex($i);
-        }
-        $zip->close();
-
         $hasVersion = false;
         $hasIncludes = false;
         $hasAdmin = false;
         $hasVendor = false;
         $versionValue = null;
 
-        $zip = new ZipArchive();
-        $zip->open($zipPath);
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $name = str_replace('\\', '/', (string) $zip->getNameIndex($i));
-            if (preg_match('#(^|/)VERSION$#', $name)) {
+            // только VERSION корня пакета (VERSION или motorchk-core-X.Y.Z/VERSION),
+            // не vendor/phpmailer/.../VERSION и прочие вложенные
+            if (preg_match('#^([^/]+/)?VERSION$#', $name)) {
                 $hasVersion = true;
                 $versionValue = trim((string) $zip->getFromIndex($i));
             }
