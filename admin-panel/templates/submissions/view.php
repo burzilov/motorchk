@@ -5,9 +5,14 @@ $listUrl = $listUrl ?? '/admin-panel/submissions';
 $payload = is_array($item['payload'] ?? null) ? $item['payload'] : [];
 $contract = is_array($item['contract'] ?? null) ? $item['contract'] : [];
 $labels = [];
+// highlight: true в описании поля — значение выделено формой-источником (смысл задаёт плагин), показывается цветом
+$highlight = [];
 foreach ($contract as $field) {
     if (is_array($field) && isset($field['name'])) {
         $labels[(string) $field['name']] = (string) ($field['label'] ?? $field['name']);
+        if (($field['highlight'] ?? false) === true) {
+            $highlight[(string) $field['name']] = true;
+        }
     }
 }
 ?>
@@ -47,7 +52,7 @@ foreach ($contract as $field) {
                 ?>
                 <div class="mc-dl__row">
                     <dt><?= htmlspecialchars($label) ?></dt>
-                    <dd><?= htmlspecialchars($text) ?></dd>
+                    <dd<?= isset($highlight[$name]) ? ' class="mc-dl__hl"' : '' ?>><?= htmlspecialchars($text) ?></dd>
                 </div>
             <?php endforeach; ?>
             <?php if ($payload === []): ?>

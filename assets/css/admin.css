@@ -2459,6 +2459,9 @@
     overflow-wrap: anywhere;
     color: var(--color-ink);
   }
+  .mc-dl__row dd.mc-dl__hl, .mc-table td.mc-table__hl {
+    color: var(--color-error-2);
+  }
   @media (min-width: 48rem) {
     .mc-dl__row {
       grid-template-columns: 12rem minmax(0, 1fr);

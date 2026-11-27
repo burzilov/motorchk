@@ -24,7 +24,7 @@ class SubmissionStore
 
     /**
      * @param array<string, mixed> $payload
-     * @param list<array{name: string, type: string, required: bool, label: string}> $contract
+     * @param list<array{name: string, type: string, required: bool, label: string, highlight?: bool}> $contract
      * @return array{id: string, path: string, data: array<string, mixed>}
      */
     public function create(string $formId, array $payload, array $contract, string $ip): array

@@ -17,7 +17,8 @@ final class PluginSubmissions
 
     /**
      * @param array<string, mixed> $payload поля заявки
-     * @param list<array{name: string, type: string, required: bool, label: string}> $contract подписи полей для админки
+     * @param list<array{name: string, type: string, required: bool, label: string, highlight?: bool}> $contract подписи полей
+     *        для админки; highlight: true — значение выделяется цветом в карточке и в таблице «Заявок» (смысл задаёт плагин)
      * @return array{id: string, path: string, data: array<string, mixed>} заявка со статусом письма «pending»
      */
     public function create(string $formId, array $payload, array $contract, string $ip): array

@@ -214,9 +214,9 @@ file_put_contents($site . '/cache/update-check.json', json_encode([
 ]));
 $config = sa_config($corePath, $site);
 
-$contractName = static fn (string $label): array => [
+$contractName = static fn (string $label, bool $highlightEmail = false): array => [
     ['name' => 'name', 'type' => 'text', 'required' => true, 'label' => $label],
-    ['name' => 'email', 'type' => 'email', 'required' => false, 'label' => 'Email'],
+    ['name' => 'email', 'type' => 'email', 'required' => false, 'label' => 'Email'] + ($highlightEmail ? ['highlight' => true] : []),
     ['name' => 'news', 'type' => 'checkbox', 'required' => false, 'label' => 'Рассылка', 'multiple' => false],
 ];
 
@@ -230,7 +230,7 @@ sa_submission($site, 'contact', '2024-05-01_000000_new1', [
     'email' => 'new@example.test',
     'news' => true,
     'topics' => ['a', 'b'],
-], $contractName('Новое имя'), 'failed');
+], $contractName('Новое имя', true), 'failed');
 sa_submission($site, 'legacy-order', '2023-03-03_000000_leg1', [
     'name' => 'Старая форма',
 ], [['name' => 'name', 'type' => 'text', 'required' => true, 'label' => 'Имя']], 'pending');
@@ -560,11 +560,16 @@ check(str_contains($thead, 'Почта клиента') && str_contains($thead, 
 check(strpos($thead, 'Почта клиента') < strpos($thead, '&quot;&gt;&lt;img'), 'порядок столбцов в таблице как сохранили');
 check(str_contains($table, 'new@example.test') && str_contains($table, 'a, b') && str_contains($table, '>да<') && !str_contains($table, 'old@example.test'), 'фильтр failed оставляет новую заявку; список и флажок видны после включения');
 check(!str_contains($table, '<script>alert(1)</script>') && str_contains($table, '&lt;script&gt;'), 'значение ячейки экранировано и после включения столбца');
+check(str_contains($table, '<td class="mc-table__hl">new@example.test</td>') && substr_count($table, 'mc-table__hl') === 1, 'highlight: true в контракте — ячейка выделена, остальные нет');
 check(str_contains($res['body'], 'Столбцы сохранены'), 'после сохранения есть подтверждение');
 
 $res = sa_http($corePath, $site, $config, 'GET', '/admin-panel/submissions/contact/' . $created['id'], $admin, [], []);
 check($res['code'] === 200 && str_contains($res['body'], 'Новое имя') && str_contains($res['body'], 'Новая заявка') && str_contains($res['body'], 'form_id=contact'), 'карточка заявки сохраняет подпись контракта и возвращает на вкладку', (string) $res['code'] . ' ' . substr($res['body'], 0, 240));
 check(!str_contains($res['body'], 'Почта клиента'), 'переименование столбца списка не переписывает карточку');
+$res = sa_http($corePath, $site, $config, 'GET', '/admin-panel/submissions/contact/2024-05-01_000000_new1', $admin, [], []);
+check($res['code'] === 200 && str_contains($res['body'], '<dd class="mc-dl__hl">new@example.test</dd>') && substr_count($res['body'], 'mc-dl__hl') === 1, 'карточка: значение с highlight выделено, остальные нет', (string) $res['code']);
+$css = (string) file_get_contents($corePath . '/assets/css/admin.css');
+check(str_contains($css, '.mc-dl__hl') && str_contains($css, '.mc-table__hl'), 'стиль выделения в собранном admin.css');
 
 $res = sa_http($corePath, $site, $config, 'GET', '/admin-panel/submissions?form_id=paged&page=1', $admin, ['form_id' => 'paged', 'page' => '1'], []);
 check(str_contains($res['body'], 'value="page_tail"') && str_contains($res['body'], 'value="Хвост страницы"'), 'каталог на первой странице включает поле только из старых заявок');

@@ -114,6 +114,13 @@ $colspan = 3 + count($columns);
                                 default => 'mc-status--idle',
                             };
                             $payload = is_array($item['payload'] ?? null) ? $item['payload'] : [];
+                            // поля с highlight: true в описании заявки — выделены цветом (как в карточке)
+                            $highlight = [];
+                            foreach (is_array($item['contract'] ?? null) ? $item['contract'] : [] as $field) {
+                                if (is_array($field) && isset($field['name']) && ($field['highlight'] ?? false) === true) {
+                                    $highlight[(string) $field['name']] = true;
+                                }
+                            }
                             ?>
                             <tr>
                                 <td class="mc-table__date num"><?= $e((string) ($item['created_at'] ?? '')) ?></td>
@@ -124,7 +131,7 @@ $colspan = 3 + count($columns);
                                         ? SubmissionColumns::format($payload[$key])
                                         : SubmissionColumns::EMPTY_MARK;
                                     ?>
-                                    <td><?= $e($text) ?></td>
+                                    <td<?= isset($highlight[$key]) && array_key_exists($key, $payload) ? ' class="mc-table__hl"' : '' ?>><?= $e($text) ?></td>
                                 <?php endforeach; ?>
                                 <td>
                                     <span class="mc-status <?= $e($statusClass) ?>">
