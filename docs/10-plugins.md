@@ -152,7 +152,7 @@ return static function (PluginContext $plugin): void {
 `true`, если первый сегмент входит в зарезервированные префиксы (`admin-panel`, в том числе `/admin-panel/login`; `api`; `core`, в том числе `/core/assets/…`; `themes`; `content`; `config`; `cache`; `submissions`; `plugins`; `plugins-data`; `plugin-data`; `plugins-assets`; `media`; `index.php`) либо путь точно совпадает с корневым служебным файлом:
 
 - `/sitemap.xml`, `/robots.txt`, `/llms.txt` (`SeoFiles::PATHS`);
-- `/favicon.ico`, `/favicon.svg`, `/favicon.png`, `/apple-touch-icon.png`, `/apple-touch-icon-precomposed.png` (`Router::SYSTEM_FILES`).
+- `/favicon.ico`, `/favicon.svg`, `/favicon.png`, `/apple-touch-icon.png`, `/apple-touch-icon-precomposed.png` (`Router::SYSTEM_FILES`) — ядро отдаёт их из `themes/{активная тема}/assets/icons/` (имя файла совпадает с путём); если файла в теме нет — из корня сайта; иначе короткий текстовый 404. Кеш: сутки, с ETag. Плагин эти пути занять не может.
 
 `/`, `/about`, `/hello/` — `false`. Старый `/plugin-assets/…` служебным путём не является и ядром не обслуживается.
 
@@ -172,7 +172,7 @@ return static function (PluginContext $plugin): void {
 | `json($data, $status)`, `jsonError($message, $status)` | JSON-ответ (`Cache-Control: no-store`) |
 | `raw($body, $contentType, $status)` | ответ как есть, без layout |
 | `redirect('/path')`, `notFound()` | редирект только внутри сайта; 404 |
-| `sendFile($absolutePath, $options)` | файл из папки плагина или его `plugins-data` (nosniff, ETag/304, CSP для SVG; `download`, `cache`, `type`) |
+| `sendFile($absolutePath, $options)` | файл из папки плагина или его `plugins-data` (nosniff, ETag/304 по If-None-Match и If-Modified-Since, CSP для SVG; `download`, `cache`, `type`). `Cache-Control` без `Pragma` и без `Expires` 1981 года |
 
 В шаблонах плагина доступны переданные `$data` и `$plugin`; экранирование — `PluginContext::e($value)`. Tailwind-классы админки собраны только из шаблонов ядра — свои стили плагин подключает из `assets/` (`styles`).
 

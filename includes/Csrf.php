@@ -1,9 +1,12 @@
 <?php
 
+require_once __DIR__ . '/Session.php';
+
 class Csrf
 {
     public static function token(): string
     {
+        Session::start();
         if (empty($_SESSION['csrf_token'])) {
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
         }
@@ -19,10 +22,12 @@ class Csrf
 
     public static function validate(?string $token): bool
     {
-        if ($token === null || empty($_SESSION['csrf_token'])) {
+        Session::startIfCookie();
+        $expected = $_SESSION['csrf_token'] ?? null;
+        if ($token === null || $expected === null || $expected === '') {
             return false;
         }
 
-        return hash_equals($_SESSION['csrf_token'], $token);
+        return hash_equals((string) $expected, $token);
     }
 }

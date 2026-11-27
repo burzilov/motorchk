@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/Session.php';
+
 class AdminRouter
 {
     private Cache $cache;
@@ -27,6 +29,7 @@ class AdminRouter
 
     public function dispatchAdmin(string $requestUri): void
     {
+        header('Cache-Control: no-store');
         try {
             $this->route($requestUri);
         } catch (CsrfException $e) {
@@ -180,6 +183,7 @@ class AdminRouter
 
         if ($path === '/logout' && $method === 'POST') {
             $this->requireCsrf();
+            Session::start();
             session_destroy();
             $this->htmxRedirect('/admin-panel/login');
             return;
@@ -1003,6 +1007,7 @@ class AdminRouter
         $expectedHash = Env::get('ADMIN_PASSWORD_HASH', '');
 
         if ($username === $expectedUser && $expectedHash !== '' && password_verify($password, $expectedHash)) {
+            Session::start();
             $_SESSION['admin_authenticated'] = true;
             $this->htmxRedirect('/admin-panel/pages');
             return;
@@ -1353,6 +1358,8 @@ class AdminRouter
 
     private function isAuthenticated(): bool
     {
+        Session::startIfCookie();
+
         return !empty($_SESSION['admin_authenticated']);
     }
 

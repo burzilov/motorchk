@@ -27,6 +27,6 @@ jobs:
           if [ "${{ matrix.php }}" = "8.5" ]; then
             args+=(-d error_reporting=E_ALL -d display_errors=1 -d auto_prepend_file=tests/fail-on-deprecation.php)
           fi
-          for t in plugins locale themes toast plugin-updates forms mail submissions seo maintenance brand deprecations; do
+          for t in plugins locale themes toast plugin-updates forms mail submissions seo maintenance brand deprecations session; do
             php "${args[@]}" "tests/$t.php" || exit 1
           done

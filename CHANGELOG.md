@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.8 — 2026-11-27
+
+### Сессия и кеш публичных файлов
+
+- Сессия больше не стартует на каждом PHP-запросе. `session_start()` вызывается лениво (`Session::start` / `Session::startIfCookie`), когда нужны вход в админку, CSRF, inline-edit или обход техобслуживания.
+- Публичные файлы (`PluginManager::sendFile`: маски, обложки, статика плагинов) больше не получают `Pragma: no-cache` и `Expires` 1981 года от PHP-сессии. `Cache-Control` соблюдается, при `max-age` ставится нормальный `Expires`. 304 — по `If-None-Match` (в том числе слабый тег и список) и по `If-Modified-Since`.
+- HTML публичных страниц явно отдаётся с `Cache-Control: private, no-cache`; админка, 404/500 и страница обслуживания — `no-store`. Иначе после отключения `session.cache_limiter` страницы с CSRF могли бы случайно закешироваться.
+- Корневые `/favicon.ico`, `/favicon.png`, `/favicon.svg`, `/apple-touch-icon.png`, `/apple-touch-icon-precomposed.png` ядро отдаёт из `themes/{активная тема}/assets/icons/`. Если файла в теме нет — поиск в корне сайта; если и его нет — короткий текстовый 404 (не страница 404 темы). Корневой `.htaccess` не меняется.
+- Тесты: `php tests/session.php`. Документация: `docs/10-plugins.md`, `docs/12-themes.md`.
+- `install/migrate.php` не менялся. Обновление с 0.8.7 выполняет прежние шаги: замена `themes/example`, запись версии ядра и сброс кеша.
+
 ## 0.8.7 — 2026-11-19
 
 ### Self-update: VERSION в zip

@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/Session.php';
+
 class Router
 {
     /** Шаблон темы для 404 публичных страниц: themes/{тема}/404.php. */
@@ -88,6 +90,12 @@ class Router
             return;
         }
 
+        $systemFile = self::systemFileName($path);
+        if ($systemFile !== null) {
+            $this->dispatchSystemFile($systemFile, $method);
+            return;
+        }
+
         // /sitemap.xml, /robots.txt, /llms.txt — до хука «request»: хуки плагинов их не переписывают
         $seoKind = SeoFiles::kind($path);
         if ($seoKind !== null && SeoFiles::enabled($this->config, $seoKind)) {
@@ -132,6 +140,7 @@ class Router
         }
 
         if ($isPreview) {
+            Session::startIfCookie();
             if (empty($_SESSION['admin_authenticated'])) {
                 $this->render404();
                 return;
@@ -457,6 +466,7 @@ class Router
         $pagePublished = !empty($frontMatter['published']);
         $adminEditUrl = AdminUrl::page($slug);
         // inline-edit пишет в оригинал страницы — на других языках выключен
+        Session::startIfCookie();
         $canEdit = ($options['editable'] ?? true) && !empty($_SESSION['admin_authenticated']) && $locale === $defaultLocale;
         $pluginVars = $options['vars'] ?? [];
         $inlineEditSaveUrl = $canEdit ? AdminUrl::pageBlocks($slug) : '';
@@ -470,6 +480,7 @@ class Router
 
         http_response_code((int) ($options['status'] ?? 200));
         header('Content-Type: text/html; charset=UTF-8');
+        header('Cache-Control: ' . (string) ($options['cache'] ?? 'private, no-cache'));
 
         $buffer = SiteLocale::isActive() || ($manager !== null && $manager->declaresHook('output'));
         if (!$buffer) {
@@ -587,6 +598,7 @@ class Router
         $this->renderPage($page, self::NOT_FOUND_TEMPLATE, false, [
             'editable' => false,
             'status' => 404,
+            'cache' => 'no-store',
             'vars' => ['notFound' => true, 'requestPath' => $path],
         ]);
     }
@@ -602,10 +614,85 @@ class Router
         return is_file($themesPath . '/' . $theme . '/' . $template . '.php');
     }
 
+    /** Имя файла из SYSTEM_FILES (basename) или null, если путь не корневой служебный. */
+    private static function systemFileName(string $path): ?string
+    {
+        $bare = rtrim($path, '/') ?: $path;
+        if (!in_array($bare, self::SYSTEM_FILES, true)) {
+            return null;
+        }
+
+        return basename($bare);
+    }
+
+    /**
+     * Отдать корневой служебный файл из themes/{тема}/assets/icons/{имя},
+     * иначе из корня сайта, иначе короткий текстовый 404 (не страница 404 темы).
+     */
+    private function dispatchSystemFile(string $filename, string $method): void
+    {
+        if (!in_array($method, ['GET', 'HEAD'], true)) {
+            http_response_code(405);
+            header('Allow: GET, HEAD');
+            header('Cache-Control: no-store');
+            return;
+        }
+
+        $target = $this->resolveSystemFile($filename);
+        if ($target === null) {
+            http_response_code(404);
+            header('Content-Type: text/plain; charset=UTF-8');
+            header('X-Content-Type-Options: nosniff');
+            header('Cache-Control: no-store');
+            echo 'Not found';
+            return;
+        }
+
+        $ext = strtolower(pathinfo($target, PATHINFO_EXTENSION));
+        $type = PluginManager::ASSET_TYPES[$ext] ?? 'application/octet-stream';
+        PluginManager::sendFile($target, $type, [
+            'cache' => 'public, max-age=86400',
+        ]);
+    }
+
+    private function resolveSystemFile(string $filename): ?string
+    {
+        if ($filename === '' || $filename !== basename($filename) || str_contains($filename, '..')) {
+            return null;
+        }
+
+        $themesPath = rtrim((string) ($this->config['themes_path'] ?? ''), '/');
+        $theme = SiteMeta::getTheme($this->config);
+        if ($themesPath !== '' && !is_dir($themesPath . '/' . $theme)) {
+            $theme = 'example';
+        }
+        $iconDir = $themesPath . '/' . $theme . '/assets/icons';
+        $inTheme = $iconDir . '/' . $filename;
+        $realDir = realpath($iconDir);
+        $realFile = is_file($inTheme) ? realpath($inTheme) : false;
+        if ($realDir !== false && $realFile !== false && str_starts_with($realFile, $realDir . DIRECTORY_SEPARATOR)) {
+            return $realFile;
+        }
+
+        $site = rtrim((string) ($this->config['site_path'] ?? ''), '/');
+        if ($site === '') {
+            return null;
+        }
+        $inRoot = $site . '/' . $filename;
+        $realSite = realpath($site);
+        $realRoot = is_file($inRoot) ? realpath($inRoot) : false;
+        if ($realSite !== false && $realRoot !== false && $realRoot === $realSite . DIRECTORY_SEPARATOR . $filename) {
+            return $realRoot;
+        }
+
+        return null;
+    }
+
     private function render404(): void
     {
         http_response_code(404);
         header('Content-Type: text/html; charset=UTF-8');
+        header('Cache-Control: no-store');
         echo '<!DOCTYPE html><html lang="' . htmlspecialchars(SiteLocale::current(), ENT_QUOTES, 'UTF-8') . '"><head><meta charset="UTF-8"><title>404</title></head><body><h1>Страница не найдена</h1></body></html>';
     }
 
@@ -613,6 +700,7 @@ class Router
     {
         http_response_code(500);
         header('Content-Type: text/html; charset=UTF-8');
+        header('Cache-Control: no-store');
         echo '<!DOCTYPE html><html lang="' . htmlspecialchars(SiteLocale::current(), ENT_QUOTES, 'UTF-8') . '"><head><meta charset="UTF-8"><title>500</title></head><body><h1>'
             . htmlspecialchars($message, ENT_QUOTES, 'UTF-8')
             . '</h1></body></html>';

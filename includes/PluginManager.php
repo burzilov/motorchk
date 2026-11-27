@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/HttpCache.php';
+
 /**
  * Плагины сайта: public_html/plugins/{id}/plugin.json.
  *
@@ -698,6 +700,7 @@ class PluginManager
 
     /**
      * Отдать файл с безопасными заголовками (nosniff, CSP для SVG, ETag/304).
+     * Cache-Control без Pragma и без Expires 1981; 304 по If-None-Match и If-Modified-Since.
      *
      * @param array{cache?: string, download?: string} $options
      */
@@ -711,12 +714,14 @@ class PluginManager
             return 404;
         }
 
-        $etag = '"' . dechex((int) $stat['mtime']) . '-' . dechex((int) $stat['size']) . '"';
+        $mtime = (int) $stat['mtime'];
+        $etag = '"' . dechex($mtime) . '-' . dechex((int) $stat['size']) . '"';
+        $cache = $options['cache'] ?? 'private, no-cache';
         header('Content-Type: ' . $contentType);
         header('X-Content-Type-Options: nosniff');
-        header('Cache-Control: ' . ($options['cache'] ?? 'private, no-cache'));
+        HttpCache::apply($cache);
         header('ETag: ' . $etag);
-        header('Last-Modified: ' . gmdate('D, d M Y H:i:s', (int) $stat['mtime']) . ' GMT');
+        header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $mtime) . ' GMT');
         if (str_starts_with($contentType, 'image/svg')) {
             header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox");
         }
@@ -725,7 +730,12 @@ class PluginManager
             header('Content-Disposition: attachment; filename="' . $name . '"');
         }
 
-        if (trim((string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? '')) === $etag) {
+        $ifNoneMatch = (string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? '');
+        $notModified = HttpCache::etagMatches($etag, $ifNoneMatch);
+        if (!$notModified && trim($ifNoneMatch) === '') {
+            $notModified = HttpCache::notModifiedSince($mtime, (string) ($_SERVER['HTTP_IF_MODIFIED_SINCE'] ?? ''));
+        }
+        if ($notModified) {
             http_response_code(304);
 
             return 304;

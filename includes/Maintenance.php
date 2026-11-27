@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/Session.php';
+
 /**
  * Режим технического обслуживания (docs/14-maintenance.md).
  *
@@ -54,6 +56,8 @@ class Maintenance
     /** Доступ к сайту при включённом режиме — только у залогиненного администратора. */
     public static function allowed(): bool
     {
+        Session::startIfCookie();
+
         return !empty($_SESSION['admin_authenticated']);
     }
 

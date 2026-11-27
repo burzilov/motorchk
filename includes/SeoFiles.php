@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/HttpCache.php';
+
 /**
  * Служебные файлы для поисковиков и LLM: /sitemap.xml, /robots.txt, /llms.txt (docs/13-seo.md).
  *
@@ -84,7 +86,7 @@ class SeoFiles
         };
         http_response_code(200);
         header('Content-Type: ' . $type);
-        header('Cache-Control: public, max-age=3600');
+        HttpCache::apply('public, max-age=3600');
         if ($kind === 'sitemap' || $kind === 'llms') {
             header('X-Robots-Tag: noindex');
         }

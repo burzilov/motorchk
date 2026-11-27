@@ -63,6 +63,6 @@ session_set_cookie_params([
     'samesite' => 'Lax',
 ]);
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+// Не стартовать сессию на каждом запросе: публичные файлы и favicon иначе
+// получают Pragma/Expires 1981 от session.cache_limiter=nocache.
+session_cache_limiter('');

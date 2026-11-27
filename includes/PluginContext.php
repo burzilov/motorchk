@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/Session.php';
+
 /**
  * API, которое ядро передаёт плагину. Точка входа плагина получает этот объект:
  *
@@ -93,6 +95,8 @@ final class PluginContext
 
     public function isAdmin(): bool
     {
+        Session::startIfCookie();
+
         return !empty($_SESSION['admin_authenticated']);
     }
 
